@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<link rel="manifest" href="manifest.json">
+<title>JARVIS • Assistente Pessoal</title>
+<style>
+:root{color-scheme:dark;--bg:#06101c;--panel:#0c1c2d;--line:#1d4964;--cyan:#5de1ff;--muted:#9bb6c8}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#12334a 0,#06101c 55%);color:#e8f8ff;font:16px system-ui,Arial,sans-serif;min-height:100vh}
+main{max-width:760px;margin:auto;padding:20px 16px 32px}.top{text-align:center;padding:18px 0 24px}
+.orb{width:104px;height:104px;border:2px solid var(--cyan);border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;box-shadow:0 0 28px #29c9ff55,inset 0 0 22px #29c9ff22;color:var(--cyan);font-size:32px;position:relative}
+.orb:before{content:"";position:absolute;inset:9px;border:1px solid #5de1ff88;border-radius:50%}
+h1{letter-spacing:.22em;margin:8px 0;font-size:27px} .sub{color:var(--muted);font-size:13px}
+.panel{background:#0b1b2bd9;border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+.status{color:var(--cyan);font-size:13px}.chat{min-height:145px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.msg{padding:11px 13px;border-radius:12px;white-space:pre-wrap;line-height:1.45}.bot{background:#10283a;border:1px solid #1b526a;align-self:flex-start;max-width:95%}.user{background:#123c50;align-self:flex-end;max-width:95%}
+.row{display:flex;gap:8px;margin-top:10px}input,button,textarea{font:inherit;border-radius:10px;border:1px solid #24536b;background:#071522;color:#e8f8ff;padding:12px}input{min-width:0;flex:1}button{cursor:pointer}button.primary{background:#0d5169;border-color:var(--cyan)}button:focus,input:focus{outline:2px solid var(--cyan);outline-offset:2px}
+.small{font-size:12px;color:var(--muted)}.notes{width:100%;min-height:75px;resize:vertical}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{flex:1}.footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
+</style>
+</head>
+<body><main>
+<header class="top"><div class="orb" aria-hidden="true">✧</div><h1>J.A.R.V.I.S.</h1><div class="sub">ASSISTENTE PESSOAL • PROTÓTIPO 1.0</div></header>
+<section class="panel">
+<div class="status" id="status">● Sistema pronto</div>
+<div class="chat" id="chat" aria-live="polite"><div class="msg bot">Boa noite. Sou o teu JARVIS, versão inicial. Posso conversar por texto ou voz, dizer as horas, guardar notas neste dispositivo e abrir alguns sites. Ainda estou em fase de protótipo.</div></div>
+<form id="form" class="row"><input id="prompt" autocomplete="off" placeholder="Escreve um comando..." aria-label="Comando"><button class="primary" type="submit">Enviar</button></form>
+<div class="row"><button id="listen" class="primary" style="flex:1">🎙 Falar</button><button id="stop" style="flex:1">■ Parar voz</button></div>
+<p class="small">A voz depende do suporte do navegador e das permissões do microfone. O reconhecimento pode usar serviços online.</p>
+</section>
+<section class="panel"><strong>Memória local — notas</strong><p class="small">As notas ficam neste navegador neste dispositivo. Não são sincronizadas nem enviadas à nuvem.</p><textarea class="notes" id="notes" placeholder="Ex.: lembrar de terminar o projeto amanhã..."></textarea><div class="row"><button id="save" class="primary">Guardar nota</button><button id="clear">Apagar nota</button></div><div id="noteStatus" class="small"></div></section>
+<section class="panel"><strong>Comandos de teste</strong><div class="actions" style="margin-top:10px"><button data-cmd="Que horas são?">Horas</button><button data-cmd="Ajuda">Ajuda</button><button data-cmd="Abrir YouTube">Abrir YouTube</button><button data-cmd="Que dia é hoje?">Data</button></div></section>
+<div class="footer">JARVIS pessoal • Ações externas exigem o teu toque. Não introduzas senhas ou dados sensíveis nas notas.</div>
+</main>
+<script>
+const $=id=>document.getElementById(id), chat=$('chat');
+function add(text,who='bot'){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
+function speak(text){if(!('speechSynthesis'in window))return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='pt-BR';u.rate=.96;window.speechSynthesis.speak(u)}
+function reply(text,voice=true){add(text);if(voice)speak(text)}
+function handle(raw){const q=raw.trim();if(!q)return;add(q,'user');$('prompt').value='';const s=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');let a='';
+if(s.includes('ajuda')||s.includes('o que voce faz'))a='Posso dizer as horas e a data, abrir alguns sites, guardar notas neste navegador e falar as respostas. Ainda não tenho acesso geral ao telemóvel nem a uma IA online conectada.';
+else if(s.includes('hora'))a='Agora são '+new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit'}).format(new Date())+'.';
+else if(s.includes('que dia')||s.includes('data de hoje')||s==='data')a='Hoje é '+new Intl.DateTimeFormat('pt-BR',{dateStyle:'full'}).format(new Date())+'.';
+else if(s.includes('abrir youtube')){a='Vou abrir o YouTube numa nova aba.';window.open('https://m.youtube.com/','_blank','noopener');}
+else if(s.includes('abrir google')){a='Vou abrir o Google numa nova aba.';window.open('https://www.google.com/','_blank','noopener');}
+else if(s.startsWith('guardar nota ')){const note=q.slice(13).trim();$('notes').value=($('notes').value?$('notes').value+'\n':'')+note;localStorage.setItem('jarvis_notes',$('notes').value);a='Nota adicionada e guardada neste dispositivo.';}
+else if(s.includes('quem es'))a='Sou o teu JARVIS, um protótipo pessoal inspirado no assistente do Tony Stark.';
+else a='Ainda não tenho um motor de inteligência artificial ligado, por isso não quero inventar uma resposta. Na próxima fase vamos conectar um modelo de IA. Por enquanto, podes dizer “ajuda”, “que horas são”, “que dia é hoje” ou “abrir YouTube”.';
+reply(a)}
+$('form').addEventListener('submit',e=>{e.preventDefault();handle($('prompt').value)});
+document.querySelectorAll('[data-cmd]').forEach(b=>b.addEventListener('click',()=>handle(b.dataset.cmd)));
+$('notes').value=localStorage.getItem('jarvis_notes')||'';
+$('save').onclick=()=>{localStorage.setItem('jarvis_notes',$('notes').value);$('noteStatus').textContent='Nota guardada neste dispositivo.'};
+$('clear').onclick=()=>{if(confirm('Apagar todas as notas guardadas neste navegador?')){$('notes').value='';localStorage.removeItem('jarvis_notes');$('noteStatus').textContent='Notas apagadas.'}};
+$('stop').onclick=()=>{if('speechSynthesis'in window)window.speechSynthesis.cancel();$('status').textContent='● Voz parada'};
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+$('listen').onclick=()=>{if(!SR){$('status').textContent='● Reconhecimento de voz indisponível neste navegador';reply('O reconhecimento de voz não está disponível aqui. Usa o campo de texto ou tenta o Chrome com a permissão de microfone.',false);return}
+const r=new SR();r.lang='pt-BR';r.interimResults=false;r.maxAlternatives=1;r.onstart=()=>{$('status').textContent='● Estou a ouvir...'};r.onresult=e=>{const t=e.results[0][0].transcript;$('status').textContent='● Comando reconhecido';handle(t)};r.onerror=e=>{$('status').textContent='● Erro de voz: '+e.error};r.onend=()=>{if($('status').textContent==='● Estou a ouvir...')$('status').textContent='● Sistema pronto'};try{r.start()}catch(e){$('status').textContent='● Não foi possível iniciar o microfone'}};
+if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script></body></html>
