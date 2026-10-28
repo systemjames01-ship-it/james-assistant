@@ -97,7 +97,14 @@ async function sendMessage(message){
   const response=await fetch(WORKER_URL,{
    method:"POST",
    headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({message:text})
+   body:JSON.stringify({
+  message:text,
+  sessionId:localStorage.getItem("james_session_id") || (() => {
+    const id = crypto.randomUUID();
+    localStorage.setItem("james_session_id", id);
+    return id;
+  })()
+})
   });
 
   const data=await response.json().catch(()=>({}));
