@@ -340,7 +340,8 @@ export default {
         });
       }
 
-      const history = await loadConversation(env.DB, sessionId);
+      const storageSessionId = sessionId + "_" + mode;
+      const history = await loadConversation(env.DB, storageSessionId);
       const currentTurn = {
         role: "user",
         parts
@@ -348,7 +349,7 @@ export default {
       const reply = await callGemini(env, [...history, currentTurn], mode);
 
       const storedUserContent = message || "[Imagem enviada para análise]";
-      await saveConversationTurn(env.DB, sessionId, storedUserContent, reply);
+      await saveConversationTurn(env.DB, storageSessionId, storedUserContent, reply);
 
       return json({ reply }, 200, origin);
     } catch (error) {
