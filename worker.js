@@ -89,17 +89,43 @@ async function saveConversationTurn(db, sessionId, userContent, reply) {
     `).bind(sessionId, reply.slice(0, 30000))
   ]);
 
-  // Mantém somente as 40 mensagens mais recentes por sessão.
-  await db.prepare(`
-    DELETE FROM conversation_messages
-    WHERE session_id = ?
-      AND id NOT IN (
-        SELECT id FROM conversation_messages
+  // O histórico completo permanece no D1. O contexto enviado ao modelo
+  // continua limitado separadamente em loadConversation para controlar custos.
+}
+
+
+async function fetchConversationPage(db, sessionId, beforeId = null, limit = 30) {
+  await ensureConversationTable(db);
+  const safeLimit = Math.max(1, Math.min(50, Number(limit) || 30));
+  const result = beforeId
+    ? await db.prepare(`
+        SELECT id, role, content, created_at
+        FROM conversation_messages
+        WHERE session_id = ? AND id < ?
+        ORDER BY id DESC
+        LIMIT ?
+      `).bind(sessionId, beforeId, safeLimit + 1).all()
+    : await db.prepare(`
+        SELECT id, role, content, created_at
+        FROM conversation_messages
         WHERE session_id = ?
         ORDER BY id DESC
-        LIMIT 40
-      )
-  `).bind(sessionId, sessionId).run();
+        LIMIT ?
+      `).bind(sessionId, safeLimit + 1).all();
+
+  const rows = result.results || [];
+  const hasMore = rows.length > safeLimit;
+  const page = rows.slice(0, safeLimit).reverse();
+  return {
+    messages: page.map(row => ({
+      id: row.id,
+      role: row.role,
+      content: row.content,
+      createdAt: row.created_at
+    })),
+    hasMore,
+    nextBefore: hasMore && page.length ? page[0].id : null
+  };
 }
 
 const CHAT_SYSTEM_INSTRUCTION = `Você é Jâmes, assistente conversacional criado por Jamerson Ramos.
@@ -260,6 +286,28 @@ export default {
     }
 
     if (request.method === "GET") {
+      const url = new URL(request.url);
+      if (url.searchParams.get("action") === "history") {
+        if (origin !== ALLOWED_ORIGIN) {
+          return json({ error: "Origem não autorizada." }, 403, origin);
+        }
+        if (!env.DB) {
+          return json({ error: "O banco D1 DB não está conectado ao Worker." }, 503, origin);
+        }
+        const sessionId = url.searchParams.get("sessionId") || "";
+        const mode = url.searchParams.get("mode") === "chat" ? "chat" : "assistant";
+        const before = url.searchParams.get("before");
+        if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
+          return json({ error: "Identificador de sessão inválido." }, 400, origin);
+        }
+        const page = await fetchConversationPage(
+          env.DB,
+          sessionId + "_" + mode,
+          before && /^\\d+$/.test(before) ? Number(before) : null,
+          url.searchParams.get("limit") || 30
+        );
+        return json(page, 200, origin);
+      }
       return json({
         status: "online",
         service: "Jâmes AI Worker",
