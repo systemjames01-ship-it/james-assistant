@@ -139,6 +139,7 @@ async function callGemini(env, contents) {
       : 502;
     throw Object.assign(new Error(errorMessage(data, response.status)), {
       status,
+      kind: "gemini",
       upstreamStatus: response.status
     });
   }
@@ -258,9 +259,9 @@ export default {
       return json({ reply }, 200, origin);
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 502;
-      const safeMessage = status === 503
+      const safeMessage = error?.kind === "gemini" && status === 503
         ? "O serviço Gemini está temporariamente indisponível ou com limite de solicitações. Tente novamente em instantes."
-        : error?.message || "Falha ao comunicar com a API Gemini.";
+        : error?.message || "Falha ao processar a solicitação.";
       return json({ error: safeMessage }, status, origin);
     }
   }
