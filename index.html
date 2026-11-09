@@ -270,8 +270,14 @@ async function sendMessage(message,imageData=null){
  }
 }
 
-$("assistantMode").addEventListener("click",()=>setConversationMode("assistant"));
-$("chatMode").addEventListener("click",()=>setConversationMode("chat"));
+$("assistantMode").addEventListener("click",()=>{
+ setConversationMode("assistant");
+ loadHistory(false);
+});
+$("chatMode").addEventListener("click",()=>{
+ setConversationMode("chat");
+ loadHistory(false);
+});
 setConversationMode(conversationMode);
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
 loadHistory(false);
