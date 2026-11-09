@@ -41,7 +41,7 @@ function errorMessage(payload, status) {
 async function callGemini(env, parts) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
-    MODEL + ":generateContent?key=" + encodeURIComponent(env.GEMINI_API_KEY);
+    MODEL + ":generateContent";
 
   const body = {
     systemInstruction: {
@@ -58,7 +58,10 @@ async function callGemini(env, parts) {
   for (let attempt = 0; attempt < 2; attempt++) {
     response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": env.GEMINI_API_KEY
+      },
       body: JSON.stringify(body)
     });
 
