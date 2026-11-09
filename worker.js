@@ -38,7 +38,64 @@ function errorMessage(payload, status) {
   return "A API Gemini respondeu com HTTP " + status + ".";
 }
 
-async function callGemini(env, parts) {
+async function ensureConversationTable(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS conversation_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('user', 'model')),
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_conversation_session_id
+    ON conversation_messages (session_id, id)
+  `).run();
+}
+
+async function loadConversation(db, sessionId) {
+  await ensureConversationTable(db);
+  const result = await db.prepare(`
+    SELECT role, content
+    FROM conversation_messages
+    WHERE session_id = ?
+    ORDER BY id DESC
+    LIMIT 12
+  `).bind(sessionId).all();
+
+  return (result.results || [])
+    .reverse()
+    .map(row => ({ role: row.role, parts: [{ text: row.content }] }));
+}
+
+async function saveConversationTurn(db, sessionId, userContent, reply) {
+  await db.batch([
+    db.prepare(`
+      INSERT INTO conversation_messages (session_id, role, content)
+      VALUES (?, 'user', ?)
+    `).bind(sessionId, userContent.slice(0, MAX_TEXT_LENGTH)),
+    db.prepare(`
+      INSERT INTO conversation_messages (session_id, role, content)
+      VALUES (?, 'model', ?)
+    `).bind(sessionId, reply.slice(0, 30000))
+  ]);
+
+  // Mantém somente as 40 mensagens mais recentes por sessão.
+  await db.prepare(`
+    DELETE FROM conversation_messages
+    WHERE session_id = ?
+      AND id NOT IN (
+        SELECT id FROM conversation_messages
+        WHERE session_id = ?
+        ORDER BY id DESC
+        LIMIT 40
+      )
+  `).bind(sessionId, sessionId).run();
+}
+
+async function callGemini(env, contents) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     MODEL + ":generateContent";
@@ -47,7 +104,7 @@ async function callGemini(env, parts) {
     systemInstruction: {
       parts: [{ text: SYSTEM_INSTRUCTION }]
     },
-    contents: [{ role: "user", parts }],
+    contents,
     generationConfig: {
       maxOutputTokens: 4096
     }
@@ -143,6 +200,13 @@ export default {
     const message = typeof payload?.message === "string"
       ? payload.message.trim()
       : "";
+    const sessionId = typeof payload?.sessionId === "string"
+      ? payload.sessionId
+      : "";
+
+    if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
+      return json({ error: "Identificador de sessão inválido. Recarregue a página e tente novamente." }, 400, origin);
+    }
 
     if (message.length > MAX_TEXT_LENGTH) {
       return json({ error: "A mensagem excede o limite permitido." }, 413, origin);
@@ -175,7 +239,22 @@ export default {
     }
 
     try {
-      const reply = await callGemini(env, parts);
+      if (!env.DB) {
+        throw Object.assign(new Error("O banco D1 DB não está conectado ao Worker."), {
+          status: 503
+        });
+      }
+
+      const history = await loadConversation(env.DB, sessionId);
+      const currentTurn = {
+        role: "user",
+        parts
+      };
+      const reply = await callGemini(env, [...history, currentTurn]);
+
+      const storedUserContent = message || "[Imagem enviada para análise]";
+      await saveConversationTurn(env.DB, sessionId, storedUserContent, reply);
+
       return json({ reply }, 200, origin);
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 502;
