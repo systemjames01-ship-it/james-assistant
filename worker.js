@@ -102,11 +102,20 @@ async function saveConversationTurn(db, sessionId, userContent, reply) {
   `).bind(sessionId, sessionId).run();
 }
 
-async function callGemini(env, contents) {
+const CHAT_SYSTEM_INSTRUCTION = `Você é Jâmes, assistente conversacional criado por Jamerson Ramos.
+Este é o Modo Chat: priorize uma conversa natural, fluida e aprofundada por texto, como um assistente conversacional moderno.
+Acompanhe o contexto disponível, explique assuntos, ajude a escrever, estudar, analisar e resolver problemas. Seja claro, útil e adapte o nível de detalhe ao pedido.
+Não execute nem afirme executar ações externas neste modo. Se o utilizador pedir uma ação prática, explique que pode mudar para o Modo Assistente.
+Responda em português do Brasil, salvo pedido diferente. Seja honesto sobre limites, atualidade das informações e capacidades disponíveis. Nunca invente memórias, anexos recebidos ou resultados.
+`;
+
+async function callGemini(env, contents, mode = "assistant") {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     MODEL + ":generateContent";
 
+  const isAssistantMode = mode === "assistant";
+  const activeInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
   const tools = [{
     functionDeclarations: [{
       name: "get_current_time",
@@ -126,13 +135,13 @@ async function callGemini(env, contents) {
   for (let step = 0; step <= MAX_AGENT_STEPS; step++) {
     const body = {
       systemInstruction: {
-        parts: [{ text: SYSTEM_INSTRUCTION }]
+        parts: [{ text: activeInstruction }]
       },
       contents: transcript,
-      tools,
-      toolConfig: {
-        functionCallingConfig: { mode: "AUTO" }
-      },
+      ...(isAssistantMode ? {
+        tools,
+        toolConfig: { functionCallingConfig: { mode: "AUTO" } }
+      } : {}),
       generationConfig: {
         maxOutputTokens: 4096
       }
@@ -288,6 +297,7 @@ export default {
     const sessionId = typeof payload?.sessionId === "string"
       ? payload.sessionId
       : "";
+    const mode = payload?.mode === "chat" ? "chat" : "assistant";
 
     if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
       return json({ error: "Identificador de sessão inválido. Recarregue a página e tente novamente." }, 400, origin);
@@ -335,7 +345,7 @@ export default {
         role: "user",
         parts
       };
-      const reply = await callGemini(env, [...history, currentTurn]);
+      const reply = await callGemini(env, [...history, currentTurn], mode);
 
       const storedUserContent = message || "[Imagem enviada para análise]";
       await saveConversationTurn(env.DB, sessionId, storedUserContent, reply);
