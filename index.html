@@ -63,7 +63,7 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 
 <section>
 <h2>Olhos do Jâmes</h2>
-<p class="small">Use a câmera ou escolha uma imagem da galeria para enviar ao assistente.</p>
+<p class="small">Use a câmera ou envie uma imagem ou documento PDF para análise.</p>
 <div class="row">
 <button type="button" id="openCamera">Abrir câmera</button>
 <button type="button" class="secondary" id="capture">Capturar imagem</button>
@@ -71,13 +71,13 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 </div>
 <video id="camera" autoplay playsinline hidden></video>
 <canvas id="canvas" hidden></canvas>
-<input id="imageFile" type="file" accept="image/*" capture="environment">
+<input id="imageFile" type="file" accept="image/*,application/pdf,.pdf" capture="environment">
 <img id="preview" alt="Pré-visualização da imagem selecionada" hidden>
 <div class="row">
-<button type="button" id="sendImage">Enviar imagem ao Jâmes</button>
+<button type="button" id="sendImage">Enviar anexo ao Jâmes</button>
 <button type="button" class="secondary" id="cancelImage">Cancelar imagem</button>
 </div>
-<p class="small">A análise visual só funcionará quando o Worker do Cloudflare estiver preparado para receber e processar imagens.</p>
+<p class="small">Imagens e PDFs são enviados ao modelo para análise. Limite atual: 8 MB por arquivo.</p>
 </section>
 
 <section>
@@ -425,13 +425,16 @@ $("imageFile").addEventListener("change",event=>{
  const file=event.target.files&&event.target.files[0];
  if(!file)return;
 
- if(!file.type.startsWith("image/")){
-  statusBox.textContent="Selecione um arquivo de imagem válido.";
+ const isImage=file.type.startsWith("image/");
+ const isPdf=file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf");
+ if(!isImage&&!isPdf){
+  statusBox.textContent="Selecione uma imagem ou um documento PDF.";
+  event.target.value="";
   return;
  }
 
  if(file.size>8*1024*1024){
-  statusBox.textContent="A imagem é maior que 8 MB. Escolha uma imagem menor.";
+  statusBox.textContent="O anexo é maior que 8 MB. Escolha um arquivo menor.";
   event.target.value="";
   return;
  }
@@ -440,9 +443,15 @@ $("imageFile").addEventListener("change",event=>{
 
  reader.onload=()=>{
   capturedImage=reader.result;
-  $("preview").src=capturedImage;
-  $("preview").hidden=false;
-  statusBox.textContent="Imagem carregada. Você já pode enviá-la.";
+  if(isImage){
+   $("preview").src=capturedImage;
+   $("preview").hidden=false;
+   statusBox.textContent="Imagem carregada. Você já pode enviá-la.";
+  }else{
+   $("preview").removeAttribute("src");
+   $("preview").hidden=true;
+   statusBox.textContent="PDF carregado. Você já pode enviá-lo.";
+  }
  };
 
  reader.onerror=()=>{
@@ -454,7 +463,7 @@ $("imageFile").addEventListener("change",event=>{
 
 $("sendImage").addEventListener("click",()=>{
  if(!capturedImage){
-  statusBox.textContent="Capture uma imagem ou escolha uma imagem da galeria primeiro.";
+  statusBox.textContent="Capture uma imagem ou escolha uma imagem/PDF primeiro.";
   return;
  }
 
