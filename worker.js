@@ -123,7 +123,7 @@ async function callGemini(env, contents) {
   const MAX_AGENT_STEPS = 5;
   let latestResponse = null;
 
-  for (let step = 0; step < MAX_AGENT_STEPS; step++) {
+  for (let step = 0; step <= MAX_AGENT_STEPS; step++) {
     const body = {
       systemInstruction: {
         parts: [{ text: SYSTEM_INSTRUCTION }]
@@ -189,6 +189,10 @@ async function callGemini(env, contents) {
         });
       }
       return reply.slice(0, 30000);
+    }
+
+    if (step === MAX_AGENT_STEPS) {
+      return "Analisei o pedido, mas atingi o limite de etapas de execução disponíveis nesta versão. Posso continuar assim que houver uma ferramenta ou etapa adicional disponível.";
     }
 
     transcript.push(modelContent);
