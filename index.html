@@ -26,6 +26,9 @@ button{padding:12px;border:0;border-radius:10px;background:#75e6ff;color:#07111f
 button.secondary{background:#29405b;color:white}
 button:disabled{opacity:.55}
 .row{display:flex;flex-wrap:wrap;gap:6px}
+.mode-switch{display:flex;gap:8px;margin:10px 0 14px}
+.mode-switch button{flex:1}
+.mode-switch button[aria-pressed="true"]{outline:2px solid #75e6ff;background:#1d5270;color:white}
 .row button{flex:1}
 video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:10px;background:#000}
 [hidden]{display:none!important}
@@ -42,6 +45,10 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 
 <section>
 <h2>Conversa</h2>
+<div class="mode-switch" role="group" aria-label="Modo de conversa">
+<button type="button" id="assistantMode" aria-pressed="true">Modo Assistente</button>
+<button type="button" id="chatMode" class="secondary" aria-pressed="false">Modo Chat</button>
+</div>
 <div id="chat" aria-live="polite">
 <div class="msg bot">Olá! Sou o Jâmes. Vamos conversar?</div>
 </div>
@@ -95,6 +102,18 @@ let cameraStream=null;
 let capturedImage=null;
 let recognition=null;
 let isListening=false;
+let conversationMode=localStorage.getItem("james_mode")==="chat"?"chat":"assistant";
+
+function setConversationMode(mode){
+ conversationMode=mode;
+ localStorage.setItem("james_mode",mode);
+ $("assistantMode").setAttribute("aria-pressed",String(mode==="assistant"));
+ $("chatMode").setAttribute("aria-pressed",String(mode==="chat"));
+ $("assistantMode").classList.toggle("secondary",mode!=="assistant");
+ $("chatMode").classList.toggle("secondary",mode!=="chat");
+ statusBox.textContent=mode==="assistant"?"Modo Assistente: iniciativa e ferramentas autorizadas.":"Modo Chat: conversa por texto.";
+}
+
 
 function addMessage(text,who){
  const div=document.createElement("div");
@@ -152,7 +171,8 @@ async function sendMessage(message,imageData=null){
  try{
   const payload={
    message:text||"Analise a imagem enviada.",
-   sessionId:getSessionId()
+   sessionId:getSessionId(),
+   mode:conversationMode
   };
 
   if(imageData){
@@ -191,6 +211,10 @@ async function sendMessage(message,imageData=null){
   $("sendImage").disabled=false;
  }
 }
+
+$("assistantMode").addEventListener("click",()=>setConversationMode("assistant"));
+$("chatMode").addEventListener("click",()=>setConversationMode("chat"));
+setConversationMode(conversationMode);
 
 $("form").addEventListener("submit",event=>{
  event.preventDefault();
