@@ -303,7 +303,7 @@ export default {
         const page = await fetchConversationPage(
           env.DB,
           sessionId + "_" + mode,
-          before && /^\\d+$/.test(before) ? Number(before) : null,
+          before && /^\d+$/.test(before) ? Number(before) : null,
           url.searchParams.get("limit") || 30
         );
         return json(page, 200, origin);
