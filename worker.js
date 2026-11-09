@@ -49,7 +49,6 @@ async function callGemini(env, parts) {
     },
     contents: [{ role: "user", parts }],
     generationConfig: {
-      temperature: 0.7,
       maxOutputTokens: 4096
     }
   };
