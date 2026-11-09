@@ -3,6 +3,9 @@ main = "worker.js"
 compatibility_date = "2026-11-09"
 keep_vars = true
 
-# O segredo GEMINI_API_KEY deve permanecer cadastrado no painel do Cloudflare.
-# O binding D1 existente (DB) será incluído nesta configuração depois de obtermos
-# o database_id exato, para não correr o risco de removê-lo durante o deploy.
+[[d1_databases]]
+binding = "DB"
+database_name = "james-memory"
+database_id = "1f218720-63f0-4f8a-b062-86e4eeddcbfb"
+
+# O segredo GEMINI_API_KEY permanece cadastrado no painel do Cloudflare.
