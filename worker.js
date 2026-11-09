@@ -362,12 +362,12 @@ export default {
       if (typeof payload.image !== "string") {
         return json({ error: "Formato de imagem inválido." }, 400, origin);
       }
-      const match = payload.image.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+      const match = payload.image.match(/^data:(image\/(?:jpeg|png|webp|gif)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/);
       if (!match) {
-        return json({ error: "Imagem inválida. Use JPEG, PNG, WEBP ou GIF." }, 400, origin);
+        return json({ error: "Anexo inválido. Use JPEG, PNG, WEBP, GIF ou PDF." }, 400, origin);
       }
       if (match[2].length > 10 * 1024 * 1024) {
-        return json({ error: "A imagem excede o limite permitido." }, 413, origin);
+        return json({ error: "O anexo excede o limite permitido de 8 MB." }, 413, origin);
       }
       parts.push({
         inlineData: {
