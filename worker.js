@@ -356,6 +356,11 @@ export default {
     const attachmentLabels = [];
     if (message) parts.push({ text: message });
 
+    const encodedBodySize = new TextEncoder().encode(JSON.stringify(payload)).length;
+    if (encodedBodySize > MAX_BODY_BYTES) {
+      return json({ error: "A mensagem e seus anexos ultrapassam o limite total de 12 MB." }, 413, origin);
+    }
+
     const incomingAttachments = [];
     if (payload?.image) incomingAttachments.push({ name: "anexo", dataUrl: payload.image });
     if (payload?.attachments !== undefined) {
@@ -368,6 +373,7 @@ export default {
       return json({ error: "Envie no máximo " + MAX_ATTACHMENTS + " anexos por mensagem nesta versão." }, 413, origin);
     }
 
+    let totalAttachmentBytes = 0;
     for (const attachment of incomingAttachments) {
       const dataUrl = typeof attachment === "string" ? attachment : attachment?.dataUrl || attachment?.data || "";
       const name = typeof attachment?.name === "string" ? attachment.name.slice(0, 120) : "anexo";
@@ -378,8 +384,14 @@ export default {
       if (!match) {
         return json({ error: "Anexo inválido. Use JPEG, PNG, WEBP, GIF ou PDF." }, 400, origin);
       }
-      if (match[2].length > Math.ceil(MAX_ATTACHMENT_BYTES * 4 / 3) + 8) {
+      const attachmentBytes = Math.floor(match[2].length * 3 / 4) -
+        (match[2].endsWith("==") ? 2 : match[2].endsWith("=") ? 1 : 0);
+      if (attachmentBytes > MAX_ATTACHMENT_BYTES) {
         return json({ error: "Cada anexo deve ter no máximo 8 MB." }, 413, origin);
+      }
+      totalAttachmentBytes += attachmentBytes;
+      if (totalAttachmentBytes > MAX_ATTACHMENT_BYTES) {
+        return json({ error: "O tamanho total dos anexos deve ser de no máximo 8 MB por mensagem." }, 413, origin);
       }
       parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
       attachmentLabels.push(name);
