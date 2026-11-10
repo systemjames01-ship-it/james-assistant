@@ -1,4 +1,5 @@
 const MODEL = "gemini-3.8-flash";
+const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const ALLOWED_ORIGIN = "https://systemjames01-ship-it.github.io";
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
 const MAX_TEXT_LENGTH = 20000;
@@ -135,10 +136,10 @@ Não execute nem afirme executar ações externas neste modo. Se o utilizador pe
 Responda em português do Brasil, salvo pedido diferente. Seja honesto sobre limites, atualidade das informações e capacidades disponíveis. Nunca invente memórias, anexos recebidos ou resultados.
 `;
 
-async function callGemini(env, contents, mode = "assistant") {
+async function callGemini(env, contents, mode = "assistant", model = MODEL) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
-    MODEL + ":generateContent";
+    model + ":generateContent";
 
   const isAssistantMode = mode === "assistant";
   const activeInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
@@ -389,17 +390,45 @@ export default {
       }
 
       const storageSessionId = sessionId + "_" + mode;
-      const history = await loadConversation(env.DB, storageSessionId);
-      const currentTurn = {
-        role: "user",
-        parts
-      };
-      const reply = await callGemini(env, [...history, currentTurn], mode);
+      let history = [];
+      let memoryAvailable = Boolean(env.DB);
 
-      const storedUserContent = message || "[Imagem enviada para análise]";
-      await saveConversationTurn(env.DB, storageSessionId, storedUserContent, reply);
+      if (env.DB) {
+        try {
+          history = await loadConversation(env.DB, storageSessionId);
+        } catch (historyError) {
+          memoryAvailable = false;
+          console.error("D1 history load failed; continuing without stored context:", historyError);
+        }
+      }
 
-      return json({ reply }, 200, origin);
+      const currentTurn = { role: "user", parts };
+      let reply;
+      try {
+        reply = await callGemini(env, [...history, currentTurn], mode);
+      } catch (primaryError) {
+        const retryable = primaryError?.kind === "gemini" &&
+          [429, 503].includes(primaryError.status);
+        if (!retryable) throw primaryError;
+        console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
+        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL);
+      }
+
+      if (env.DB) {
+        try {
+          const storedUserContent = message || "[Imagem enviada para análise]";
+          await saveConversationTurn(env.DB, storageSessionId, storedUserContent, reply);
+        } catch (saveError) {
+          memoryAvailable = false;
+          console.error("D1 history save failed; reply will still be returned:", saveError);
+        }
+      }
+
+      return json({
+        reply,
+        model: MODEL,
+        memory: memoryAvailable ? "available" : "temporarily_unavailable"
+      }, 200, origin);
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 502;
       const safeMessage = error?.kind === "gemini" && status === 503
