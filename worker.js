@@ -141,7 +141,7 @@ function selectThinkingLevel(contents) {
   const text = parts.map(part => typeof part.text === "string" ? part.text : "").join(" ").trim();
   const normalized = text.toLocaleLowerCase("pt-BR");
   const hasAttachments = parts.some(part => Boolean(part.inlineData || part.fileData));
-  const complexIntent = /\b(analis[ae]|investig[au]|compare|comparar|planej[ae]|arquitetura|depur|debug|program|c[oó]digo|desenvolv|implemente|estrat[eé]gia|riscos?|causas?|diagn[oó]stico|passo a passo|etapas?|projeto|documenta[cç][aã]o|decis[aã]o|otimiz|auditoria|revis[aã]o|complex[oa]|detalhad[oa])\b/.test(normalized);
+  const complexIntent = /\b(?:an[aá]lis\p{L}*|investig\p{L}*|compar\p{L}*|planej\p{L}*|arquitetur\p{L}*|depur\p{L}*|debug\p{L}*|program\p{L}*|c[oó]dig\p{L}*|desenvolv\p{L}*|implement\p{L}*|constru\p{L}*|transform\p{L}*|evolu\p{L}*|estrat[eé]gi\p{L}*|risc\p{L}*|caus\p{L}*|diagn[oó]stic\p{L}*|passo a passo|etapas?|projet\p{L}*|document\p{L}*|decis\p{L}*|otimiz\p{L}*|auditor\p{L}*|revis\p{L}*|complex\p{L}*|detalhad\p{L}*|complet\p{L}*)\b/u.test(normalized);
   const multiStepIntent = /\b(primeiro|depois|em seguida|por fim|al[eé]m disso|v[aá]rias etapas|m[aú]ltiplas tarefas)\b/.test(normalized);
   if (hasAttachments || complexIntent || multiStepIntent || text.length > 900) return "high";
   return "medium";
