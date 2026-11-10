@@ -101,3 +101,90 @@ test("history endpoint reports unavailable D1 without crashing", async () => {
   assert.equal(response.status, 503);
   assert.deepEqual(body.messages, []);
 });
+
+test("assistant executes calculator tool and returns its result to Gemini", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    requests.push(body);
+    if (requests.length === 1) {
+      return new Response(JSON.stringify({
+        candidates: [{ content: { role: "model", parts: [{
+          functionCall: { name: "calculate", args: { expression: "(12 * 3) + 4" } }
+        }] } }]
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "O resultado é 40." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Quanto é (12 vezes 3) mais 4?", sessionId: "session_test_12345", mode: "assistant" })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "O resultado é 40.");
+    const functionResponse = requests[1].contents.at(-1).parts[0].functionResponse;
+    assert.equal(functionResponse.name, "calculate");
+    assert.equal(functionResponse.response.result, 40);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("assistant creates a persistent task through the D1 tool", async () => {
+  const originalFetch = globalThis.fetch;
+  const executedSql = [];
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          return {
+            all: async () => ({ results: [] }),
+            run: async () => {
+              executedSql.push({ sql, values });
+              return { meta: { last_row_id: 17, changes: 1 } };
+            }
+          };
+        }
+      };
+    },
+    batch: async () => []
+  };
+  let requestCount = 0;
+  globalThis.fetch = async () => {
+    requestCount++;
+    if (requestCount === 1) {
+      return new Response(JSON.stringify({
+        candidates: [{ content: { role: "model", parts: [{
+          functionCall: { name: "create_task", args: { title: "Comprar pão", details: "Passar na padaria" } }
+        }] } }]
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Tarefa criada: Comprar pão." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Crie uma tarefa para comprar pão", sessionId: "session_test_12345", mode: "assistant" })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key", DB: db });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Tarefa criada: Comprar pão.");
+    assert.ok(executedSql.some(item => item.sql.includes("INSERT INTO james_tasks_v21")));
+    assert.ok(executedSql.some(item => item.values.includes("session_test_12345_assistant")));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
