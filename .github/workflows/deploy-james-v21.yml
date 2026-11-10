@@ -37,7 +37,7 @@ jobs:
       - name: Conferir credenciais sem exibi-las
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Falta o segredo CLOUDFLARE_API_TOKEN no GitHub."; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Falta o segredo CLOUDFLARE_ACCOUNT_ID no GitHub."; exit 1; }
@@ -46,20 +46,20 @@ jobs:
       - name: Aplicar migração aditiva no D1 remoto
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
         run: npx --yes wrangler@4 d1 execute james-memory --remote --file=migrations/0002_james_tasks_v21.sql
 
       - name: Confirmar tabela e índice no D1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
         run: |
           npx --yes wrangler@4 d1 execute james-memory --remote --command "SELECT name, type FROM sqlite_master WHERE name IN ('james_tasks_v21','idx_james_tasks_v21_session_status') ORDER BY type, name;"
 
       - name: Publicar Worker validado
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
         run: npx --yes wrangler@4 deploy
 
       - name: Testar saúde do Worker e leitura das tarefas
