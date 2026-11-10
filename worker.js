@@ -127,7 +127,94 @@ Não execute nem afirme executar ações externas neste modo. Se o utilizador pe
 Responda em português do Brasil, salvo pedido diferente. Seja honesto sobre limites, atualidade das informações e capacidades disponíveis. Nunca invente memórias, anexos recebidos ou resultados.
 `;
 
-async function callGemini(env, contents, mode = "assistant", model = MODEL) {
+function calculateExpression(source) {
+  if (typeof source !== "string" || source.length > 200) throw new Error("Expressão inválida ou longa demais.");
+  const tokens = source.match(/\\d+(?:\\.\\d+)?|[()+*/%\\-]/g) || [];
+  if (tokens.join("") !== source.replace(/\\s+/g, "")) throw new Error("Use somente números, parênteses e operadores +, -, *, / e %.");
+  let index = 0;
+  function primary() {
+    const token = tokens[index++];
+    if (token === "+" || token === "-") {
+      const value = primary();
+      return token === "-" ? -value : value;
+    }
+    if (token === "(") {
+      const value = expression();
+      if (tokens[index++] !== ")") throw new Error("Parênteses não correspondem.");
+      return value;
+    }
+    const value = Number(token);
+    if (!Number.isFinite(value)) throw new Error("Número inválido.");
+    return value;
+  }
+  function term() {
+    let value = primary();
+    while (["*", "/", "%"].includes(tokens[index])) {
+      const operator = tokens[index++];
+      const right = primary();
+      if ((operator === "/" || operator === "%") && right === 0) throw new Error("Divisão por zero não é permitida.");
+      value = operator === "*" ? value * right : operator === "/" ? value / right : value % right;
+    }
+    return value;
+  }
+  function expression() {
+    let value = term();
+    while (tokens[index] === "+" || tokens[index] === "-") {
+      const operator = tokens[index++];
+      const right = term();
+      value = operator === "+" ? value + right : value - right;
+    }
+    return value;
+  }
+  if (!tokens.length) throw new Error("Informe uma expressão matemática.");
+  const result = expression();
+  if (index !== tokens.length || !Number.isFinite(result)) throw new Error("Não foi possível calcular essa expressão.");
+  return Number(result.toPrecision(12));
+}
+
+async function executeAssistantTool(env, sessionId, name, args = {}) {
+  if (name === "get_current_time") {
+    const now = new Date();
+    return { iso: now.toISOString(), timezone: "UTC", note: "O Worker fornece horário UTC; converta para o fuso pedido pelo usuário quando necessário." };
+  }
+  if (name === "calculate") {
+    return { expression: args.expression, result: calculateExpression(args.expression) };
+  }
+  if (!env.DB) return { error: "Armazenamento D1 indisponível; nenhuma alteração foi salva." };
+
+  if (name === "create_task") {
+    const title = typeof args.title === "string" ? args.title.trim().slice(0, 160) : "";
+    const details = typeof args.details === "string" ? args.details.trim().slice(0, 2000) : "";
+    if (!title) return { error: "A tarefa precisa ter um título." };
+    const result = await env.DB.prepare(
+      "INSERT INTO james_tasks_v21 (session_id, title, details) VALUES (?, ?, ?)"
+    ).bind(sessionId, title, details).run();
+    return { success: true, taskId: result.meta?.last_row_id ?? null, title, status: "open" };
+  }
+
+  if (name === "list_tasks") {
+    const result = await env.DB.prepare(
+      "SELECT id, title, details, status, created_at FROM james_tasks_v21 WHERE session_id = ? ORDER BY id DESC LIMIT 50"
+    ).bind(sessionId).all();
+    return { tasks: (result.results || []).map(row => ({
+      id: row.id, title: row.title, details: row.details, status: row.status, createdAt: row.created_at
+    })) };
+  }
+
+  if (name === "complete_task") {
+    const taskId = Number(args.task_id);
+    if (!Number.isSafeInteger(taskId) || taskId < 1) return { error: "Identificador de tarefa inválido." };
+    const result = await env.DB.prepare(
+      "UPDATE james_tasks_v21 SET status = 'completed', completed_at = datetime('now') WHERE id = ? AND session_id = ? AND status = 'open'"
+    ).bind(taskId, sessionId).run();
+    if (!result.meta?.changes) return { success: false, error: "Tarefa não encontrada ou já concluída nesta sessão." };
+    return { success: true, taskId, status: "completed" };
+  }
+
+  return { error: "Ferramenta desconhecida." };
+}
+
+async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "") {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     model + ":generateContent";
@@ -135,15 +222,48 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL) {
   const isAssistantMode = mode === "assistant";
   const activeInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
   const tools = [{
-    functionDeclarations: [{
-      name: "get_current_time",
-      description: "Obtém a data e hora atuais em UTC. Use quando o pedido depender de horário ou data atuais.",
-      parameters: {
-        type: "OBJECT",
-        properties: {},
-        required: []
+    functionDeclarations: [
+      {
+        name: "get_current_time",
+        description: "Obtém a data e hora atuais em UTC.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
+      },
+      {
+        name: "calculate",
+        description: "Calcula uma expressão aritmética simples com números, parênteses e +, -, *, / ou %.",
+        parameters: {
+          type: "OBJECT",
+          properties: { expression: { type: "STRING", description: "Expressão matemática, por exemplo (25 * 4) + 10." } },
+          required: ["expression"]
+        }
+      },
+      {
+        name: "create_task",
+        description: "Cria uma tarefa persistente na lista pessoal do usuário. Não cria alarmes nem notificações.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            title: { type: "STRING", description: "Título curto da tarefa." },
+            details: { type: "STRING", description: "Detalhes opcionais da tarefa." }
+          },
+          required: ["title"]
+        }
+      },
+      {
+        name: "list_tasks",
+        description: "Lista as tarefas abertas e concluídas do usuário.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
+      },
+      {
+        name: "complete_task",
+        description: "Marca como concluída uma tarefa aberta pertencente à sessão atual.",
+        parameters: {
+          type: "OBJECT",
+          properties: { task_id: { type: "INTEGER", description: "ID da tarefa retornado pela lista." } },
+          required: ["task_id"]
+        }
       }
-    }]
+    ]
   }];
 
   const transcript = [...contents];
@@ -227,25 +347,18 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL) {
     const functionResponses = [];
     for (const part of functionCalls) {
       const call = part.functionCall;
-      if (call.name !== "get_current_time") {
-        functionResponses.push({
-          functionResponse: {
-            name: call.name,
-            ...(call.id ? { id: call.id } : {}),
-            response: { error: "Ferramenta não autorizada ou indisponível." }
-          }
-        });
-        continue;
+      let toolResult;
+      try {
+        toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {});
+      } catch (toolError) {
+        console.error("Assistant tool failed:", call.name, toolError);
+        toolResult = { error: "A ferramenta falhou ao executar. Nenhuma conclusão deve ser presumida." };
       }
-
       functionResponses.push({
         functionResponse: {
           name: call.name,
           ...(call.id ? { id: call.id } : {}),
-          response: {
-            iso: new Date().toISOString(),
-            timezone: "UTC"
-          }
+          response: toolResult
         }
       });
     }
@@ -419,14 +532,14 @@ export default {
       let reply;
       let usedModel = MODEL;
       try {
-        reply = await callGemini(env, [...history, currentTurn], mode, MODEL);
+        reply = await callGemini(env, [...history, currentTurn], mode, MODEL, storageSessionId);
       } catch (primaryError) {
         const retryable = primaryError?.kind === "gemini" &&
           [429, 503].includes(primaryError.status);
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL);
+        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, storageSessionId);
       }
 
       if (env.DB) {
