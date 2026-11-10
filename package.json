@@ -5,6 +5,7 @@
   "scripts": {
     "check:worker": "node --check worker.js",
     "check:frontend": "node scripts/check-frontend.mjs",
-    "test": "npm run check:worker && npm run check:frontend"
-  }
+    "test": "npm run check:worker && npm run check:frontend && node --test tests/*.test.mjs"
+  },
+  "type": "module"
 }
