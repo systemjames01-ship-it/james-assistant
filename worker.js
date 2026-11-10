@@ -137,8 +137,8 @@ Responda em português do Brasil, salvo pedido diferente. Seja honesto sobre lim
 
 function calculateExpression(source) {
   if (typeof source !== "string" || source.length > 200) throw new Error("Expressão inválida ou longa demais.");
-  const tokens = source.match(/\\d+(?:\\.\\d+)?|[()+*/%\\-]/g) || [];
-  if (tokens.join("") !== source.replace(/\\s+/g, "")) throw new Error("Use somente números, parênteses e operadores +, -, *, / e %.");
+  const tokens = source.match(/\d+(?:\.\d+)?|[()+*/%-]/g) || [];
+  if (tokens.join("") !== source.replace(/\s+/g, "")) throw new Error("Use somente números, parênteses e operadores +, -, *, / e %.");
   let index = 0;
   function primary() {
     const token = tokens[index++];
