@@ -6,6 +6,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07111f">
+<meta name="description" content="Jâmes, assistente pessoal modular criado por Jamerson Ramos.">
+<link rel="manifest" href="./manifest.webmanifest">
 <title>Jâmes — Assistente Pessoal</title>
 <style>
 :root{color-scheme:dark}
@@ -590,6 +592,11 @@ window.addEventListener("pagehide",()=>{
   cameraStream.getTracks().forEach(track=>track.stop());
  }
 });
+
+if("serviceWorker" in navigator && location.protocol==="https:"){
+ navigator.serviceWorker.register("./service-worker.js")
+  .catch(()=>{});
+}
 </script>
 </body>
 </html>
