@@ -284,8 +284,8 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
   const isAssistantMode = mode === "assistant";
   const baseInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
   const memoryContext = memories.length
-    ? "\\n\\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\\n" +
-      memories.map(item => "- " + item.key + ": " + item.value).join("\\n")
+    ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
+      memories.map(item => "- " + item.key + ": " + item.value).join("\n")
     : "";
   const activeInstruction = baseInstruction + memoryContext;
   const tools = [{
