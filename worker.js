@@ -411,7 +411,7 @@ export default {
           return json({ error: "Identificador de sessão inválido.", tasks: [] }, 400, origin);
         }
         try {
-          const result = await executeAssistantTool(env, sessionId + "_" + mode, "list_tasks");
+          const result = await executeAssistantTool(env, sessionId, "list_tasks");
           if (result.error) return json({ error: result.error, tasks: [] }, 503, origin);
           return json({ tasks: result.tasks || [] }, 200, origin);
         } catch (error) {
@@ -559,14 +559,14 @@ export default {
       let reply;
       let usedModel = MODEL;
       try {
-        reply = await callGemini(env, [...history, currentTurn], mode, MODEL, storageSessionId);
+        reply = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId);
       } catch (primaryError) {
         const retryable = primaryError?.kind === "gemini" &&
           [429, 503].includes(primaryError.status);
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, storageSessionId);
+        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId);
       }
 
       if (env.DB) {
