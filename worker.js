@@ -67,10 +67,10 @@ async function loadConversation(db, sessionId) {
   const result = await db.prepare(`
     SELECT role, content
     FROM james_conversation_messages_v21
-    WHERE session_id = ?
+    WHERE session_id IN (?, ?)
     ORDER BY id DESC
     LIMIT 12
-  `).bind(sessionId).all();
+  `).bind(sessionId + "_assistant", sessionId + "_chat").all();
 
   return (result.results || [])
     .reverse()
@@ -548,7 +548,7 @@ export default {
 
       if (env.DB) {
         try {
-          history = await loadConversation(env.DB, storageSessionId);
+          history = await loadConversation(env.DB, sessionId);
         } catch (historyError) {
           memoryAvailable = false;
           console.error("D1 history load failed; continuing without stored context:", historyError);
