@@ -58,7 +58,7 @@ async function loadConversation(db, sessionId) {
   await ensureConversationTable(db);
   const result = await db.prepare(`
     SELECT role, content
-    FROM conversation_messages
+    FROM james_conversation_messages_v21
     WHERE session_id = ?
     ORDER BY id DESC
     LIMIT 12
@@ -72,11 +72,11 @@ async function loadConversation(db, sessionId) {
 async function saveConversationTurn(db, sessionId, userContent, reply) {
   await db.batch([
     db.prepare(`
-      INSERT INTO conversation_messages (session_id, role, content)
+      INSERT INTO james_conversation_messages_v21 (session_id, role, content)
       VALUES (?, 'user', ?)
     `).bind(sessionId, userContent.slice(0, MAX_TEXT_LENGTH)),
     db.prepare(`
-      INSERT INTO conversation_messages (session_id, role, content)
+      INSERT INTO james_conversation_messages_v21 (session_id, role, content)
       VALUES (?, 'model', ?)
     `).bind(sessionId, reply.slice(0, 30000))
   ]);
@@ -92,14 +92,14 @@ async function fetchConversationPage(db, sessionId, beforeId = null, limit = 30)
   const result = beforeId
     ? await db.prepare(`
         SELECT id, role, content, created_at
-        FROM conversation_messages
+        FROM james_conversation_messages_v21
         WHERE session_id = ? AND id < ?
         ORDER BY id DESC
         LIMIT ?
       `).bind(sessionId, beforeId, safeLimit + 1).all()
     : await db.prepare(`
         SELECT id, role, content, created_at
-        FROM conversation_messages
+        FROM james_conversation_messages_v21
         WHERE session_id = ?
         ORDER BY id DESC
         LIMIT ?
