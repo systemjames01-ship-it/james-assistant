@@ -56,7 +56,6 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 <div class="row">
 <button type="submit" id="send">Enviar</button>
 <button type="button" class="secondary" id="voice">Falar</button>
-<button type="button" class="secondary" id="stop">Parar voz</button>
 </div>
 </form>
 </section>
@@ -181,28 +180,6 @@ function addMessage(text,who){
  chat.scrollTop=chat.scrollHeight;
 }
 
-function speak(text){
- if(!("speechSynthesis" in window)){
-  statusBox.textContent="Resposta recebida. Este navegador não oferece voz sintetizada.";
-  return;
- }
- window.speechSynthesis.cancel();
- const utterance=new SpeechSynthesisUtterance(text);
- utterance.lang="pt-BR";
- utterance.rate=1;
- utterance.pitch=1;
- utterance.onstart=()=>{
-  if(!isListening)statusBox.textContent="Jâmes está falando...";
- };
- utterance.onend=()=>{
-  if(!isListening)statusBox.textContent="Pronto para conversar.";
- };
- utterance.onerror=()=>{
-  if(!isListening)statusBox.textContent="Resposta recebida; a voz não pôde ser reproduzida.";
- };
- window.speechSynthesis.speak(utterance);
-}
-
 function getSessionId(){
  let id=localStorage.getItem("james_session_id");
  if(!id){
@@ -256,7 +233,6 @@ async function sendMessage(message,attachments=null){
 
   addMessage(data.reply,"bot");
   statusBox.textContent="Resposta recebida.";
-  speak(data.reply);
 
  }catch(error){
   const detail=error.message||"Erro desconhecido.";
@@ -286,13 +262,6 @@ loadHistory(false);
 $("form").addEventListener("submit",event=>{
  event.preventDefault();
  sendMessage($("prompt").value);
-});
-
-$("stop").addEventListener("click",()=>{
- if("speechSynthesis" in window){
-  window.speechSynthesis.cancel();
- }
- statusBox.textContent="Voz interrompida.";
 });
 
 $("save").addEventListener("click",()=>{
