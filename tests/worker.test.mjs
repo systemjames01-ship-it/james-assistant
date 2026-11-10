@@ -300,3 +300,109 @@ test("ordinary conversation keeps balanced medium reasoning", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("assistant injects only explicitly stored memories into model context", async () => {
+  const originalFetch = globalThis.fetch;
+  let sentBody;
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          if (sql.includes("SELECT role, content")) {
+            return { all: async () => ({ results: [] }) };
+          }
+          if (sql.includes("SELECT memory_key, memory_value")) {
+            return { all: async () => ({ results: [
+              { memory_key: "project_name", memory_value: "O projeto se chama Jâmes." }
+            ] }) };
+          }
+          return { run: async () => ({ meta: { changes: 1 } }) };
+        }
+      };
+    },
+    batch: async () => []
+  };
+  globalThis.fetch = async (_url, options) => {
+    sentBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "O projeto se chama Jâmes." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Qual é o nome do meu projeto?",
+        sessionId: "session_test_12345",
+        mode: "assistant"
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key", DB: db });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.savedMemories, 1);
+    assert.match(sentBody.systemInstruction.parts[0].text, /O projeto se chama Jâmes/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("assistant saves a memory only through the explicit save-memory tool", async () => {
+  const originalFetch = globalThis.fetch;
+  const statements = [];
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          return {
+            all: async () => ({ results: [] }),
+            run: async () => {
+              statements.push({ sql, values });
+              return { meta: { changes: 1, last_row_id: 23 } };
+            }
+          };
+        }
+      };
+    },
+    batch: async () => []
+  };
+  let requestCount = 0;
+  globalThis.fetch = async (_url, options) => {
+    requestCount++;
+    const body = JSON.parse(options.body);
+    if (requestCount === 1) {
+      assert.ok(body.tools[0].functionDeclarations.some(tool => tool.name === "save_memory"));
+      return new Response(JSON.stringify({
+        candidates: [{ content: { role: "model", parts: [{
+          functionCall: { name: "save_memory", args: { key: "preferencias", value: "O usuário prefere custo zero." } }
+        }] } }]
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Vou guardar essa preferência." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Lembre que prefiro manter o projeto sem custos.",
+        sessionId: "session_test_12345",
+        mode: "assistant"
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key", DB: db });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Vou guardar essa preferência.");
+    assert.ok(statements.some(item => item.sql.includes("INSERT INTO james_memories_v21")));
+    assert.ok(statements.some(item => item.values.includes("O usuário prefere custo zero.")));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
