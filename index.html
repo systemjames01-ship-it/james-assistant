@@ -71,7 +71,7 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 </div>
 <video id="camera" autoplay playsinline hidden></video>
 <canvas id="canvas" hidden></canvas>
-<input id="imageFile" type="file" accept="image/*,application/pdf,.pdf" capture="environment">
+<input id="imageFile" type="file" accept="image/*,application/pdf,.pdf" capture="environment" multiple>
 <img id="preview" alt="Pré-visualização da imagem selecionada" hidden>
 <div class="row">
 <button type="button" id="sendImage">Enviar anexo ao Jâmes</button>
@@ -98,7 +98,7 @@ const chat=$("chat");
 const statusBox=$("status");
 
 let cameraStream=null;
-let capturedImage=null;
+let capturedAttachments=[];
 let recognition=null;
 let isListening=false;
 let conversationMode=localStorage.getItem("james_mode")==="chat"?"chat":"assistant";
@@ -214,12 +214,13 @@ function getSessionId(){
  return id;
 }
 
-async function sendMessage(message,imageData=null){
+async function sendMessage(message,attachments=null){
  const text=message.trim();
- if(!text&&!imageData)return;
+ const files=Array.isArray(attachments)?attachments:[];
+ if(!text&&!files.length)return;
 
  if(text)addMessage(text,"user");
- if(imageData)addMessage("Imagem anexada à mensagem.","user");
+ if(files.length)addMessage("Anexos enviados: "+files.map(file=>file.name).join(", "),"user");
 
  $("prompt").value="";
  $("send").disabled=true;
@@ -233,8 +234,8 @@ async function sendMessage(message,imageData=null){
    mode:conversationMode
   };
 
-  if(imageData){
-   payload.image=imageData;
+  if(files.length){
+   payload.attachments=files;
   }
 
   const response=await fetch(WORKER_URL,{
@@ -405,7 +406,7 @@ $("capture").addEventListener("click",()=>{
  const context=canvas.getContext("2d");
  context.drawImage(video,0,0,canvas.width,canvas.height);
 
- capturedImage=canvas.toDataURL("image/jpeg",0.8);
+ capturedAttachments=[{name:"captura-camera.jpg",dataUrl:canvas.toDataURL("image/jpeg",0.8)}];
  $("preview").src=capturedImage;
  $("preview").hidden=false;
  statusBox.textContent="Imagem capturada. Você já pode enviá-la.";
@@ -421,63 +422,67 @@ $("closeCamera").addEventListener("click",()=>{
  statusBox.textContent="Câmera fechada.";
 });
 
-$("imageFile").addEventListener("change",event=>{
- const file=event.target.files&&event.target.files[0];
- if(!file)return;
-
- const isImage=file.type.startsWith("image/");
- const isPdf=file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf");
- if(!isImage&&!isPdf){
-  statusBox.textContent="Selecione uma imagem ou um documento PDF.";
+$("imageFile").addEventListener("change",async event=>{
+ const selected=Array.from(event.target.files||[]);
+ if(!selected.length)return;
+ if(selected.length>5){
+  statusBox.textContent="Nesta versão, selecione no máximo 5 anexos por mensagem.";
   event.target.value="";
   return;
  }
-
- if(file.size>8*1024*1024){
-  statusBox.textContent="O anexo é maior que 8 MB. Escolha um arquivo menor.";
-  event.target.value="";
-  return;
+ for(const file of selected){
+  const isImage=file.type.startsWith("image/");
+  const isPdf=file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf");
+  if(!isImage&&!isPdf){
+   statusBox.textContent="Use somente imagens ou documentos PDF.";
+   event.target.value="";
+   return;
+  }
+  if(file.size>8*1024*1024){
+   statusBox.textContent="Cada anexo deve ter no máximo 8 MB.";
+   event.target.value="";
+   return;
+  }
  }
-
- const reader=new FileReader();
-
- reader.onload=()=>{
-  capturedImage=reader.result;
-  if(isImage){
-   $("preview").src=capturedImage;
+ try{
+  capturedAttachments=await Promise.all(selected.map(file=>new Promise((resolve,reject)=>{
+   const reader=new FileReader();
+   reader.onload=()=>resolve({name:file.name,dataUrl:reader.result});
+   reader.onerror=()=>reject(new Error("Falha ao ler "+file.name));
+   reader.readAsDataURL(file);
+  })));
+  const firstImage=capturedAttachments.find(item=>item.dataUrl.startsWith("data:image/"));
+  if(firstImage){
+   $("preview").src=firstImage.dataUrl;
    $("preview").hidden=false;
-   statusBox.textContent="Imagem carregada. Você já pode enviá-la.";
   }else{
    $("preview").removeAttribute("src");
    $("preview").hidden=true;
-   statusBox.textContent="PDF carregado. Você já pode enviá-lo.";
   }
- };
-
- reader.onerror=()=>{
-  statusBox.textContent="Não consegui abrir a imagem selecionada.";
- };
-
- reader.readAsDataURL(file);
+  statusBox.textContent=capturedAttachments.length+" anexo(s) carregado(s): "+capturedAttachments.map(item=>item.name).join(", ");
+ }catch(error){
+  capturedAttachments=[];
+  statusBox.textContent="Não consegui abrir os anexos selecionados.";
+ }
 });
 
 $("sendImage").addEventListener("click",()=>{
- if(!capturedImage){
-  statusBox.textContent="Capture uma imagem ou escolha uma imagem/PDF primeiro.";
+ if(!capturedAttachments.length){
+  statusBox.textContent="Capture uma imagem ou escolha imagens/PDF primeiro.";
   return;
  }
 
- const imageToSend=capturedImage;
+ const filesToSend=capturedAttachments;
  const message=$("prompt").value;
- capturedImage=null;
+ capturedAttachments=[];
  $("preview").hidden=true;
  $("imageFile").value="";
 
- sendMessage(message,imageToSend);
+ sendMessage(message,filesToSend);
 });
 
 $("cancelImage").addEventListener("click",()=>{
- capturedImage=null;
+ capturedAttachments=[];
  $("preview").removeAttribute("src");
  $("preview").hidden=true;
  $("imageFile").value="";
