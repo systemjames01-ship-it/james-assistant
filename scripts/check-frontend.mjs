@@ -9,4 +9,8 @@ if (scripts.length === 0) {
 for (let i = 0; i < scripts.length; i++) {
   new vm.Script(scripts[i][1], { filename: "index.html:inline-script-" + (i + 1) });
 }
+if (/speechSynthesis|SpeechSynthesisUtterance|speak\\(data\\.reply\\)/.test(html)) {
+  throw new Error("Automatic browser speech must remain disabled in the frontend.");
+}
 console.log("Validated " + scripts.length + " inline script block(s) in index.html");
+console.log("Confirmed automatic browser speech is disabled.");
