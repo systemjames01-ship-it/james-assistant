@@ -237,3 +237,66 @@ test("chat and assistant modes share recent conversational context", async () =>
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("complex assistant requests use high reasoning without a fixed response timeout", async () => {
+  const originalFetch = globalThis.fetch;
+  let sentBody;
+  globalThis.fetch = async (_url, options) => {
+    sentBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Plano analisado com cuidado." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Analise a arquitetura do projeto, compare as alternativas, identifique riscos e proponha um plano de implementação em várias etapas.",
+        sessionId: "session_test_12345",
+        mode: "assistant"
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reasoningLevel, "high");
+    assert.equal(sentBody.generationConfig.thinkingConfig.thinkingLevel, "high");
+    assert.equal(sentBody.generationConfig.maxOutputTokens, 8192);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("ordinary conversation keeps balanced medium reasoning", async () => {
+  const originalFetch = globalThis.fetch;
+  let sentBody;
+  globalThis.fetch = async (_url, options) => {
+    sentBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Tudo bem por aqui." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Oi, tudo bem?",
+        sessionId: "session_test_12345",
+        mode: "chat"
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reasoningLevel, "medium");
+    assert.equal(sentBody.generationConfig.thinkingConfig.thinkingLevel, "medium");
+    assert.equal(sentBody.generationConfig.maxOutputTokens, 6144);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
