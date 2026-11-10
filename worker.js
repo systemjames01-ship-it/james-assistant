@@ -47,20 +47,9 @@ function errorMessage(payload, status) {
 }
 
 async function ensureConversationTable(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS conversation_messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id TEXT NOT NULL,
-      role TEXT NOT NULL CHECK (role IN ('user', 'model')),
-      content TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )
-  `).run();
-
-  await db.prepare(`
-    CREATE INDEX IF NOT EXISTS idx_conversation_session_id
-    ON conversation_messages (session_id, id)
-  `).run();
+  // Production schema is intentionally not created or modified at runtime.
+  // If the expected table is absent or incompatible, history is handled
+  // as unavailable by the caller while the AI response can still proceed.
 }
 
 async function loadConversation(db, sessionId) {
@@ -404,13 +393,15 @@ export default {
 
       const currentTurn = { role: "user", parts };
       let reply;
+      let usedModel = MODEL;
       try {
-        reply = await callGemini(env, [...history, currentTurn], mode);
+        reply = await callGemini(env, [...history, currentTurn], mode, MODEL);
       } catch (primaryError) {
         const retryable = primaryError?.kind === "gemini" &&
           [429, 503].includes(primaryError.status);
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
+        usedModel = FALLBACK_MODEL;
         reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL);
       }
 
@@ -426,7 +417,7 @@ export default {
 
       return json({
         reply,
-        model: MODEL,
+        model: usedModel,
         memory: memoryAvailable ? "available" : "temporarily_unavailable"
       }, 200, origin);
     } catch (error) {
