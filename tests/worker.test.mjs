@@ -188,3 +188,52 @@ test("assistant creates a persistent task through the D1 tool", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("chat and assistant modes share recent conversational context", async () => {
+  const originalFetch = globalThis.fetch;
+  let sentBody;
+  let historyBindings;
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          if (sql.includes("SELECT role, content")) {
+            historyBindings = values;
+            return { all: async () => ({ results: [
+              { role: "user", content: "Lembre que meu projeto se chama Jâmes." },
+              { role: "model", content: "Claro, vou manter esse contexto." }
+            ] }) };
+          }
+          return { run: async () => ({ meta: { changes: 1 } }) };
+        }
+      };
+    },
+    batch: async () => []
+  };
+  globalThis.fetch = async (_url, options) => {
+    sentBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Contexto compartilhado recebido." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Qual é o nome do projeto?",
+        sessionId: "session_test_12345",
+        mode: "chat"
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key", DB: db });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Contexto compartilhado recebido.");
+    assert.deepEqual(historyBindings, ["session_test_12345_assistant", "session_test_12345_chat"]);
+    assert.ok(sentBody.contents.some(item => item.parts?.some(part => part.text === "Lembre que meu projeto se chama Jâmes.")));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
