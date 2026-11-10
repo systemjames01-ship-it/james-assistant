@@ -309,10 +309,12 @@ async function sendMessage(message,attachments=null){
 $("assistantMode").addEventListener("click",()=>{
  setConversationMode("assistant");
  loadHistory(false);
+ loadTasks();
 });
 $("chatMode").addEventListener("click",()=>{
  setConversationMode("chat");
  loadHistory(false);
+ loadTasks();
 });
 setConversationMode(conversationMode);
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
