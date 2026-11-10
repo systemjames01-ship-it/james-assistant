@@ -71,7 +71,7 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 </div>
 <video id="camera" autoplay playsinline hidden></video>
 <canvas id="canvas" hidden></canvas>
-<input id="imageFile" type="file" accept="image/*,application/pdf,.pdf" capture="environment" multiple>
+<input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.pdf" capture="environment" multiple>
 <img id="preview" alt="Pré-visualização da imagem selecionada" hidden>
 <div class="row">
 <button type="button" id="sendImage">Enviar anexo ao Jâmes</button>
@@ -229,7 +229,7 @@ async function sendMessage(message,attachments=null){
 
  try{
   const payload={
-   message:text||"Analise a imagem enviada.",
+   message:text||"Analise os anexos enviados.",
    sessionId:getSessionId(),
    mode:conversationMode
   };
@@ -431,7 +431,7 @@ $("imageFile").addEventListener("change",async event=>{
   return;
  }
  for(const file of selected){
-  const isImage=file.type.startsWith("image/");
+  const isImage=["image/jpeg","image/png","image/webp","image/gif"].includes(file.type);
   const isPdf=file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf");
   if(!isImage&&!isPdf){
    statusBox.textContent="Use somente imagens ou documentos PDF.";
