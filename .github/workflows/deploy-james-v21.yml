@@ -1,0 +1,99 @@
+name: Deploy Jâmes v2.1 to Cloudflare
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: "Digite exatamente DEPLOY_JAMES_AI_V21 para autorizar a publicação"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: james-ai-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ inputs.confirm_production == 'DEPLOY_JAMES_AI_V21' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout do commit validado
+        uses: actions/checkout@v4
+        with:
+          ref: 727a11cb82e61c9ca7ca491b29003507ebd1db07
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validar código e testes
+        run: npm test
+
+      - name: Conferir credenciais sem exibi-las
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Falta o segredo CLOUDFLARE_API_TOKEN no GitHub."; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Falta o segredo CLOUDFLARE_ACCOUNT_ID no GitHub."; exit 1; }
+          echo "Credenciais presentes; valores ocultos."
+
+      - name: Aplicar migração aditiva no D1 remoto
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 d1 execute james-memory --remote --file=migrations/0002_james_tasks_v21.sql
+
+      - name: Confirmar tabela e índice no D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 d1 execute james-memory --remote --command "SELECT name, type FROM sqlite_master WHERE name IN ('james_tasks_v21','idx_james_tasks_v21_session_status') ORDER BY type, name;"
+
+      - name: Publicar Worker validado
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy
+
+      - name: Testar saúde do Worker e leitura das tarefas
+        env:
+          WORKER_URL: https://james-ai.systemjames01.workers.dev
+          APP_ORIGIN: https://systemjames01-ship-it.github.io
+          TEST_SESSION: ci_check_${{ github.run_id }}
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.WORKER_URL;
+          const headers = { Origin: process.env.APP_ORIGIN };
+          const healthResponse = await fetch(base, { headers });
+          if (!healthResponse.ok) throw new Error(`Health check HTTP ${healthResponse.status}`);
+          const health = await healthResponse.json();
+          if (health.status !== "online" || health.service !== "Jâmes AI Worker") {
+            throw new Error("Resposta de saúde inesperada: " + JSON.stringify(health));
+          }
+          console.log("Health check confirmado:", JSON.stringify(health));
+
+          const tasksUrl = new URL(base);
+          tasksUrl.searchParams.set("action", "tasks");
+          tasksUrl.searchParams.set("sessionId", process.env.TEST_SESSION);
+          const tasksResponse = await fetch(tasksUrl, { headers });
+          const tasks = await tasksResponse.json();
+          if (!tasksResponse.ok || !Array.isArray(tasks.tasks)) {
+            throw new Error("Leitura D1 de tarefas falhou: HTTP " + tasksResponse.status + " " + JSON.stringify(tasks));
+          }
+          console.log("Leitura D1 de tarefas confirmada; quantidade:", tasks.tasks.length);
+          NODE
+
+      - name: Registrar resumo sem segredos
+        if: always()
+        run: |
+          echo "Commit publicado: 727a11cb82e61c9ca7ca491b29003507ebd1db07"
+          echo "Migração: migrations/0002_james_tasks_v21.sql"
+          echo "Worker: james-ai"
+          echo "Nenhum segredo é exibido por este workflow."
