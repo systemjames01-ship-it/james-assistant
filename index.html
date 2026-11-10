@@ -407,7 +407,7 @@ $("capture").addEventListener("click",()=>{
  context.drawImage(video,0,0,canvas.width,canvas.height);
 
  capturedAttachments=[{name:"captura-camera.jpg",dataUrl:canvas.toDataURL("image/jpeg",0.8)}];
- $("preview").src=capturedImage;
+ $("preview").src=capturedAttachments[0].dataUrl;
  $("preview").hidden=false;
  statusBox.textContent="Imagem capturada. Você já pode enviá-la.";
 });
