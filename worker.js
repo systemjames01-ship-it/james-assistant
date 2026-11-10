@@ -1,6 +1,9 @@
 const MODEL = "gemini-3.8-flash";
+const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const ALLOWED_ORIGIN = "https://systemjames01-ship-it.github.io";
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_ATTACHMENTS = 5;
 const MAX_TEXT_LENGTH = 20000;
 
 const SYSTEM_INSTRUCTION = `Você é Jâmes, assistente pessoal criado por Jamerson Ramos.
@@ -9,6 +12,14 @@ Responda em português do Brasil, salvo pedido diferente.
 IDENTIDADE E OBJETIVO:
 Você não é apenas um chatbot. É o núcleo conversacional de um assistente pessoal que deve evoluir para um sistema proativo, contextual e capaz de executar tarefas por ferramentas autorizadas.
 Converse naturalmente, com clareza e personalidade consistente. Demonstre iniciativa útil: perceba objetivos implícitos, antecipe o próximo passo relevante, proponha soluções concretas e avise sobre riscos ou informações que faltam. Não faça perguntas desnecessárias nem transforme toda resposta em uma lista de opções.
+
+FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
+- calculate: operações aritméticas simples; use para contas em vez de estimar.
+- get_current_time: data e hora UTC; informe claramente o fuso e não finja conhecer a hora local se ela não foi fornecida.
+- create_task: grava uma tarefa na lista persistente do usuário; use somente quando ele pedir claramente para criar/guardar uma tarefa. Isso NÃO cria alarme, lembrete agendado ou notificação.
+- list_tasks: consulta as tarefas desta sessão.
+- complete_task: marca como concluída uma tarefa identificada na lista, somente quando o usuário pedir.
+Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
 
 RACIOCÍNIO E EXECUÇÃO:
 Analise o pedido antes de responder. Quando uma ferramenta disponível puder melhorar a precisão, use-a. Para tarefas com várias etapas, divida o trabalho internamente, execute o que estiver autorizado, confira os resultados e informe o que foi ou não concluído. Se não puder agir diretamente, diga exatamente qual bloqueio existe e faça o máximo possível sem transferir trabalho desnecessário ao utilizador.
@@ -46,31 +57,20 @@ function errorMessage(payload, status) {
 }
 
 async function ensureConversationTable(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS conversation_messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id TEXT NOT NULL,
-      role TEXT NOT NULL CHECK (role IN ('user', 'model')),
-      content TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )
-  `).run();
-
-  await db.prepare(`
-    CREATE INDEX IF NOT EXISTS idx_conversation_session_id
-    ON conversation_messages (session_id, id)
-  `).run();
+  // Production schema is intentionally not created or modified at runtime.
+  // If the expected table is absent or incompatible, history is handled
+  // as unavailable by the caller while the AI response can still proceed.
 }
 
 async function loadConversation(db, sessionId) {
   await ensureConversationTable(db);
   const result = await db.prepare(`
     SELECT role, content
-    FROM conversation_messages
-    WHERE session_id = ?
+    FROM james_conversation_messages_v21
+    WHERE session_id IN (?, ?)
     ORDER BY id DESC
     LIMIT 12
-  `).bind(sessionId).all();
+  `).bind(sessionId + "_assistant", sessionId + "_chat").all();
 
   return (result.results || [])
     .reverse()
@@ -80,11 +80,11 @@ async function loadConversation(db, sessionId) {
 async function saveConversationTurn(db, sessionId, userContent, reply) {
   await db.batch([
     db.prepare(`
-      INSERT INTO conversation_messages (session_id, role, content)
+      INSERT INTO james_conversation_messages_v21 (session_id, role, content)
       VALUES (?, 'user', ?)
     `).bind(sessionId, userContent.slice(0, MAX_TEXT_LENGTH)),
     db.prepare(`
-      INSERT INTO conversation_messages (session_id, role, content)
+      INSERT INTO james_conversation_messages_v21 (session_id, role, content)
       VALUES (?, 'model', ?)
     `).bind(sessionId, reply.slice(0, 30000))
   ]);
@@ -100,14 +100,14 @@ async function fetchConversationPage(db, sessionId, beforeId = null, limit = 30)
   const result = beforeId
     ? await db.prepare(`
         SELECT id, role, content, created_at
-        FROM conversation_messages
+        FROM james_conversation_messages_v21
         WHERE session_id = ? AND id < ?
         ORDER BY id DESC
         LIMIT ?
       `).bind(sessionId, beforeId, safeLimit + 1).all()
     : await db.prepare(`
         SELECT id, role, content, created_at
-        FROM conversation_messages
+        FROM james_conversation_messages_v21
         WHERE session_id = ?
         ORDER BY id DESC
         LIMIT ?
@@ -135,23 +135,143 @@ Não execute nem afirme executar ações externas neste modo. Se o utilizador pe
 Responda em português do Brasil, salvo pedido diferente. Seja honesto sobre limites, atualidade das informações e capacidades disponíveis. Nunca invente memórias, anexos recebidos ou resultados.
 `;
 
-async function callGemini(env, contents, mode = "assistant") {
+function calculateExpression(source) {
+  if (typeof source !== "string" || source.length > 200) throw new Error("Expressão inválida ou longa demais.");
+  const tokens = source.match(/\d+(?:\.\d+)?|[()+*/%-]/g) || [];
+  if (tokens.join("") !== source.replace(/\s+/g, "")) throw new Error("Use somente números, parênteses e operadores +, -, *, / e %.");
+  let index = 0;
+  function primary() {
+    const token = tokens[index++];
+    if (token === "+" || token === "-") {
+      const value = primary();
+      return token === "-" ? -value : value;
+    }
+    if (token === "(") {
+      const value = expression();
+      if (tokens[index++] !== ")") throw new Error("Parênteses não correspondem.");
+      return value;
+    }
+    const value = Number(token);
+    if (!Number.isFinite(value)) throw new Error("Número inválido.");
+    return value;
+  }
+  function term() {
+    let value = primary();
+    while (["*", "/", "%"].includes(tokens[index])) {
+      const operator = tokens[index++];
+      const right = primary();
+      if ((operator === "/" || operator === "%") && right === 0) throw new Error("Divisão por zero não é permitida.");
+      value = operator === "*" ? value * right : operator === "/" ? value / right : value % right;
+    }
+    return value;
+  }
+  function expression() {
+    let value = term();
+    while (tokens[index] === "+" || tokens[index] === "-") {
+      const operator = tokens[index++];
+      const right = term();
+      value = operator === "+" ? value + right : value - right;
+    }
+    return value;
+  }
+  if (!tokens.length) throw new Error("Informe uma expressão matemática.");
+  const result = expression();
+  if (index !== tokens.length || !Number.isFinite(result)) throw new Error("Não foi possível calcular essa expressão.");
+  return Number(result.toPrecision(12));
+}
+
+async function executeAssistantTool(env, sessionId, name, args = {}) {
+  if (name === "get_current_time") {
+    const now = new Date();
+    return { iso: now.toISOString(), timezone: "UTC", note: "O Worker fornece horário UTC; converta para o fuso pedido pelo usuário quando necessário." };
+  }
+  if (name === "calculate") {
+    return { expression: args.expression, result: calculateExpression(args.expression) };
+  }
+  if (!env.DB) return { error: "Armazenamento D1 indisponível; nenhuma alteração foi salva." };
+
+  if (name === "create_task") {
+    const title = typeof args.title === "string" ? args.title.trim().slice(0, 160) : "";
+    const details = typeof args.details === "string" ? args.details.trim().slice(0, 2000) : "";
+    if (!title) return { error: "A tarefa precisa ter um título." };
+    const result = await env.DB.prepare(
+      "INSERT INTO james_tasks_v21 (session_id, title, details) VALUES (?, ?, ?)"
+    ).bind(sessionId, title, details).run();
+    return { success: true, taskId: result.meta?.last_row_id ?? null, title, status: "open" };
+  }
+
+  if (name === "list_tasks") {
+    const result = await env.DB.prepare(
+      "SELECT id, title, details, status, created_at FROM james_tasks_v21 WHERE session_id = ? ORDER BY id DESC LIMIT 50"
+    ).bind(sessionId).all();
+    return { tasks: (result.results || []).map(row => ({
+      id: row.id, title: row.title, details: row.details, status: row.status, createdAt: row.created_at
+    })) };
+  }
+
+  if (name === "complete_task") {
+    const taskId = Number(args.task_id);
+    if (!Number.isSafeInteger(taskId) || taskId < 1) return { error: "Identificador de tarefa inválido." };
+    const result = await env.DB.prepare(
+      "UPDATE james_tasks_v21 SET status = 'completed', completed_at = datetime('now') WHERE id = ? AND session_id = ? AND status = 'open'"
+    ).bind(taskId, sessionId).run();
+    if (!result.meta?.changes) return { success: false, error: "Tarefa não encontrada ou já concluída nesta sessão." };
+    return { success: true, taskId, status: "completed" };
+  }
+
+  return { error: "Ferramenta desconhecida." };
+}
+
+async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "") {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
-    MODEL + ":generateContent";
+    model + ":generateContent";
 
   const isAssistantMode = mode === "assistant";
   const activeInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
   const tools = [{
-    functionDeclarations: [{
-      name: "get_current_time",
-      description: "Obtém a data e hora atuais em UTC. Use quando o pedido depender de horário ou data atuais.",
-      parameters: {
-        type: "OBJECT",
-        properties: {},
-        required: []
+    functionDeclarations: [
+      {
+        name: "get_current_time",
+        description: "Obtém a data e hora atuais em UTC.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
+      },
+      {
+        name: "calculate",
+        description: "Calcula uma expressão aritmética simples com números, parênteses e +, -, *, / ou %.",
+        parameters: {
+          type: "OBJECT",
+          properties: { expression: { type: "STRING", description: "Expressão matemática, por exemplo (25 * 4) + 10." } },
+          required: ["expression"]
+        }
+      },
+      {
+        name: "create_task",
+        description: "Cria uma tarefa persistente na lista pessoal do usuário. Não cria alarmes nem notificações.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            title: { type: "STRING", description: "Título curto da tarefa." },
+            details: { type: "STRING", description: "Detalhes opcionais da tarefa." }
+          },
+          required: ["title"]
+        }
+      },
+      {
+        name: "list_tasks",
+        description: "Lista as tarefas abertas e concluídas do usuário.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
+      },
+      {
+        name: "complete_task",
+        description: "Marca como concluída uma tarefa aberta pertencente à sessão atual.",
+        parameters: {
+          type: "OBJECT",
+          properties: { task_id: { type: "INTEGER", description: "ID da tarefa retornado pela lista." } },
+          required: ["task_id"]
+        }
       }
-    }]
+    ]
   }];
 
   const transcript = [...contents];
@@ -235,25 +355,18 @@ async function callGemini(env, contents, mode = "assistant") {
     const functionResponses = [];
     for (const part of functionCalls) {
       const call = part.functionCall;
-      if (call.name !== "get_current_time") {
-        functionResponses.push({
-          functionResponse: {
-            name: call.name,
-            ...(call.id ? { id: call.id } : {}),
-            response: { error: "Ferramenta não autorizada ou indisponível." }
-          }
-        });
-        continue;
+      let toolResult;
+      try {
+        toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {});
+      } catch (toolError) {
+        console.error("Assistant tool failed:", call.name, toolError);
+        toolResult = { error: "A ferramenta falhou ao executar. Nenhuma conclusão deve ser presumida." };
       }
-
       functionResponses.push({
         functionResponse: {
           name: call.name,
           ...(call.id ? { id: call.id } : {}),
-          response: {
-            iso: new Date().toISOString(),
-            timezone: "UTC"
-          }
+          response: toolResult
         }
       });
     }
@@ -287,6 +400,25 @@ export default {
 
     if (request.method === "GET") {
       const url = new URL(request.url);
+      if (url.searchParams.get("action") === "tasks") {
+        if (origin !== ALLOWED_ORIGIN) {
+          return json({ error: "Origem não autorizada." }, 403, origin);
+        }
+        if (!env.DB) return json({ error: "Armazenamento de tarefas indisponível.", tasks: [] }, 503, origin);
+        const sessionId = url.searchParams.get("sessionId") || "";
+        const mode = url.searchParams.get("mode") === "chat" ? "chat" : "assistant";
+        if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
+          return json({ error: "Identificador de sessão inválido.", tasks: [] }, 400, origin);
+        }
+        try {
+          const result = await executeAssistantTool(env, sessionId, "list_tasks");
+          if (result.error) return json({ error: result.error, tasks: [] }, 503, origin);
+          return json({ tasks: result.tasks || [] }, 200, origin);
+        } catch (error) {
+          console.error("D1 task list read failed:", error);
+          return json({ error: "A lista de tarefas ainda não está disponível.", tasks: [] }, 503, origin);
+        }
+      }
       if (url.searchParams.get("action") === "history") {
         if (origin !== ALLOWED_ORIGIN) {
           return json({ error: "Origem não autorizada." }, 403, origin);
@@ -300,13 +432,18 @@ export default {
         if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
           return json({ error: "Identificador de sessão inválido." }, 400, origin);
         }
-        const page = await fetchConversationPage(
-          env.DB,
-          sessionId + "_" + mode,
-          before && /^\d+$/.test(before) ? Number(before) : null,
-          url.searchParams.get("limit") || 30
-        );
-        return json(page, 200, origin);
+        try {
+          const page = await fetchConversationPage(
+            env.DB,
+            sessionId + "_" + mode,
+            before && /^\d+$/.test(before) ? Number(before) : null,
+            url.searchParams.get("limit") || 30
+          );
+          return json(page, 200, origin);
+        } catch (error) {
+          console.error("D1 history read failed:", error);
+          return json({ error: "O histórico ainda não está disponível; a conversa com a IA pode continuar normalmente.", messages: [], hasMore: false, nextBefore: null }, 503, origin);
+        }
       }
       return json({
         status: "online",
@@ -356,50 +493,98 @@ export default {
     }
 
     const parts = [];
+    const attachmentLabels = [];
     if (message) parts.push({ text: message });
 
-    if (payload?.image) {
-      if (typeof payload.image !== "string") {
-        return json({ error: "Formato de imagem inválido." }, 400, origin);
+    const encodedBodySize = new TextEncoder().encode(JSON.stringify(payload)).length;
+    if (encodedBodySize > MAX_BODY_BYTES) {
+      return json({ error: "A mensagem e seus anexos ultrapassam o limite total de 12 MB." }, 413, origin);
+    }
+
+    const incomingAttachments = [];
+    if (payload?.image) incomingAttachments.push({ name: "anexo", dataUrl: payload.image });
+    if (payload?.attachments !== undefined) {
+      if (!Array.isArray(payload.attachments)) {
+        return json({ error: "O campo attachments precisa ser uma lista." }, 400, origin);
       }
-      const match = payload.image.match(/^data:(image\/(?:jpeg|png|webp|gif)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/);
+      incomingAttachments.push(...payload.attachments);
+    }
+    if (incomingAttachments.length > MAX_ATTACHMENTS) {
+      return json({ error: "Envie no máximo " + MAX_ATTACHMENTS + " anexos por mensagem nesta versão." }, 413, origin);
+    }
+
+    let totalAttachmentBytes = 0;
+    for (const attachment of incomingAttachments) {
+      const dataUrl = typeof attachment === "string" ? attachment : attachment?.dataUrl || attachment?.data || "";
+      const name = typeof attachment?.name === "string" ? attachment.name.slice(0, 120) : "anexo";
+      if (typeof dataUrl !== "string") {
+        return json({ error: "Formato de anexo inválido." }, 400, origin);
+      }
+      const match = dataUrl.match(/^data:(image\/(?:jpeg|png|webp|gif)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/);
       if (!match) {
         return json({ error: "Anexo inválido. Use JPEG, PNG, WEBP, GIF ou PDF." }, 400, origin);
       }
-      if (match[2].length > 10 * 1024 * 1024) {
-        return json({ error: "O anexo excede o limite permitido de 8 MB." }, 413, origin);
+      const attachmentBytes = Math.floor(match[2].length * 3 / 4) -
+        (match[2].endsWith("==") ? 2 : match[2].endsWith("=") ? 1 : 0);
+      if (attachmentBytes > MAX_ATTACHMENT_BYTES) {
+        return json({ error: "Cada anexo deve ter no máximo 8 MB." }, 413, origin);
       }
-      parts.push({
-        inlineData: {
-          mimeType: match[1],
-          data: match[2]
-        }
-      });
+      totalAttachmentBytes += attachmentBytes;
+      if (totalAttachmentBytes > MAX_ATTACHMENT_BYTES) {
+        return json({ error: "O tamanho total dos anexos deve ser de no máximo 8 MB por mensagem." }, 413, origin);
+      }
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+      attachmentLabels.push(name);
     }
 
     if (!parts.length) {
-      return json({ error: "Envie uma mensagem ou imagem." }, 400, origin);
+      return json({ error: "Envie uma mensagem ou anexo." }, 400, origin);
     }
 
     try {
-      if (!env.DB) {
-        throw Object.assign(new Error("O banco D1 DB não está conectado ao Worker."), {
-          status: 503
-        });
+      const storageSessionId = sessionId + "_" + mode;
+      let history = [];
+      let memoryAvailable = Boolean(env.DB);
+
+      if (env.DB) {
+        try {
+          history = await loadConversation(env.DB, sessionId);
+        } catch (historyError) {
+          memoryAvailable = false;
+          console.error("D1 history load failed; continuing without stored context:", historyError);
+        }
       }
 
-      const storageSessionId = sessionId + "_" + mode;
-      const history = await loadConversation(env.DB, storageSessionId);
-      const currentTurn = {
-        role: "user",
-        parts
-      };
-      const reply = await callGemini(env, [...history, currentTurn], mode);
+      const currentTurn = { role: "user", parts };
+      let reply;
+      let usedModel = MODEL;
+      try {
+        reply = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId);
+      } catch (primaryError) {
+        const retryable = primaryError?.kind === "gemini" &&
+          [429, 503].includes(primaryError.status);
+        if (!retryable) throw primaryError;
+        console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
+        usedModel = FALLBACK_MODEL;
+        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId);
+      }
 
-      const storedUserContent = message || "[Imagem enviada para análise]";
-      await saveConversationTurn(env.DB, storageSessionId, storedUserContent, reply);
+      if (env.DB) {
+        try {
+          const attachmentSummary = attachmentLabels.length ? " [Anexos: " + attachmentLabels.join(", ") + "]" : "";
+          const storedUserContent = (message || "[Anexo enviado para análise]") + attachmentSummary;
+          await saveConversationTurn(env.DB, storageSessionId, storedUserContent, reply);
+        } catch (saveError) {
+          memoryAvailable = false;
+          console.error("D1 history save failed; reply will still be returned:", saveError);
+        }
+      }
 
-      return json({ reply }, 200, origin);
+      return json({
+        reply,
+        model: usedModel,
+        memory: memoryAvailable ? "available" : "temporarily_unavailable"
+      }, 200, origin);
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 502;
       const safeMessage = error?.kind === "gemini" && status === 503
