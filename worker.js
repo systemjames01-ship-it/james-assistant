@@ -400,6 +400,25 @@ export default {
 
     if (request.method === "GET") {
       const url = new URL(request.url);
+      if (url.searchParams.get("action") === "tasks") {
+        if (origin !== ALLOWED_ORIGIN) {
+          return json({ error: "Origem não autorizada." }, 403, origin);
+        }
+        if (!env.DB) return json({ error: "Armazenamento de tarefas indisponível.", tasks: [] }, 503, origin);
+        const sessionId = url.searchParams.get("sessionId") || "";
+        const mode = url.searchParams.get("mode") === "chat" ? "chat" : "assistant";
+        if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
+          return json({ error: "Identificador de sessão inválido.", tasks: [] }, 400, origin);
+        }
+        try {
+          const result = await executeAssistantTool(env, sessionId + "_" + mode, "list_tasks");
+          if (result.error) return json({ error: result.error, tasks: [] }, 503, origin);
+          return json({ tasks: result.tasks || [] }, 200, origin);
+        } catch (error) {
+          console.error("D1 task list read failed:", error);
+          return json({ error: "A lista de tarefas ainda não está disponível.", tasks: [] }, 503, origin);
+        }
+      }
       if (url.searchParams.get("action") === "history") {
         if (origin !== ALLOWED_ORIGIN) {
           return json({ error: "Origem não autorizada." }, 403, origin);
