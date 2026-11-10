@@ -58,6 +58,8 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 <div class="row">
 <button type="submit" id="send">Enviar</button>
 <button type="button" class="secondary" id="voice">Falar</button>
+<button type="button" class="secondary" id="voiceOutput">Voz: ligada</button>
+<button type="button" class="secondary" id="stopVoice">Parar voz</button>
 </div>
 </form>
 </section>
@@ -120,6 +122,7 @@ let cameraStream=null;
 let capturedAttachments=[];
 let recognition=null;
 let isListening=false;
+let voiceOutputEnabled=localStorage.getItem("james_voice_enabled")!=="false";
 let conversationMode=localStorage.getItem("james_mode")==="chat"?"chat":"assistant";
 
 let historyBefore=null;
@@ -293,6 +296,11 @@ function addMessage(text,who){
  chat.scrollTop=chat.scrollHeight;
 }
 
+function updateVoiceOutputButton(){
+ $("voiceOutput").textContent=voiceOutputEnabled?"Voz: ligada":"Voz: desligada";
+ $("voiceOutput").setAttribute("aria-pressed",String(voiceOutputEnabled));
+}
+
 function getSessionId(){
  let id=localStorage.getItem("james_session_id");
  if(!id){
@@ -348,7 +356,7 @@ async function sendMessage(message,attachments=null){
   statusBox.textContent=data.reasoningLevel==="high"
    ?"Resposta concluída após análise aprofundada."
    :"Resposta recebida.";
-  speak(data.reply);
+  if(voiceOutputEnabled)speak(data.reply);
   loadTasks();
   loadMemories();
 
@@ -377,6 +385,17 @@ $("chatMode").addEventListener("click",()=>{
 });
 setConversationMode(conversationMode);
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
+$("voiceOutput").addEventListener("click",()=>{
+ voiceOutputEnabled=!voiceOutputEnabled;
+ localStorage.setItem("james_voice_enabled",String(voiceOutputEnabled));
+ if(!voiceOutputEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();
+ updateVoiceOutputButton();
+});
+$("stopVoice").addEventListener("click",()=>{
+ if("speechSynthesis" in window)window.speechSynthesis.cancel();
+ statusBox.textContent="Voz interrompida.";
+});
+updateVoiceOutputButton();
 $("refreshTasks").addEventListener("click",loadTasks);
 $("refreshMemories").addEventListener("click",loadMemories);
 loadHistory(false);
