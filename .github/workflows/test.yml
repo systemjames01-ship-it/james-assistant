@@ -23,7 +23,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate Worker syntax
-        run: node --check worker.js
-      - name: Validate frontend JavaScript syntax
-        run: node scripts/check-frontend.mjs
+      - name: Run syntax and Worker tests
+        run: npm test
