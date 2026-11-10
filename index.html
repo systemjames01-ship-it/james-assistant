@@ -60,6 +60,15 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 </form>
 </section>
 
+<section id="tasksSection">
+<h2>Minhas tarefas</h2>
+<p class="small">Tarefas que você pedir ao Jâmes para guardar. Esta lista não envia alarmes nem notificações.</p>
+<div class="row">
+<button type="button" class="secondary" id="refreshTasks">Atualizar tarefas</button>
+</div>
+<div id="taskList" aria-live="polite" class="small">Carregando tarefas...</div>
+</section>
+
 <section>
 <h2>Olhos do Jâmes</h2>
 <p class="small">Use a câmera ou envie uma imagem ou documento PDF para análise.</p>
@@ -171,6 +180,55 @@ function setConversationMode(mode){
  statusBox.textContent=mode==="assistant"?"Modo Assistente: iniciativa e ferramentas autorizadas.":"Modo Chat: conversa por texto.";
 }
 
+async function loadTasks(){
+ const container=$("taskList");
+ if(!container)return;
+ container.textContent="Carregando tarefas...";
+ try{
+  const params=new URLSearchParams({action:"tasks",sessionId:getSessionId(),mode:conversationMode});
+  const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||"Lista indisponível.");
+  const tasks=Array.isArray(data.tasks)?data.tasks:[];
+  container.replaceChildren();
+  if(!tasks.length){
+   container.textContent="Nenhuma tarefa guardada nesta sessão.";
+   return;
+  }
+  for(const task of tasks){
+   const item=document.createElement("div");
+   item.className="msg bot";
+   const title=document.createElement("strong");
+   title.textContent=(task.status==="completed"?"✓ ":"• ")+task.title;
+   item.appendChild(title);
+   if(task.details){
+    const details=document.createElement("div");
+    details.textContent=task.details;
+    item.appendChild(details);
+   }
+   const meta=document.createElement("div");
+   meta.className="small";
+   meta.textContent="Tarefa #"+task.id+" · "+(task.status==="completed"?"Concluída":"Em aberto");
+   item.appendChild(meta);
+   if(task.status==="open"){
+    const done=document.createElement("button");
+    done.type="button";
+    done.className="secondary";
+    done.textContent="Marcar como concluída";
+    done.addEventListener("click",()=>{
+     $("prompt").value="Marque a tarefa #"+task.id+" como concluída.";
+     sendMessage($("prompt").value);
+    });
+    item.appendChild(done);
+   }
+   container.appendChild(item);
+  }
+ }catch(error){
+  container.textContent="Tarefas indisponíveis: "+(error.message||"falha ao consultar o D1");
+ }
+}
+
+
 
 function addMessage(text,who){
  const div=document.createElement("div");
@@ -233,6 +291,7 @@ async function sendMessage(message,attachments=null){
 
   addMessage(data.reply,"bot");
   statusBox.textContent="Resposta recebida.";
+  await loadTasks();
 
  }catch(error){
   const detail=error.message||"Erro desconhecido.";
@@ -257,7 +316,9 @@ $("chatMode").addEventListener("click",()=>{
 });
 setConversationMode(conversationMode);
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
+$("refreshTasks").addEventListener("click",loadTasks);
 loadHistory(false);
+loadTasks();
 
 $("form").addEventListener("submit",event=>{
  event.preventDefault();
