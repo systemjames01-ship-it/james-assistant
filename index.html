@@ -346,8 +346,9 @@ async function sendMessage(message,attachments=null){
   statusBox.textContent=data.reasoningLevel==="high"
    ?"Resposta concluída após análise aprofundada."
    :"Resposta recebida.";
-  await loadTasks();
-  await loadMemories();
+  speak(data.reply);
+  loadTasks();
+  loadMemories();
 
  }catch(error){
   const detail=error.message||"Erro desconhecido.";
