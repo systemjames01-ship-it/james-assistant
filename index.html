@@ -290,7 +290,9 @@ async function sendMessage(message,attachments=null){
   }
 
   addMessage(data.reply,"bot");
-  statusBox.textContent="Resposta recebida.";
+  statusBox.textContent=data.reasoningLevel==="high"
+   ?"Resposta concluída após análise aprofundada."
+   :"Resposta recebida.";
   await loadTasks();
 
  }catch(error){
