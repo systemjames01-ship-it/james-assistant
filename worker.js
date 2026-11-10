@@ -2,6 +2,8 @@ const MODEL = "gemini-3.8-flash";
 const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const ALLOWED_ORIGIN = "https://systemjames01-ship-it.github.io";
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_ATTACHMENTS = 5;
 const MAX_TEXT_LENGTH = 20000;
 
 const SYSTEM_INSTRUCTION = `Você é Jâmes, assistente pessoal criado por Jamerson Ramos.
@@ -290,13 +292,18 @@ export default {
         if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
           return json({ error: "Identificador de sessão inválido." }, 400, origin);
         }
-        const page = await fetchConversationPage(
-          env.DB,
-          sessionId + "_" + mode,
-          before && /^\d+$/.test(before) ? Number(before) : null,
-          url.searchParams.get("limit") || 30
-        );
-        return json(page, 200, origin);
+        try {
+          const page = await fetchConversationPage(
+            env.DB,
+            sessionId + "_" + mode,
+            before && /^\d+$/.test(before) ? Number(before) : null,
+            url.searchParams.get("limit") || 30
+          );
+          return json(page, 200, origin);
+        } catch (error) {
+          console.error("D1 history read failed:", error);
+          return json({ error: "O histórico ainda não está disponível; a conversa com a IA pode continuar normalmente.", messages: [], hasMore: false, nextBefore: null }, 503, origin);
+        }
       }
       return json({
         status: "online",
@@ -346,38 +353,43 @@ export default {
     }
 
     const parts = [];
+    const attachmentLabels = [];
     if (message) parts.push({ text: message });
 
-    if (payload?.image) {
-      if (typeof payload.image !== "string") {
-        return json({ error: "Formato de imagem inválido." }, 400, origin);
+    const incomingAttachments = [];
+    if (payload?.image) incomingAttachments.push({ name: "anexo", dataUrl: payload.image });
+    if (payload?.attachments !== undefined) {
+      if (!Array.isArray(payload.attachments)) {
+        return json({ error: "O campo attachments precisa ser uma lista." }, 400, origin);
       }
-      const match = payload.image.match(/^data:(image\/(?:jpeg|png|webp|gif)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/);
+      incomingAttachments.push(...payload.attachments);
+    }
+    if (incomingAttachments.length > MAX_ATTACHMENTS) {
+      return json({ error: "Envie no máximo " + MAX_ATTACHMENTS + " anexos por mensagem nesta versão." }, 413, origin);
+    }
+
+    for (const attachment of incomingAttachments) {
+      const dataUrl = typeof attachment === "string" ? attachment : attachment?.dataUrl || attachment?.data || "";
+      const name = typeof attachment?.name === "string" ? attachment.name.slice(0, 120) : "anexo";
+      if (typeof dataUrl !== "string") {
+        return json({ error: "Formato de anexo inválido." }, 400, origin);
+      }
+      const match = dataUrl.match(/^data:(image\/(?:jpeg|png|webp|gif)|application\/pdf);base64,([A-Za-z0-9+/=]+)$/);
       if (!match) {
         return json({ error: "Anexo inválido. Use JPEG, PNG, WEBP, GIF ou PDF." }, 400, origin);
       }
-      if (match[2].length > 10 * 1024 * 1024) {
-        return json({ error: "O anexo excede o limite permitido de 8 MB." }, 413, origin);
+      if (match[2].length > Math.ceil(MAX_ATTACHMENT_BYTES * 4 / 3) + 8) {
+        return json({ error: "Cada anexo deve ter no máximo 8 MB." }, 413, origin);
       }
-      parts.push({
-        inlineData: {
-          mimeType: match[1],
-          data: match[2]
-        }
-      });
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+      attachmentLabels.push(name);
     }
 
     if (!parts.length) {
-      return json({ error: "Envie uma mensagem ou imagem." }, 400, origin);
+      return json({ error: "Envie uma mensagem ou anexo." }, 400, origin);
     }
 
     try {
-      if (!env.DB) {
-        throw Object.assign(new Error("O banco D1 DB não está conectado ao Worker."), {
-          status: 503
-        });
-      }
-
       const storageSessionId = sessionId + "_" + mode;
       let history = [];
       let memoryAvailable = Boolean(env.DB);
@@ -407,7 +419,8 @@ export default {
 
       if (env.DB) {
         try {
-          const storedUserContent = message || "[Imagem enviada para análise]";
+          const attachmentSummary = attachmentLabels.length ? " [Anexos: " + attachmentLabels.join(", ") + "]" : "";
+          const storedUserContent = (message || "[Anexo enviado para análise]") + attachmentSummary;
           await saveConversationTurn(env.DB, storageSessionId, storedUserContent, reply);
         } catch (saveError) {
           memoryAvailable = false;
