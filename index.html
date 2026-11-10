@@ -6,6 +6,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07111f">
+<meta name="description" content="Jâmes, assistente pessoal modular criado por Jamerson Ramos.">
+<link rel="manifest" href="./manifest.webmanifest">
 <title>Jâmes — Assistente Pessoal</title>
 <style>
 :root{color-scheme:dark}
@@ -56,6 +58,8 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 <div class="row">
 <button type="submit" id="send">Enviar</button>
 <button type="button" class="secondary" id="voice">Falar</button>
+<button type="button" class="secondary" id="voiceOutput">Voz: ligada</button>
+<button type="button" class="secondary" id="stopVoice">Parar voz</button>
 </div>
 </form>
 </section>
@@ -67,6 +71,15 @@ video,img{display:block;width:100%;max-width:100%;border-radius:12px;margin-top:
 <button type="button" class="secondary" id="refreshTasks">Atualizar tarefas</button>
 </div>
 <div id="taskList" aria-live="polite" class="small">Carregando tarefas...</div>
+</section>
+
+<section id="memoriesSection">
+<h2>Memória do Jâmes</h2>
+<p class="small">O Jâmes só guarda informações quando você pedir explicitamente. As memórias ficam vinculadas a esta sessão/navegador e podem ser apagadas por você.</p>
+<div class="row">
+<button type="button" class="secondary" id="refreshMemories">Atualizar memória</button>
+</div>
+<div id="memoryList" aria-live="polite" class="small">Carregando memórias...</div>
 </section>
 
 <section>
@@ -109,6 +122,7 @@ let cameraStream=null;
 let capturedAttachments=[];
 let recognition=null;
 let isListening=false;
+let voiceOutputEnabled=localStorage.getItem("james_voice_enabled")!=="false";
 let conversationMode=localStorage.getItem("james_mode")==="chat"?"chat":"assistant";
 
 let historyBefore=null;
@@ -180,6 +194,50 @@ function setConversationMode(mode){
  statusBox.textContent=mode==="assistant"?"Modo Assistente: iniciativa e ferramentas autorizadas.":"Modo Chat: conversa por texto.";
 }
 
+async function loadMemories(){
+ const container=$("memoryList");
+ if(!container)return;
+ container.textContent="Carregando memórias...";
+ try{
+  const params=new URLSearchParams({action:"memories",sessionId:getSessionId()});
+  const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||"Memória ainda não disponível no servidor.");
+  const memories=Array.isArray(data.memories)?data.memories:[];
+  container.replaceChildren();
+  if(!memories.length){
+   container.textContent="Nenhuma memória permanente foi autorizada nesta sessão.";
+   return;
+  }
+  for(const memory of memories){
+   const item=document.createElement("div");
+   item.className="msg bot";
+   const title=document.createElement("strong");
+   title.textContent=memory.key;
+   item.appendChild(title);
+   const value=document.createElement("div");
+   value.textContent=memory.value;
+   item.appendChild(value);
+   const meta=document.createElement("div");
+   meta.className="small";
+   meta.textContent="Memória #"+memory.id+" · Atualizada: "+memory.updatedAt;
+   item.appendChild(meta);
+   const remove=document.createElement("button");
+   remove.type="button";
+   remove.className="secondary";
+   remove.textContent="Apagar memória";
+   remove.addEventListener("click",()=>{
+    $("prompt").value="Apague a memória #"+memory.id+" ("+memory.key+").";
+    sendMessage($("prompt").value);
+   });
+   item.appendChild(remove);
+   container.appendChild(item);
+  }
+ }catch(error){
+  container.textContent="Memória indisponível: "+(error.message||"falha ao consultar o D1");
+ }
+}
+
 async function loadTasks(){
  const container=$("taskList");
  if(!container)return;
@@ -238,6 +296,11 @@ function addMessage(text,who){
  chat.scrollTop=chat.scrollHeight;
 }
 
+function updateVoiceOutputButton(){
+ $("voiceOutput").textContent=voiceOutputEnabled?"Voz: ligada":"Voz: desligada";
+ $("voiceOutput").setAttribute("aria-pressed",String(voiceOutputEnabled));
+}
+
 function getSessionId(){
  let id=localStorage.getItem("james_session_id");
  if(!id){
@@ -290,8 +353,12 @@ async function sendMessage(message,attachments=null){
   }
 
   addMessage(data.reply,"bot");
-  statusBox.textContent="Resposta recebida.";
-  await loadTasks();
+  statusBox.textContent=data.reasoningLevel==="high"
+   ?"Resposta concluída após análise aprofundada."
+   :"Resposta recebida.";
+  if(voiceOutputEnabled)speak(data.reply);
+  loadTasks();
+  loadMemories();
 
  }catch(error){
   const detail=error.message||"Erro desconhecido.";
@@ -318,9 +385,22 @@ $("chatMode").addEventListener("click",()=>{
 });
 setConversationMode(conversationMode);
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
+$("voiceOutput").addEventListener("click",()=>{
+ voiceOutputEnabled=!voiceOutputEnabled;
+ localStorage.setItem("james_voice_enabled",String(voiceOutputEnabled));
+ if(!voiceOutputEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();
+ updateVoiceOutputButton();
+});
+$("stopVoice").addEventListener("click",()=>{
+ if("speechSynthesis" in window)window.speechSynthesis.cancel();
+ statusBox.textContent="Voz interrompida.";
+});
+updateVoiceOutputButton();
 $("refreshTasks").addEventListener("click",loadTasks);
+$("refreshMemories").addEventListener("click",loadMemories);
 loadHistory(false);
 loadTasks();
+loadMemories();
 
 $("form").addEventListener("submit",event=>{
  event.preventDefault();
@@ -531,6 +611,11 @@ window.addEventListener("pagehide",()=>{
   cameraStream.getTracks().forEach(track=>track.stop());
  }
 });
+
+if("serviceWorker" in navigator && location.protocol==="https:"){
+ navigator.serviceWorker.register("./service-worker.js")
+  .catch(()=>{});
+}
 </script>
 </body>
 </html>

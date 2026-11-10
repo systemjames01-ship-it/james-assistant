@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "Jâmes — Assistente Pessoal",
+  "short_name": "Jâmes",
+  "description": "Assistente pessoal modular de Jamerson Ramos.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "icons": [
+    {
+      "src": "./icons/james-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
