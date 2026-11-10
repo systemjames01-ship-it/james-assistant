@@ -40,7 +40,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Falta o segredo CLOUDFLARE_API_TOKEN no GitHub."; exit 1; }
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Falta o segredo CLOUDFLARE_ACCOUNT_ID no GitHub."; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Falta o CLOUDFLARE_ACCOUNT_ID no ambiente do workflow."; exit 1; }
           echo "Credenciais presentes; valores ocultos."
 
       - name: Aplicar migração aditiva no D1 remoto
