@@ -237,11 +237,20 @@ async function sendMessage(message,imageData=null){
    payload.image=imageData;
   }
 
-  const response=await fetch(WORKER_URL,{
-   method:"POST",
-   headers:{"Content-Type":"application/json"},
-   body:JSON.stringify(payload)
-  });
+  // Do not leave the interface spinning forever if the Worker or model stalls.
+  const controller=new AbortController();
+  const requestTimeout=setTimeout(()=>controller.abort(),120000);
+  let response;
+  try{
+   response=await fetch(WORKER_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload),
+    signal:controller.signal
+   });
+  }finally{
+   clearTimeout(requestTimeout);
+  }
 
   const data=await response.json().catch(()=>({}));
 
@@ -258,7 +267,9 @@ async function sendMessage(message,imageData=null){
   speak(data.reply);
 
  }catch(error){
-  const detail=error.message||"Erro desconhecido.";
+  const detail=error.name==="AbortError"
+   ?"O Worker demorou mais de 120 segundos e a solicitação foi interrompida. Tente novamente."
+   :(error.message||"Erro desconhecido.");
   addMessage(
    "Não consegui falar com a IA. Verifique a conexão e o Worker do Cloudflare. Detalhe: "+detail,
    "bot"
