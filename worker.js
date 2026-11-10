@@ -135,6 +135,18 @@ Não execute nem afirme executar ações externas neste modo. Se o utilizador pe
 Responda em português do Brasil, salvo pedido diferente. Seja honesto sobre limites, atualidade das informações e capacidades disponíveis. Nunca invente memórias, anexos recebidos ou resultados.
 `;
 
+function selectThinkingLevel(contents) {
+  const latestUserMessage = [...contents].reverse().find(item => item?.role === "user");
+  const parts = latestUserMessage?.parts || [];
+  const text = parts.map(part => typeof part.text === "string" ? part.text : "").join(" ").trim();
+  const normalized = text.toLocaleLowerCase("pt-BR");
+  const hasAttachments = parts.some(part => Boolean(part.inlineData || part.fileData));
+  const complexIntent = /\b(analis[ae]|investig[au]|compare|comparar|planej[ae]|arquitetura|depur|debug|program|c[oó]digo|desenvolv|implemente|estrat[eé]gia|riscos?|causas?|diagn[oó]stico|passo a passo|etapas?|projeto|documenta[cç][aã]o|decis[aã]o|otimiz|auditoria|revis[aã]o|complex[oa]|detalhad[oa])\b/.test(normalized);
+  const multiStepIntent = /\b(primeiro|depois|em seguida|por fim|al[eé]m disso|v[aá]rias etapas|m[aú]ltiplas tarefas)\b/.test(normalized);
+  if (hasAttachments || complexIntent || multiStepIntent || text.length > 900) return "high";
+  return "medium";
+}
+
 function calculateExpression(source) {
   if (typeof source !== "string" || source.length > 200) throw new Error("Expressão inválida ou longa demais.");
   const tokens = source.match(/\d+(?:\.\d+)?|[()+*/%-]/g) || [];
@@ -275,6 +287,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
   }];
 
   const transcript = [...contents];
+  const thinkingLevel = selectThinkingLevel(contents);
   const MAX_AGENT_STEPS = 5;
   let latestResponse = null;
 
@@ -289,7 +302,10 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
         toolConfig: { functionCallingConfig: { mode: "AUTO" } }
       } : {}),
       generationConfig: {
-        maxOutputTokens: 4096
+        // Keep a balanced default; reserve HIGH reasoning and a larger output
+        // budget for genuinely complex requests instead of rushing them.
+        maxOutputTokens: thinkingLevel === "high" ? 8192 : 6144,
+        thinkingConfig: { thinkingLevel }
       }
     };
 
@@ -583,6 +599,7 @@ export default {
       return json({
         reply,
         model: usedModel,
+        reasoningLevel: selectThinkingLevel([...history, currentTurn]),
         memory: memoryAvailable ? "available" : "temporarily_unavailable"
       }, 200, origin);
     } catch (error) {
