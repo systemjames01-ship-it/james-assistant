@@ -12,7 +12,7 @@ test("health endpoint reports the configured primary model", async () => {
   assert.equal(body.model, "gemini-3.8-flash");
 });
 
-test("POST works without D1 and accepts multiple attachments", async () => {
+test("POST works without D1 and accepts image and PDF attachments", async () => {
   const originalFetch = globalThis.fetch;
   let sentBody;
   globalThis.fetch = async (_url, options) => {
@@ -42,6 +42,46 @@ test("POST works without D1 and accepts multiple attachments", async () => {
     assert.equal(body.reply, "Analisei os anexos.");
     assert.equal(body.memory, "temporarily_unavailable");
     assert.equal(sentBody.contents[0].parts.filter(part => part.inlineData).length, 2);
+    assert.deepEqual(sentBody.contents[0].parts.filter(part => part.inlineData).map(part => part.inlineData.mimeType), ["image/png", "application/pdf"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("fallback model is used after temporary primary-model failure", async () => {
+  const originalFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    if (urls.length <= 2) {
+      return new Response(JSON.stringify({ error: { message: "temporarily unavailable" } }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Resposta pelo modelo alternativo." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Teste de fallback",
+        sessionId: "session_test_12345",
+        mode: "assistant"
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Resposta pelo modelo alternativo.");
+    assert.equal(body.model, "gemini-3.5-flash-lite");
+    assert.equal(urls.length, 3);
+    assert.ok(urls[0].includes("gemini-3.8-flash"));
+    assert.ok(urls[2].includes("gemini-3.5-flash-lite"));
   } finally {
     globalThis.fetch = originalFetch;
   }
