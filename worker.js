@@ -19,6 +19,10 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - create_task: grava uma tarefa na lista persistente do usuário; use somente quando ele pedir claramente para criar/guardar uma tarefa. Isso NÃO cria alarme, lembrete agendado ou notificação.
 - list_tasks: consulta as tarefas desta sessão.
 - complete_task: marca como concluída uma tarefa identificada na lista, somente quando o usuário pedir.
+- save_memory: guarda uma informação de longo prazo somente quando o usuário pedir explicitamente para lembrar/guardar.
+- list_memories: consulta as memórias explicitamente guardadas pelo usuário.
+- delete_memory: apaga uma memória identificada, somente quando o usuário pedir para esquecê-la/apagá-la.
+Memórias ficam vinculadas à sessão deste navegador; não prometa sincronização entre dispositivos.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
 
 RACIOCÍNIO E EXECUÇÃO:
@@ -231,16 +235,59 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
     return { success: true, taskId, status: "completed" };
   }
 
+  if (name === "save_memory") {
+    const key = typeof args.key === "string" ? args.key.trim().slice(0, 80) : "";
+    const value = typeof args.value === "string" ? args.value.trim().slice(0, 1200) : "";
+    if (!/^[\p{L}\p{N} _.-]{2,80}$/u.test(key) || !value) {
+      return { error: "Informe uma chave de memória válida e um conteúdo não vazio." };
+    }
+    await env.DB.prepare(
+      "INSERT INTO james_memories_v21 (session_id, memory_key, memory_value) VALUES (?, ?, ?) ON CONFLICT(session_id, memory_key) DO UPDATE SET memory_value = excluded.memory_value, updated_at = datetime('now')"
+    ).bind(sessionId, key, value).run();
+    return { success: true, key, message: "Memória salva na sessão atual." };
+  }
+
+  if (name === "list_memories") {
+    const result = await env.DB.prepare(
+      "SELECT id, memory_key, memory_value, updated_at FROM james_memories_v21 WHERE session_id = ? ORDER BY updated_at DESC LIMIT 50"
+    ).bind(sessionId).all();
+    return { memories: (result.results || []).map(row => ({
+      id: row.id, key: row.memory_key, value: row.memory_value, updatedAt: row.updated_at
+    })) };
+  }
+
+  if (name === "delete_memory") {
+    const memoryId = Number(args.memory_id);
+    if (!Number.isSafeInteger(memoryId) || memoryId < 1) return { error: "Identificador de memória inválido." };
+    const result = await env.DB.prepare(
+      "DELETE FROM james_memories_v21 WHERE id = ? AND session_id = ?"
+    ).bind(memoryId, sessionId).run();
+    if (!result.meta?.changes) return { success: false, error: "Memória não encontrada nesta sessão." };
+    return { success: true, memoryId, message: "Memória apagada." };
+  }
+
   return { error: "Ferramenta desconhecida." };
 }
 
-async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "") {
+async function loadPersistentMemories(db, sessionId) {
+  const result = await db.prepare(
+    "SELECT memory_key, memory_value FROM james_memories_v21 WHERE session_id = ? ORDER BY updated_at DESC LIMIT 30"
+  ).bind(sessionId).all();
+  return (result.results || []).map(row => ({ key: row.memory_key, value: row.memory_value }));
+}
+
+async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "", memories = []) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     model + ":generateContent";
 
   const isAssistantMode = mode === "assistant";
-  const activeInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
+  const baseInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
+  const memoryContext = memories.length
+    ? "\\n\\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\\n" +
+      memories.map(item => "- " + item.key + ": " + item.value).join("\\n")
+    : "";
+  const activeInstruction = baseInstruction + memoryContext;
   const tools = [{
     functionDeclarations: [
       {
@@ -281,6 +328,32 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
           type: "OBJECT",
           properties: { task_id: { type: "INTEGER", description: "ID da tarefa retornado pela lista." } },
           required: ["task_id"]
+        }
+      },
+      {
+        name: "save_memory",
+        description: "Guarda uma informação somente quando o usuário pedir explicitamente para lembrar ou guardar.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            key: { type: "STRING", description: "Nome curto e estável da memória." },
+            value: { type: "STRING", description: "Informação que o usuário autorizou guardar." }
+          },
+          required: ["key", "value"]
+        }
+      },
+      {
+        name: "list_memories",
+        description: "Lista as memórias explicitamente guardadas pelo usuário quando ele perguntar o que está lembrado.",
+        parameters: { type: "OBJECT", properties: {}, required: [] }
+      },
+      {
+        name: "delete_memory",
+        description: "Apaga uma memória somente quando o usuário pedir explicitamente para esquecê-la ou apagá-la.",
+        parameters: {
+          type: "OBJECT",
+          properties: { memory_id: { type: "INTEGER", description: "ID retornado por list_memories." } },
+          required: ["memory_id"]
         }
       }
     ]
@@ -435,6 +508,21 @@ export default {
           return json({ error: "A lista de tarefas ainda não está disponível.", tasks: [] }, 503, origin);
         }
       }
+      if (url.searchParams.get("action") === "memories") {
+        if (origin !== ALLOWED_ORIGIN) return json({ error: "Origem não autorizada." }, 403, origin);
+        if (!env.DB) return json({ error: "Memória persistente indisponível.", memories: [] }, 503, origin);
+        const sessionId = url.searchParams.get("sessionId") || "";
+        if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
+          return json({ error: "Identificador de sessão inválido.", memories: [] }, 400, origin);
+        }
+        try {
+          const result = await executeAssistantTool(env, sessionId, "list_memories");
+          return json({ memories: result.memories || [] }, 200, origin);
+        } catch (error) {
+          console.error("D1 memory list read failed:", error);
+          return json({ error: "Memória persistente ainda indisponível.", memories: [] }, 503, origin);
+        }
+      }
       if (url.searchParams.get("action") === "history") {
         if (origin !== ALLOWED_ORIGIN) {
           return json({ error: "Origem não autorizada." }, 403, origin);
@@ -560,6 +648,7 @@ export default {
     try {
       const storageSessionId = sessionId + "_" + mode;
       let history = [];
+      let memories = [];
       let memoryAvailable = Boolean(env.DB);
 
       if (env.DB) {
@@ -569,20 +658,26 @@ export default {
           memoryAvailable = false;
           console.error("D1 history load failed; continuing without stored context:", historyError);
         }
+        try {
+          memories = await loadPersistentMemories(env.DB, sessionId);
+        } catch (memoryError) {
+          memoryAvailable = false;
+          console.error("D1 persistent memory unavailable; continuing without it:", memoryError);
+        }
       }
 
       const currentTurn = { role: "user", parts };
       let reply;
       let usedModel = MODEL;
       try {
-        reply = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId);
+        reply = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories);
       } catch (primaryError) {
         const retryable = primaryError?.kind === "gemini" &&
           [429, 503].includes(primaryError.status);
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId);
+        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories);
       }
 
       if (env.DB) {
@@ -600,6 +695,7 @@ export default {
         reply,
         model: usedModel,
         reasoningLevel: selectThinkingLevel([...history, currentTurn]),
+        savedMemories: memories.length,
         memory: memoryAvailable ? "available" : "temporarily_unavailable"
       }, 200, origin);
     } catch (error) {
