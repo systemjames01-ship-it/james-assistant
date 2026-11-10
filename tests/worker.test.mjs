@@ -183,7 +183,7 @@ test("assistant creates a persistent task through the D1 tool", async () => {
     assert.equal(response.status, 200);
     assert.equal(body.reply, "Tarefa criada: Comprar pão.");
     assert.ok(executedSql.some(item => item.sql.includes("INSERT INTO james_tasks_v21")));
-    assert.ok(executedSql.some(item => item.values.includes("session_test_12345_assistant")));
+    assert.ok(executedSql.some(item => item.values.includes("session_test_12345")));
   } finally {
     globalThis.fetch = originalFetch;
   }
