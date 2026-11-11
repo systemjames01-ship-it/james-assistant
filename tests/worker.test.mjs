@@ -85,7 +85,6 @@ test("fallback model is used after temporary primary-model failure", async () =>
     assert.equal(urls.length, 2);
     assert.ok(urls[0].includes("gemini-3.8-flash"));
     assert.ok(urls[1].includes("gemini-3.5-flash-lite"));
-    assert.ok(urls[2].includes("gemini-3.5-flash-lite"));
   } finally {
     globalThis.fetch = originalFetch;
   }
