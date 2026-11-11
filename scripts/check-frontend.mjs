@@ -51,7 +51,7 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     !neuralCss.includes("#jamesNeuralCanvas") ||
     !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
     !neuralVoice.includes("falarEmFluxo") ||
-    !neuralVoice.includes("pt_BR-faber-medium-uint8.onnx") ||
+    !neuralVoice.includes("VOZZ_ASSETS") ||
     !neuralVoice.includes('dispositivo: "auto"') ||
     !neuralVoice.includes("aoProgredir") ||
     !neuralVoice.includes("Piper.carregar") ||
