@@ -28,6 +28,7 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - android_schedule_reminder: agenda uma notificação local no Android, somente quando o usuário pedir explicitamente e fornecer horário claro.
 - android_open_settings: abre uma tela permitida das Configurações do Android, somente quando o usuário pedir.
 - android_ui_action: atua pontualmente na interface VISÍVEL do Android (tocar em texto, digitar no campo focado, rolar, voltar ou ir à tela inicial). Somente quando o usuário pedir explicitamente. Exige ativação manual do Serviço de Acessibilidade do Jâmes. Nunca afirme execução sem confirmação do aparelho.
+- windows_gods_eye_view: abre, atualiza ou encerra o projeto God’s Eye View no Windows somente quando o usuário pedir explicitamente. Requer o componente Windows do Jâmes instalado uma vez.
 Memórias ficam vinculadas à sessão deste navegador; não prometa sincronização entre dispositivos.
 Integração Android: android_open_app, android_schedule_reminder e android_open_settings enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
@@ -53,6 +54,7 @@ const LIVE_FUNCTION_DECLARATIONS = [
   { name: "android_open_app", description: "Abre um aplicativo instalado somente quando o usuário pedir explicitamente.", parameters: { type: "OBJECT", properties: { app_name: { type: "STRING" } }, required: ["app_name"] } },
   { name: "android_schedule_reminder", description: "Agenda lembrete local somente com pedido explícito e horário futuro com fuso.", parameters: { type: "OBJECT", properties: { title: { type: "STRING" }, at: { type: "STRING" } }, required: ["title", "at"] } },
   { name: "android_open_settings", description: "Abre configurações Android somente quando o usuário pedir explicitamente.", parameters: { type: "OBJECT", properties: { section: { type: "STRING", enum: ["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"] } }, required: ["section"] } },
+  { name: "windows_gods_eye_view", description: "Abre, atualiza ou encerra o observatório God’s Eye View no Windows após pedido explícito. O componente local precisa estar instalado.", parameters: { type: "OBJECT", properties: { action: { type: "STRING", enum: ["open", "update", "stop"] } }, required: ["action"] } },
   { name: "android_ui_action", description: "Interage com elementos visíveis do Android somente após pedido explícito. Requer acessibilidade ativada. Não envia mensagens nem confirma compras.", parameters: { type: "OBJECT", properties: { action: { type: "STRING", enum: ["tap_text", "type_text", "scroll", "back", "home"] }, target_text: { type: "STRING" }, text: { type: "STRING" }, direction: { type: "STRING", enum: ["up", "down"] } }, required: ["action"] } }
 ];
 
@@ -342,6 +344,11 @@ async function searchPublicWeb(rawQueries) {
 }
 
 async function executeAssistantTool(env, sessionId, name, args = {}) {
+  if (name === "windows_gods_eye_view") {
+    const action = typeof args.action === "string" ? args.action : "";
+    if (!["open", "update", "stop"].includes(action)) return { error: "Ação Windows não permitida." };
+    return { queuedForDevice: true, clientAction: { type: "windows_protocol", uri: "james://world/" + action }, instruction: "O comando foi encaminhado ao navegador Windows. A execução depende do componente local instalado; não afirme sucesso antes da confirmação." };
+  }
   if (name === "android_ui_action") {
     const action = typeof args.action === "string" ? args.action : "";
     if (!["tap_text", "type_text", "scroll", "back", "home"].includes(action)) return { error: "Ação de interface não permitida." };
@@ -523,6 +530,11 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
           text: { type: "STRING" },
           direction: { type: "STRING", enum: ["up", "down"] }
         }, required: ["action"] }
+      },
+      {
+        name: "windows_gods_eye_view",
+        description: "Abre, atualiza ou encerra God’s Eye View no Windows. Use somente quando o usuário pedir explicitamente; o componente local precisa estar instalado.",
+        parameters: { type: "OBJECT", properties: { action: { type: "STRING", enum: ["open", "update", "stop"] } }, required: ["action"] }
       },
       {
         name: "android_open_app",
