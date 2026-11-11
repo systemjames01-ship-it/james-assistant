@@ -863,13 +863,12 @@ export default {
       try { livePayload = await request.json(); }
       catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
       const sessionId = typeof livePayload?.sessionId === "string" ? livePayload.sessionId : "";
-      const voiceProfile = Number.isInteger(livePayload?.voiceProfile) ? Math.max(0, Math.min(3, livePayload.voiceProfile)) : 0;
+      const voiceProfile = Number.isInteger(livePayload?.voiceProfile) ? Math.max(0, Math.min(2, livePayload.voiceProfile)) : 0;
       if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
       const voiceDirections = [
-        "Perfil vocal JARVIS: português brasileiro, voz adulta masculina grave, elegante, serena e precisa; ritmo moderado, articulação nítida e autoridade tranquila.",
-        "Perfil vocal DAMON: português brasileiro, voz adulta masculina grave, aveludada e suave; ritmo natural, pausas expressivas e timbre encorpado.",
-        "Perfil vocal OPTIMUS: português brasileiro, voz adulta masculina firme, encorpada e ressonante; dicção clara e presença marcante sem gritar.",
-        "Perfil vocal JANE: português brasileiro, voz adulta masculina clara, articulada e conversacional; ritmo ágil e ironia sutil apenas quando apropriado."
+        "PERFIL JARVIS: fale sempre em português brasileiro. Voz masculina adulta, grave, elegante, serena, precisa e articulada; ritmo moderado, dicção impecável, autoridade tranquila, humor discreto e polidez tecnológica. É uma interpretação original inspirada no assistente JARVIS e na tradição da dublagem brasileira; não imite nem alegue ser um dublador específico.",
+        "PERFIL PATRICK JANE: fale sempre em português brasileiro. Voz masculina adulta, suave, aveludada, inteligente e persuasiva; ritmo conversacional, pausas calculadas, calor humano, observações espirituosas e ironia sutil. Interpretação original inspirada no personagem Patrick Jane e em sua dublagem brasileira; não imite nem alegue ser o ator ou dublador.",
+        "PERFIL DAMON SALVATORE: fale sempre em português brasileiro. Voz masculina adulta, grave, encorpada, levemente rouca e sedutora; ritmo relaxado, confiança, sarcasmo elegante e emoção controlada. Interpretação original inspirada no personagem Damon Salvatore e em sua dublagem brasileira; não imite nem alegue ser o ator ou dublador."
       ];
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const now = Date.now();
@@ -915,7 +914,7 @@ export default {
         const tokenData = await tokenResponse.json().catch(() => ({}));
         if (!tokenResponse.ok || typeof tokenData.name !== "string") {
           console.error("Gemini Live token provisioning failed:", tokenData?.error?.message || tokenResponse.status);
-          return json({ error: "A API Gemini não disponibilizou uma sessão de voz ao vivo (HTTP " + tokenResponse.status + ")." }, 502, origin);
+          return json({ error: "O núcleo de voz não disponibilizou uma sessão ao vivo (HTTP " + tokenResponse.status + ")." }, 502, origin);
         }
         return json({ token: tokenData.name, model: "gemini-3.8-live", expiresAt: expireTime }, 200, origin);
       } catch (error) {
