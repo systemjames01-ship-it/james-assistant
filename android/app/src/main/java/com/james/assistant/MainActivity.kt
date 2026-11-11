@@ -266,6 +266,76 @@ class MainActivity : android.app.Activity() {
         content.addView(page)
     }
 
+    private val voiceProfileNames = arrayOf("JARVIS", "PATRICK JANE", "DAMON SALVATORE")
+    private val voiceProfileModels = arrayOf("Charon", "Algieba", "Algenib")
+
+    private fun renderVoiceProfiles() {
+        val page = verticalPage()
+        val intro = card()
+        addText(intro, "IDENTIDADE VOCAL DO JÂMES", 13f, COLOR_CYAN, true)
+        addText(intro, "Três perfis de voz masculina em português brasileiro, com timbre, ritmo e presença próprios.", 11f, COLOR_MUTED, top = 7)
+        page.addView(intro)
+        voiceProfileNames.forEachIndexed { index, name ->
+            val panel = card()
+            addText(panel, name, 13f, if (selectedVoiceProfile == index) COLOR_GREEN else COLOR_CYAN, true)
+            val detail = when (index) {
+                0 -> "JARVIS · formal, grave, sereno e preciso. Referência: JARVIS, Homem de Ferro."
+                1 -> "PATRICK JANE · suave, inteligente, persuasivo e conversacional. Referência: O Mentalista."
+                else -> "DAMON SALVATORE · grave, aveludado, confiante e irônico. Referência: The Vampire Diaries."
+            }
+            addText(panel, detail, 11f, COLOR_MUTED, top = 5)
+            addText(panel, "Timbre do perfil: " + voiceProfileModels[index], 9f, COLOR_MUTED, top = 5)
+            addButton(panel, if (selectedVoiceProfile == index) "PERFIL ATUAL" else "USAR ESTA VOZ", secondary = selectedVoiceProfile == index) {
+                if (selectedVoiceProfile != index) {
+                    applyVoiceProfile(index)
+                    getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", index).apply()
+                    if (liveConversationEnabled) restartLiveConversation()
+                    setStatus("PERFIL " + voiceProfileNames[index] + " SELECIONADO")
+                    showPage("voices")
+                }
+            }
+            page.addView(panel)
+        }
+        val note = card()
+        addText(note, "SOBRE AS REFERÊNCIAS", 10f, COLOR_CYAN, true)
+        addText(note, "São interpretações vocais originais inspiradas nos personagens e na dublagem brasileira, não clonagens nem gravações dos dubladores.", 10f, COLOR_MUTED, top = 6)
+        page.addView(note)
+        mountScrollable(page)
+    }
+
+    private fun renderControlCenter() {
+        val page = verticalPage()
+        val core = card()
+        addText(core, "CENTRAL DE CONTROLE", 13f, COLOR_CYAN, true)
+        addText(core, backendSummary, 10f, COLOR_GREEN, top = 6)
+        addButton(core, if (liveConversationEnabled) "ENCERRAR LINK DE VOZ" else "INICIAR LINK DE VOZ") { toggleLiveConversation() }
+        addButton(core, if (liveCamera != null || liveVisionPending) "DESLIGAR CÂMERA" else "ATIVAR OLHOS · CÂMERA AO VIVO", secondary = true) { toggleLiveVision() }
+        addButton(core, "ABRIR PERFIS VOCAIS", secondary = true) { showPage("voices") }
+        addButton(core, "ABRIR CONVERSA DE TEXTO", secondary = true) { showPage("intelligence") }
+        page.addView(core)
+
+        val sensors = card()
+        addText(sensors, "SENSORES E PERCEPÇÃO", 11f, COLOR_CYAN, true)
+        addInfoLine(sensors, "Audição", if (liveConversationEnabled) "Sessão solicitada" else "Em espera")
+        addInfoLine(sensors, "Visão", if (liveCamera != null) "Câmera ao vivo ativa" else "Desativada")
+        addInfoLine(sensors, "Microfone", if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) "Autorizado" else "Pendente")
+        addInfoLine(sensors, "Câmera", if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) "Autorizada" else "Pendente")
+        addButton(sensors, "CONFIGURAR PERMISSÕES", secondary = true) {
+            try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + packageName))) } catch (_: Exception) { }
+        }
+        page.addView(sensors)
+
+        val systems = card()
+        addText(systems, "MÓDULOS DO SISTEMA", 11f, COLOR_CYAN, true)
+        addModule(systems, "CHAT E RACIOCÍNIO", "Conversa textual, contexto e ferramentas") { showPage("intelligence") }
+        addModule(systems, "MEMÓRIA", "Memórias autorizadas") { showPage("memory") }
+        addModule(systems, "AUTOMAÇÕES", "Tarefas, lembretes e ações Android") { showPage("automation") }
+        addModule(systems, "APARELHO", "Estado do dispositivo e acessibilidade") { showPage("device") }
+        addButton(systems, "VERIFICAR CONEXÃO DO NÚCLEO", secondary = true) { refreshBackendStatus() }
+        page.addView(systems)
+        mountScrollable(page)
+    }
+
     private fun renderIntelligence() {
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val head = card()
