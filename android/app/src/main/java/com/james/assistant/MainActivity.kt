@@ -647,7 +647,14 @@ class MainActivity : android.app.Activity() {
                     val voice = if (selectedVoiceProfile == 0) "Puck" else "Charon"
                     liveVoiceSession = JamesLiveAudioSession(this, token, voice, object : JamesLiveAudioSession.Listener {
                         override fun onStatus(message: String) { runOnUiThread { if (liveConversationEnabled) setStatus(message) } }
-                        override fun onUserTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, false) } }
+                        override fun onUserTranscript(text: String) {
+                            runOnUiThread {
+                                if (liveConversationEnabled) {
+                                    addChatMessage(text, false)
+                                    handleVoiceCommand(text)
+                                }
+                            }
+                        }
                         override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
                         override fun onFailure(message: String) {
                             runOnUiThread {
@@ -694,29 +701,20 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun showVoicePicker() {
-        val voices = availablePortugueseVoices
-        if (voices.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle("Vozes em português")
-                .setMessage("O mecanismo de voz do Android não informou vozes em português instaladas. Instale dados de voz em Configurações > Texto para fala e tente novamente.")
-                .setPositiveButton("OK", null)
-                .show()
-            return
-        }
-        val labels = arrayOf("Voz 1 — perfil principal", "Voz 2 — perfil alternativo")
-        val options = labels.mapIndexed { index, label ->
-            val voice = voices.getOrNull(index)
-            if (voice == null) "$label — indisponível neste aparelho" else "$label — ${voice.name}"
-        }.toTypedArray()
+        val firstDeviceVoice = availablePortugueseVoices.getOrNull(0)?.name
+        val secondDeviceVoice = availablePortugueseVoices.getOrNull(1)?.name
+        val options = arrayOf(
+            "Voz 1 — Puck" + (firstDeviceVoice?.let { " · aparelho: $it" } ?: " · voz Live"),
+            "Voz 2 — Charon" + (secondDeviceVoice?.let { " · aparelho: $it" } ?: " · voz Live")
+        )
         AlertDialog.Builder(this)
             .setTitle("Escolher voz do Jâmes")
-            .setSingleChoiceItems(options, selectedVoiceProfile.coerceAtMost(voices.lastIndex)) { dialog, which ->
-                if (which < voices.size) {
-                    applyVoiceProfile(which)
-                    getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", which).apply()
-                    setStatus("VOZ ${which + 1} SELECIONADA")
-                    if (liveConversationEnabled) restartLiveConversation() else speak("Voz ${which + 1} selecionada. Como posso ajudar?")
-                }
+            .setItems(options) { dialog, which ->
+                applyVoiceProfile(which)
+                getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", which).apply()
+                setStatus("VOZ ${which + 1} SELECIONADA")
+                if (liveConversationEnabled) restartLiveConversation()
+                else speak("Voz ${which + 1} selecionada. Como posso ajudar?")
                 dialog.dismiss()
             }
             .setNegativeButton("Cancelar", null)
