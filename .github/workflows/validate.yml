@@ -1,0 +1,52 @@
+name: Validate Jâmes
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run syntax and regression tests
+        run: npm test
+
+  voice-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright@1.65.0
+          npx playwright install --with-deps chromium
+      - name: Start static app server
+        run: node scripts/serve-static.mjs > /tmp/james-smoke.log 2>&1 &
+      - name: Wait for app server
+        run: |
+          node --input-type=module -e '
+            for (let i = 0; i < 30; i++) {
+              try {
+                const response = await fetch("http://127.0.0.1:4173/");
+                if (response.ok) process.exit(0);
+              } catch {}
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            throw new Error("Jâmes static test server did not start.");
+          '
+      - name: Verify neural voice in real Chromium
+        run: node scripts/voice-smoke.mjs

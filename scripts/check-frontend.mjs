@@ -37,4 +37,38 @@ new vm.Script(serviceWorker, { filename: "service-worker.js" });
 if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)speak(data.reply)")) {
   throw new Error("Voice output must remain user-controllable and connected to AI replies.");
 }
-console.log("Validated inline scripts, holographic projection assets, voice interaction, PWA manifest, icon, service worker, and voice controls.");
+
+const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
+const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta.url), "utf8");
+const liveVoice = hologramJs;
+const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
+const appShell = serviceWorker;
+if (!html.includes('id="jamesNeuralCanvas"') ||
+    !html.includes('id="downloadNeuralVoice"') ||
+    !html.includes('type="module" src="./james-neural-voice.js"') ||
+    !html.includes('href="./james-v3.css"') ||
+    !neuralCss.includes(".hero.head-view") ||
+    !neuralCss.includes("#jamesNeuralCanvas") ||
+    !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
+    !neuralVoice.includes("falarEmFluxo") ||
+    !neuralVoice.includes("Sintetizador") ||
+    !neuralVoice.includes("VOZZ_SYNTH") ||
+    !neuralVoice.includes("VOZZ_ASSETS") ||
+    !neuralVoice.includes('dispositivo: "auto"') ||
+    !neuralVoice.includes("aoProgredir") ||
+    !neuralVoice.includes("Piper.carregar") ||
+    !neuralVoice.includes('voice: "bruno"') ||
+    html.includes("speechSynthesis") ||
+    html.includes("SpeechSynthesisUtterance") ||
+    html.includes("JamesAndroid.speak") ||
+    !liveVoice.includes('responseModalities:["TEXT"]') ||
+    !liveVoice.includes("window.JamesNeuralVoice?.speak") ||
+    !workerCode.includes('responseModalities: ["TEXT"]') ||
+    workerCode.includes('responseModalities: ["AUDIO"]') ||
+    workerCode.includes("voiceName: [\"Charon\", \"Algieba\", \"Algenib\"]") ||
+    !appShell.includes("./james-neural-voice.js") ||
+    !appShell.includes("./james-v3.css")) {
+  throw new Error("Local Piper/Faber Brazilian Portuguese voice, original voice profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
+}
+
+console.log("Validated Jâmes v3 command interface, local Piper/Faber pt-BR TTS, voice profiles, live text-to-neural-speech, PWA, and legacy integrations.");

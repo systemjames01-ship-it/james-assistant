@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#050a12">
+<meta name="theme-color" content="#070b11">
 <meta name="description" content="Jâmes — assistente pessoal inteligente criado por Jamerson Ramos.">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Jâmes | Central de Comando</title>
@@ -188,6 +188,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 
 </style>
 <link rel="stylesheet" href="./interface-v27.css">
+<link rel="stylesheet" href="./james-v3.css">
  <link rel="stylesheet" href="./hologram-v24.css">
 </head>
 <body>
@@ -219,43 +220,12 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <button type="button" class="secondary" id="headOpenControl">CENTRAL DE CONTROLE</button>
   </div>
  </div>
- <div class="reactor-wrap projection-zone" aria-label="Projeção holográfica tridimensional da inteligência artificial">
+ <div class="reactor-wrap projection-zone" aria-label="Campo neural holográfico de comando do Jâmes">
   <div class="projection-frame" id="holoProjection" data-state="standby">
    <div class="projection-caption top">PROJEÇÃO NEURAL <span>JÂMES / 01</span></div>
    <div class="projection-beam"></div>
    <div class="holo-entity">
-    <svg class="holo-figure" viewBox="0 0 520 590" role="img" aria-label="Silhueta humanoide artificial formada por linhas holográficas e conexões neurais">
-     <defs>
-      <linearGradient id="holoStroke" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9ffff"/><stop offset=".42" stop-color="#3dd8ff"/><stop offset="1" stop-color="#337bff"/></linearGradient>
-      <radialGradient id="holoFill"><stop offset="0" stop-color="#28cfff" stop-opacity=".2"/><stop offset="1" stop-color="#1265bd" stop-opacity=".015"/></radialGradient>
-      <filter id="holoGlow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      <clipPath id="holoHeadClip"><path d="M260 62 C174 62 128 127 132 225 C135 298 171 350 205 374 L205 414 C174 436 120 444 88 478 L68 548 L452 548 L432 478 C400 444 346 436 315 414 L315 374 C349 350 385 298 388 225 C392 127 346 62 260 62Z"/></clipPath>
-     </defs>
-     <g class="figure-back" fill="none" stroke="url(#holoStroke)" stroke-width="1.1" opacity=".42">
-      <path d="M260 62 C174 62 128 127 132 225 C135 298 171 350 205 374 L205 414 C174 436 120 444 88 478 L68 548 L452 548 L432 478 C400 444 346 436 315 414 L315 374 C349 350 385 298 388 225 C392 127 346 62 260 62Z"/>
-      <path d="M260 80 C185 80 148 137 150 222 C152 292 183 335 214 360 M260 80 C335 80 372 137 370 222 C368 292 337 335 306 360"/>
-      <path d="M205 414 Q260 450 315 414 M174 462 Q260 490 346 462 M108 520 Q260 555 412 520"/>
-      <path d="M205 374 Q260 395 315 374 M205 414 L205 450 M315 414 L315 450"/>
-     </g>
-     <g clip-path="url(#holoHeadClip)" class="figure-mesh" fill="none" stroke="url(#holoStroke)" stroke-width=".8">
-      <path d="M90 120 L430 120 M70 155 L450 155 M60 190 L460 190 M55 225 L465 225 M65 260 L455 260 M75 295 L445 295 M90 330 L430 330 M105 365 L415 365 M95 400 L425 400 M75 435 L445 435 M65 470 L455 470 M60 505 L460 505"/>
-      <path d="M130 45 L145 560 M170 40 L180 560 M210 35 L215 560 M260 30 L260 565 M310 35 L305 560 M350 40 L340 560 M390 45 L375 560"/>
-      <path d="M135 120 Q260 210 385 120 M130 185 Q260 270 390 185 M135 250 Q260 335 385 250 M160 320 Q260 390 360 320 M185 390 Q260 445 335 390"/>
-      <path d="M135 120 L210 190 L260 145 L310 190 L385 120 M130 225 L205 260 L260 225 L315 260 L390 225 M145 300 L215 330 L260 295 L305 330 L375 300 M175 370 L230 400 L260 365 L290 400 L345 370"/>
-     </g>
-     <g class="face-contours" fill="url(#holoFill)" stroke="url(#holoStroke)" stroke-width="1.8" filter="url(#holoGlow)">
-      <path d="M260 94 C190 94 158 145 160 224 C162 286 192 334 225 354 L225 385 Q260 402 295 385 L295 354 C328 334 358 286 360 224 C362 145 330 94 260 94Z"/>
-      <path d="M188 224 Q220 204 244 225 M276 225 Q300 204 332 224" fill="none"/>
-      <path d="M260 224 L248 278 L260 288 L272 278" fill="none"/>
-      <path d="M220 318 Q260 337 300 318" fill="none"/>
-      <path d="M214 352 Q260 374 306 352" fill="none" opacity=".6"/>
-     </g>
-     <g class="neural-nodes" filter="url(#holoGlow)">
-      <path d="M260 125 L218 165 L191 214 L224 250 L205 294 L260 320 L315 294 L296 250 L329 214 L302 165Z M218 165 L260 190 L302 165 M191 214 L260 190 L329 214 M224 250 L260 190 L296 250 M205 294 L260 320 L315 294 M260 190 L260 320" fill="none" stroke="#a9fbff" stroke-width="1.4"/>
-      <g fill="#e5ffff"><circle cx="260" cy="125" r="4"/><circle cx="218" cy="165" r="3"/><circle cx="302" cy="165" r="3"/><circle cx="191" cy="214" r="3"/><circle cx="329" cy="214" r="3"/><circle cx="260" cy="190" r="4"/><circle cx="224" cy="250" r="3"/><circle cx="296" cy="250" r="3"/><circle cx="205" cy="294" r="3"/><circle cx="315" cy="294" r="3"/><circle cx="260" cy="320" r="4"/></g>
-     </g>
-     <g class="figure-sparks" fill="#d9ffff"><circle cx="112" cy="176" r="2"/><circle cx="403" cy="205" r="2"/><circle cx="150" cy="380" r="1.8"/><circle cx="365" cy="390" r="1.8"/><circle cx="235" cy="50" r="2"/><circle cx="290" cy="42" r="1.5"/></g>
-    </svg>
+    <canvas id="jamesNeuralCanvas" aria-label="Campo neural animado do Jâmes"></canvas>
    </div>
    <div class="projection-scan"></div><div class="projection-grid"></div>
    <div class="projection-base"><i></i><i></i><i></i></div>
@@ -341,25 +311,27 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  <div class="voice-layout">
   <section class="panel voice-main">
    <div class="panel-head"><div><div class="panel-title">Identidade vocal</div><div class="panel-kicker">SÍNTESE DE VOZ · CONFIGURAÇÃO LOCAL</div></div></div>
-   <p class="panel-description">Escolha um perfil vocal do Jâmes. Na conversa ao vivo, cada perfil seleciona uma voz neural pt-BR compatível e orienta a interpretação. No chat, o aparelho usa a voz brasileira instalada. São interpretações originais inspiradas nas características que você pediu, não cópias das vozes de atores ou dubladores.</p>
-   <label class="field-label" for="jamesVoiceSelect">VOZ DISPONÍVEL</label>
-   <select id="jamesVoiceSelect" class="voice-select"><option value="">Carregando vozes disponíveis…</option></select>
+   <p class="panel-description">O Jâmes oferece uma voz masculina sintética própria para o perfil clássico e uma voz neural natural Faber em português brasileiro para os perfis Patrick e Damon. Ritmo e timbre são ajustados localmente; são interpretações originais, não clonagens de atores ou dubladores. A voz padrão do Google não será usada como substituta.</p>
+   <label class="field-label">BASE VOCAL NEURAL</label>
+   <div class="voice-select voice-base-label">Bruno sintética (Jâmes clássico) + Faber neural (Patrick/Damon)</div>
    <div class="voice-style-grid">
-    <button type="button" class="voice-style active" data-voice-style="jarvis"><strong>JARVIS · CLÁSSICA</strong><span>Charon · informativa, grave e precisa</span></button>
-    <button type="button" class="voice-style" data-voice-style="patrick"><strong>PATRICK JANE · ENVOLVENTE</strong><span>Algieba · suave, aveludada e conversacional</span></button>
-    <button type="button" class="voice-style" data-voice-style="demon"><strong>DAMON SALVATORE · INTENSA</strong><span>Algenib · grave, encorpada e rouca</span></button>
+    <button type="button" class="voice-style active" data-voice-style="jarvis"><strong>JARVIS · CLÁSSICA</strong><span>Bruno · masculina sintética, precisa e tecnológica</span></button>
+    <button type="button" class="voice-style" data-voice-style="patrick"><strong>PATRICK JANE · ENVOLVENTE</strong><span>Faber · neural masculina, quente, calma e conversacional</span></button>
+    <button type="button" class="voice-style" data-voice-style="demon"><strong>DAMON SALVATORE · INTENSA</strong><span>Faber · neural masculina, mais grave, quente e pausada</span></button>
    </div>
    <div class="voice-adjust">
     <label for="voiceRate">VELOCIDADE <output id="voiceRateValue">1,00×</output></label><input id="voiceRate" type="range" min="0.75" max="1.25" step="0.05" value="1">
     <label for="voicePitch">TOM <output id="voicePitchValue">1,00</output></label><input id="voicePitch" type="range" min="0.75" max="1.25" step="0.05" value="1">
    </div>
+   <div id="neuralVoiceState" role="status">VOZ NÃO INSTALADA</div>
+   <button type="button" id="downloadNeuralVoice">CARREGAR VOZ NATURAL FABER · ~30 MB</button>
    <div class="module-actions"><button type="button" id="testJamesVoice">OUVIR AMOSTRA LOCAL</button><button type="button" class="secondary" id="saveJamesVoice">SALVAR CONFIGURAÇÃO</button></div>
-   <p class="small" id="voiceAvailability">Chat: voz pt-BR instalada no aparelho. Conversa ao vivo: Charon, Algieba ou Algenib no Gemini Live. Os perfis são originais, não clonagens nem arquivos de voz baixados.</p>
+   <p class="small" id="voiceAvailability">O perfil Jâmes Clássico usa Bruno, uma voz masculina sintética local sem download. Patrick e Damon usam Piper/Faber, uma voz masculina neural pt-BR. Primeiro carregamento natural: modelo de aproximadamente 18,7 MB + runtime WASM de aproximadamente 11 MB, armazenados no cache do navegador.</p>
   </section>
   <section class="panel voice-side"><div class="panel-head"><div class="panel-title">Entrada por voz</div></div>
    <div class="voice-orb-mini">◉</div><h2>Escuta sob comando</h2>
-   <p class="panel-description">O reconhecimento de fala precisa de um mecanismo de entrada autorizado. Esta interface não abrirá a janela externa do Google. No navegador, a gravação e transcrição ainda não estão conectadas ao núcleo.</p>
-   <button type="button" class="secondary" id="voiceInputStatus" disabled>MICROFONE DO NAVEGADOR: NÃO CONECTADO</button>
+   <p class="panel-description">A escuta por microfone está disponível no modo CONVERSA AO VIVO da central. A entrada de áudio é enviada ao modelo de conversa; a resposta falada retorna pela voz neural local do Jâmes.</p>
+   <button type="button" class="secondary" id="voiceInputStatus" disabled>ENTRADA AO VIVO NA CENTRAL</button>
   </section>
  </div>
 </section>
@@ -675,47 +647,18 @@ function getSessionId(){
  return id;
 }
 
-let jamesVoices=[];
-let selectedJamesVoice=localStorage.getItem("james_voice_uri")||"";
 let jamesVoiceStyle=localStorage.getItem("james_voice_style")||"jarvis";
-function refreshJamesVoices(){
- if(!("speechSynthesis" in window))return;
- jamesVoices=window.speechSynthesis.getVoices().filter(v=>/^pt[-_]BR$/i.test(v.lang));
- const select=$("jamesVoiceSelect");
- if(!select)return;
- select.replaceChildren();
- if(!jamesVoices.length){
-  const option=document.createElement("option");option.value="";option.textContent="Nenhuma voz pt-BR detectada neste aparelho";select.appendChild(option);
-  $("voiceAvailability").textContent="O navegador não informou vozes brasileiras disponíveis. Instale/ative uma voz pt-BR nas configurações de texto para fala do Android.";
-  return;
- }
- jamesVoices.forEach((voice,index)=>{
-  const option=document.createElement("option");option.value=voice.voiceURI;option.textContent="Voz brasileira "+(index+1);select.appendChild(option);
- });
- if(!jamesVoices.some(v=>v.voiceURI===selectedJamesVoice))selectedJamesVoice=jamesVoices[0].voiceURI;
- select.value=selectedJamesVoice;
- $("voiceAvailability").textContent=jamesVoices.length+" voz(es) pt-BR detectada(s). A voz é sintetizada pelo mecanismo instalado no aparelho.";
-}
-if("speechSynthesis" in window){refreshJamesVoices();window.speechSynthesis.onvoiceschanged=refreshJamesVoices;}
 function applyJamesVoiceStyle(){
  document.querySelectorAll("[data-voice-style]").forEach(button=>button.classList.toggle("active",button.dataset.voiceStyle===jamesVoiceStyle));
 }
 function speak(text){
- if(window.JamesAndroid){
-  try{
-   const result=JSON.parse(window.JamesAndroid.speak(String(text).slice(0,15000))||"{}");
-   if(!result.success)statusBox.textContent=result.message||"A voz do Android não está disponível.";
-  }catch(error){statusBox.textContent="Não foi possível iniciar a voz do Android.";}
+ if(!voiceOutputEnabled)return;
+ const engine=window.JamesNeuralVoice;
+ if(!engine||!engine.isReady()){
+  statusBox.textContent="A voz neural ainda não foi carregada. Abra VOZES e toque em CARREGAR VOZ NEURAL. O Jâmes não usará a voz do Google como substituta.";
   return;
  }
- if(!("speechSynthesis" in window)||!jamesVoices.length){statusBox.textContent="Nenhuma voz brasileira compatível está disponível neste navegador.";return;}
- const styles={jarvis:{rate:1,pitch:.94},patrick:{rate:1.04,pitch:1.02},demon:{rate:.94,pitch:.82}};
- const style=styles[jamesVoiceStyle]||styles.jarvis;
- const utterance=new SpeechSynthesisUtterance(String(text).slice(0,15000));
- utterance.lang="pt-BR";utterance.voice=jamesVoices.find(v=>v.voiceURI===selectedJamesVoice)||jamesVoices[0];
- utterance.rate=style.rate*Number($("voiceRate")?.value||1);
- utterance.pitch=style.pitch*Number($("voicePitch")?.value||1);
- window.speechSynthesis.cancel();window.speechSynthesis.speak(utterance);
+ engine.speak(text);
 }
 
 function executeAndroidActions(actions){
@@ -862,24 +805,21 @@ $("voiceOutput").addEventListener("click",()=>{
  voiceOutputEnabled=!voiceOutputEnabled;
  localStorage.setItem("james_voice_enabled",String(voiceOutputEnabled));
  if(!voiceOutputEnabled){
-  if(window.JamesAndroid)window.JamesAndroid.stopSpeaking();
-  if("speechSynthesis" in window)window.speechSynthesis.cancel();
+  if(window.JamesNeuralVoice)window.JamesNeuralVoice.stop();
+  if(window.JamesNeuralVoice)window.JamesNeuralVoice.stop();
  }
  updateVoiceOutputButton();
 });
 $("stopVoice").addEventListener("click",()=>{
- if(window.JamesAndroid)window.JamesAndroid.stopSpeaking();
- if("speechSynthesis" in window)window.speechSynthesis.cancel();
+ if(window.JamesNeuralVoice)window.JamesNeuralVoice.stop();
  statusBox.textContent="Voz interrompida.";
 });
 updateVoiceOutputButton();
-$("jamesVoiceSelect").addEventListener("change",event=>{selectedJamesVoice=event.target.value;});
-document.querySelectorAll("[data-voice-style]").forEach(button=>button.addEventListener("click",()=>{jamesVoiceStyle=button.dataset.voiceStyle;localStorage.setItem("james_voice_style",jamesVoiceStyle);applyJamesVoiceStyle();const label=$("holoVoiceName");if(label)label.textContent={jarvis:"JARVIS",patrick:"PATRICK JANE",demon:"DAMON SALVATORE"}[jamesVoiceStyle];}));
+document.querySelectorAll("[data-voice-style]").forEach(button=>button.addEventListener("click",()=>{jamesVoiceStyle=button.dataset.voiceStyle;localStorage.setItem("james_voice_style",jamesVoiceStyle);window.JamesNeuralVoice?.setProfile(jamesVoiceStyle);applyJamesVoiceStyle();const label=$("holoVoiceName");if(label)label.textContent={jarvis:"JÂMES / CLÁSSICA",patrick:"JÂMES / ANALÍTICA",demon:"JÂMES / INTENSA"}[jamesVoiceStyle];}));
 $("voiceRate").addEventListener("input",event=>$("voiceRateValue").textContent=Number(event.target.value).toFixed(2).replace(".",",")+"×");
 $("voicePitch").addEventListener("input",event=>$("voicePitchValue").textContent=Number(event.target.value).toFixed(2).replace(".",","));
 $("testJamesVoice").addEventListener("click",()=>speak("Olá. Eu sou Jâmes. Sistema de inteligência pessoal pronto para ajudar."));
 $("saveJamesVoice").addEventListener("click",()=>{
- localStorage.setItem("james_voice_uri",selectedJamesVoice);
  localStorage.setItem("james_voice_style",jamesVoiceStyle);
  localStorage.setItem("james_voice_rate",$("voiceRate").value);
  localStorage.setItem("james_voice_pitch",$("voicePitch").value);
@@ -890,7 +830,7 @@ const savedPitch=localStorage.getItem("james_voice_pitch");if(savedPitch)$("voic
 $("voiceRateValue").textContent=Number($("voiceRate").value).toFixed(2).replace(".",",")+"×";
 $("voicePitchValue").textContent=Number($("voicePitch").value).toFixed(2).replace(".",",");
 applyJamesVoiceStyle();
-if($("holoVoiceName"))$("holoVoiceName").textContent={jarvis:"JARVIS",patrick:"PATRICK JANE",demon:"DAMON SALVATORE"}[jamesVoiceStyle]||"JARVIS";
+if($("holoVoiceName"))$("holoVoiceName").textContent={jarvis:"JÂMES / CLÁSSICA",patrick:"JÂMES / ANALÍTICA",demon:"JÂMES / INTENSA"}[jamesVoiceStyle]||"JÂMES / CLÁSSICA";
 $("refreshTasks").addEventListener("click",loadTasks);
 $("refreshMemories").addEventListener("click",loadMemories);
 $("form").addEventListener("submit",event=>{
@@ -1077,5 +1017,6 @@ if("serviceWorker" in navigator && location.protocol==="https:"){
 }
 </script>
  <script src="./hologram-v24.js" defer></script>
+ <script type="module" src="./james-neural-voice.js"></script>
 </body>
 </html>

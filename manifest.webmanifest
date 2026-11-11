@@ -8,8 +8,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#07111f",
-  "theme_color": "#07111f",
+  "background_color": "#070b11",
+  "theme_color": "#070b11",
   "icons": [
     {
       "src": "./icons/james-icon.svg",

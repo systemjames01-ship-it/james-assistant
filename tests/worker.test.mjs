@@ -635,9 +635,9 @@ test("live token endpoint returns a one-use token without exposing the API key",
     assert.equal(JSON.stringify(body).includes("secret-test-key"), false);
     assert.equal(provisionBody.uses, 1);
     assert.equal(provisionBody.liveConnectConstraints.model, "models/gemini-3.8-live");
-    assert.deepEqual(provisionBody.liveConnectConstraints.config.generationConfig.responseModalities, ["AUDIO"]);
-    assert.equal(provisionBody.liveConnectConstraints.config.generationConfig.speechConfig.languageCode, "pt-BR");
-    assert.equal(provisionBody.liveConnectConstraints.config.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Algenib");
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.generationConfig.responseModalities, ["TEXT"]);
+    assert.equal(provisionBody.liveConnectConstraints.config.generationConfig.speechConfig, undefined);
+    assert.equal(provisionBody.liveConnectConstraints.config.outputAudioTranscription, undefined);
     assert.deepEqual(provisionBody.liveConnectConstraints.config.realtimeInputConfig.automaticActivityDetection, { disabled: false });
   } finally {
     globalThis.fetch = originalFetch;
