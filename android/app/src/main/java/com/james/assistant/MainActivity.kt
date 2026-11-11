@@ -24,7 +24,6 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Base64
@@ -56,7 +55,6 @@ class MainActivity : android.app.Activity() {
     companion object {
         private const val WORKER_URL = "https://james-ai.systemjames01.workers.dev"
         private const val APP_ORIGIN = "https://systemjames01-ship-it.github.io"
-        private const val REQ_SPEECH = 4103
         private const val REQ_CAMERA = 4104
         private const val REQ_FILE = 4105
         private const val REQ_NOTIFICATIONS = 4102
@@ -97,6 +95,7 @@ class MainActivity : android.app.Activity() {
     private var orbView: JamesHologramView? = null
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
+    private var resumeLiveAfterBackground = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -124,6 +123,7 @@ class MainActivity : android.app.Activity() {
         buildShell()
         showPage("overview")
         refreshBackendStatus()
+        startLiveConversation()
     }
 
     private fun buildShell() {
@@ -253,19 +253,22 @@ class MainActivity : android.app.Activity() {
             maxLines = 2
         }
         page.addView(state, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38)))
-        val talk = makeButton("ATIVAR COMANDO DE VOZ") { startVoiceInput() }
-        page.addView(talk, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply {
+        liveButton = makeButton("CONECTAR AO JÂMES", true) { toggleLiveConversation() }
+        page.addView(liveButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply {
             topMargin = dp(8); bottomMargin = dp(6)
         })
-        liveButton = makeButton("INICIAR LINK NEURAL AO VIVO", true) { toggleLiveConversation() }
-        page.addView(liveButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply { topMargin = dp(8); bottomMargin = dp(6) })
+        val voiceState = TextView(this).apply {
+            text = "VOZ ATIVA POR PADRÃO  ·  PERFIL JARVIS  ·  DIGA “MUDAR VOZ” PARA TROCAR"
+            textSize = 8f
+            gravity = Gravity.CENTER
+            setTextColor(COLOR_MUTED)
+        }
+        page.addView(voiceState, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
         visionButton = makeButton("ATIVAR SENSOR VISUAL", true) { toggleLiveVision() }
         page.addView(visionButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { bottomMargin = dp(6) })
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        controls.addView(makeButton("ESCOLHER VOZ", true) { showVoicePicker() },
-            LinearLayout.LayoutParams(0, dp(44), 1f).apply { rightMargin = dp(5) })
-        controls.addView(makeButton("ABRIR CONSOLE", true) { showPage("intelligence") },
-            LinearLayout.LayoutParams(0, dp(44), 1f).apply { leftMargin = dp(5) })
+        controls.addView(makeButton("ABRIR CONSOLE DE TEXTO", true) { showPage("intelligence") },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)))
         page.addView(controls)
         val modules = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         listOf("PERCEPÇÃO" to "perception", "AÇÕES" to "automation", "MEMÓRIA" to "memory", "APARELHO" to "device").forEach { (label, target) ->
@@ -309,8 +312,7 @@ class MainActivity : android.app.Activity() {
         }
         composer.addView(prompt, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(makeButton("ENVIAR") { sendMessage() }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { rightMargin = dp(5) })
-        actions.addView(makeButton("FALAR", true) { startVoiceInput() }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { leftMargin = dp(5) })
+        actions.addView(makeButton("ENVIAR") { sendMessage() }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)))
         composer.addView(actions, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
         val voiceControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val voiceToggle = makeButton("VOZ: LIGADA", true) {
@@ -648,16 +650,8 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun startVoiceInput() {
-        try {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Fale com o Jâmes")
-            }
-            startActivityForResult(intent, REQ_SPEECH)
-        } catch (_: Exception) {
-            setStatus("RECONHECIMENTO DE VOZ INDISPONÍVEL")
-        }
+        if (!liveConversationEnabled) startLiveConversation()
+        else setStatus("JÂMES JÁ ESTÁ OUVINDO")
     }
 
     private fun speak(text: String) {
@@ -726,12 +720,12 @@ class MainActivity : android.app.Activity() {
                             }
                         }
                     }).also { it.start() }
-                    liveButton?.text = "ENCERRAR CONVERSA AO VIVO"
+                    liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
                 }
             } catch (error: Exception) {
                 runOnUiThread {
                     liveConversationEnabled = false
-                    liveButton?.text = "INICIAR CONVERSA AO VIVO"
+                    liveButton?.text = "CONECTAR AO JÂMES"
                     setStatus("NÃO FOI POSSÍVEL INICIAR A VOZ")
                     addChatMessage(error.message ?: "Falha ao iniciar a sessão de voz.", true, true)
                 }
@@ -826,28 +820,6 @@ class MainActivity : android.app.Activity() {
         try { textToSpeech?.setPitch(pitch); textToSpeech?.setSpeechRate(rate) } catch (_: Exception) { }
     }
 
-    private fun showVoicePicker() {
-        val options = arrayOf(
-            "JARVIS · grave, elegante · referência Eduardo Borgerth",
-            "DAMON · grave, aveludada · referência Clécio Souto",
-            "OPTIMUS · firme, encorpada · referência Guilherme Briggs",
-            "JANE · clara, articulada · referência Márcio Simões"
-        )
-        AlertDialog.Builder(this)
-            .setTitle("PERFIS VOCAIS NEURAIS")
-            .setMessage("Quatro perfis com timbres distintos. As referências identificam a direção vocal; não são clonagens nem imitações dos dubladores.")
-            .setItems(options) { dialog, which ->
-                applyVoiceProfile(which)
-                getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", which).apply()
-                setStatus("PERFIL VOCAL " + (which + 1) + " ATIVADO")
-                if (liveConversationEnabled) restartLiveConversation()
-                else speak("Perfil vocal " + (which + 1) + " selecionado. Inicie o link neural ao vivo para ouvir a voz neural correspondente.")
-                dialog.dismiss()
-            }
-            .setNegativeButton("Cancelar", null)
-            .show()
-    }
-
     private fun handleVoiceCommand(text: String): Boolean {
         val normalized = java.text.Normalizer.normalize(text.lowercase(Locale("pt", "BR")), java.text.Normalizer.Form.NFD)
             .replace(Regex("\\p{Mn}+"), "")
@@ -877,7 +849,13 @@ class MainActivity : android.app.Activity() {
             setStatus("PERFIL VOCAL " + (index + 1) + " SELECIONADO")
             if (liveConversationEnabled) restartLiveConversation()
             else speak("Perfil vocal " + (index + 1) + " selecionado. Inicie o link neural ao vivo para ouvir a voz correspondente.")
-        } else showVoicePicker()
+        } else {
+            val next = (selectedVoiceProfile + 1) % 4
+            applyVoiceProfile(next)
+            getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", next).apply()
+            setStatus("PERFIL VOCAL " + (next + 1) + " SELECIONADO")
+            if (liveConversationEnabled) restartLiveConversation()
+        }
         return true
     }
 
@@ -903,17 +881,6 @@ class MainActivity : android.app.Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != RESULT_OK) return
         when (requestCode) {
-            REQ_SPEECH -> {
-                val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
-                if (spoken.isNotBlank() && currentPage == "intelligence") {
-                    prompt.setText(spoken)
-                    sendMessage()
-                } else if (spoken.isNotBlank()) {
-                    showPage("intelligence")
-                    prompt.setText(spoken)
-                    sendMessage()
-                }
-            }
             REQ_CAMERA -> {
                 val bitmap = data?.extras?.get("data") as? Bitmap ?: return
                 val output = ByteArrayOutputStream()
@@ -1191,8 +1158,17 @@ class MainActivity : android.app.Activity() {
     }
 
     override fun onStop() {
+        resumeLiveAfterBackground = liveConversationEnabled
         if (liveConversationEnabled) stopLiveConversation()
         super.onStop()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (resumeLiveAfterBackground) {
+            resumeLiveAfterBackground = false
+            startLiveConversation()
+        }
     }
 
     override fun onDestroy() {
