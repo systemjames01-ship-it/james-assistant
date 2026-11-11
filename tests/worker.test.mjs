@@ -56,7 +56,7 @@ test("fallback model is used after temporary primary-model failure", async () =>
   const urls = [];
   globalThis.fetch = async (url) => {
     urls.push(String(url));
-    if (urls.length <= 2) {
+    if (urls.length === 1) {
       return new Response(JSON.stringify({ error: { message: "temporarily unavailable" } }), {
         status: 503,
         headers: { "Content-Type": "application/json" }
@@ -82,12 +82,39 @@ test("fallback model is used after temporary primary-model failure", async () =>
     assert.equal(response.status, 200);
     assert.equal(body.reply, "Resposta pelo modelo alternativo.");
     assert.equal(body.model, "gemini-3.5-flash-lite");
-    assert.equal(urls.length, 3);
+    assert.equal(urls.length, 2);
     assert.ok(urls[0].includes("gemini-3.8-flash"));
+    assert.ok(urls[1].includes("gemini-3.5-flash-lite"));
     assert.ok(urls[2].includes("gemini-3.5-flash-lite"));
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("agent can search the public web through a tool call", async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  let searchCalled = false;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes("duckduckgo.com")) {
+      searchCalled = true;
+      return new Response('<a class="result__a" href="https://www.gov.br/energia">Portal oficial de energia</a><div class="result__snippet">Dados oficiais.</div>', { status: 200, headers: { "Content-Type": "text/html" } });
+    }
+    calls++;
+    if (calls === 1) return new Response(JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ functionCall: { name: "search_public_web", args: { queries: ["dados oficiais energia Brasil", "previsão de fornecimento energia"] } } }] } }] }), { status: 200 });
+    const functionResult = JSON.parse(options.body).contents.at(-1).parts[0].functionResponse.response;
+    assert.equal(functionResult.success, true);
+    assert.ok(functionResult.results[0].url.includes("gov.br"));
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "Encontrei uma fonte oficial." }] } }] }), { status: 200 });
+  };
+  try {
+    const request = new Request("https://worker.test/", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ message: "Investigue dados oficiais de energia", sessionId: "session_test_12345" }) });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Encontrei uma fonte oficial.");
+    assert.equal(searchCalled, true);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test("history endpoint reports unavailable D1 without crashing", async () => {
