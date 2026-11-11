@@ -17,14 +17,11 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import org.json.JSONObject
 import java.util.UUID
 
-class MainActivity : ComponentActivity() {
+class MainActivity : android.app.Activity() {
     private lateinit var webView: WebView
     private val notificationRequest = 4102
     private val origin = "https://systemjames01-ship-it.github.io"
@@ -80,8 +77,8 @@ class MainActivity : ComponentActivity() {
             if (epochMillis <= System.currentTimeMillis() || epochMillis > System.currentTimeMillis() + 366L * 24 * 60 * 60 * 1000) {
                 return result(false, "O horário do lembrete precisa estar no futuro e dentro de um ano.")
             }
-            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this@MainActivity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), notificationRequest)
+            if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), notificationRequest)
                 return result(false, "Permissão de notificações solicitada. Autorize e peça para agendar novamente.")
             }
             val id = UUID.randomUUID().hashCode()
