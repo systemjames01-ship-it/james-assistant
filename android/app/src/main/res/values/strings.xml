@@ -1,1 +1,2 @@
-<resources><string name="app_name">Jâmes</string></resources>
+<resources><string name="app_name">Jâmes</string>    <string name="james_accessibility_description">Automação pontual da interface visível somente quando solicitada. O Jâmes não coleta nem transmite o conteúdo da tela.</string>
+</resources>

@@ -351,6 +351,12 @@ class MainActivity : android.app.Activity() {
         val service = card()
         addText(service, "CONEXÃO COM O NÚCLEO", 10f, COLOR_CYAN, true)
         addText(service, backendSummary, 11f, COLOR_MUTED, top = 7)
+        addText(service, "AUTOMAÇÃO DA INTERFACE", 10f, COLOR_CYAN, true, top = 14)
+        addText(service, "Permite tocar em elementos visíveis, preencher o campo já focado e navegar quando você solicitar. O serviço não transmite o conteúdo da tela. A ativação é manual e pode ser revogada nas Configurações do Android.", 10f, COLOR_MUTED, top = 6)
+        addButton(service, "CONFIGURAR ACESSIBILIDADE", secondary = true) {
+            try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            catch (_: Exception) { Toast.makeText(this, "Não foi possível abrir as configurações de acessibilidade.", Toast.LENGTH_LONG).show() }
+        }
         addButton(service, "TESTAR CONEXÃO", secondary = true) { refreshBackendStatus() }
         page.addView(service)
         mountScrollable(page)
@@ -430,6 +436,7 @@ class MainActivity : android.app.Activity() {
                 "open_app" -> openApp(action.optString("appName"))
                 "schedule_reminder" -> scheduleReminder(action.optString("title"), action.optString("at"))
                 "open_settings" -> openSystemSettings(action.optString("section"))
+                "ui_action" -> JamesAccessibilityService.execute(action)
                 else -> false to "Ação Android não reconhecida."
             }
             addChatMessage((if (result.first) "ANDROID CONFIRMOU: " else "ANDROID NÃO CONCLUIU: ") + result.second, result.first, !result.first)
