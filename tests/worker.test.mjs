@@ -83,7 +83,7 @@ test("fallback model is used after temporary primary-model failure", async () =>
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.reply, "Resposta pelo modelo alternativo.");
-    assert.equal(body.model, "gemini-3.5-flash-lite");
+    assert.equal(body.model, undefined);
     assert.equal(urls.length, 2);
     assert.ok(urls[0].includes("gemini-3.8-flash"));
     assert.ok(urls[1].includes("gemini-3.5-flash-lite"));
@@ -574,7 +574,7 @@ test("live token endpoint returns a one-use token without exposing the API key",
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.token, "auth_tokens/short-lived");
-    assert.equal(body.model, "gemini-3.8-live");
+    assert.equal(body.model, undefined);
     assert.equal(JSON.stringify(body).includes("secret-test-key"), false);
     assert.equal(provisionBody.uses, 1);
     assert.equal(provisionBody.liveConnectConstraints.model, "models/gemini-3.8-live");
