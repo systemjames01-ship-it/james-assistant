@@ -24,6 +24,7 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - list_memories: consulta as memórias explicitamente guardadas pelo usuário.
 - delete_memory: apaga uma memória identificada, somente quando o usuário pedir para esquecê-la/apagá-la.
 Memórias ficam vinculadas à sessão deste navegador; não prometa sincronização entre dispositivos.
+Integração Android: android_open_app, android_schedule_reminder e android_open_settings apenas enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
 
 RACIOCÍNIO E EXECUÇÃO:
@@ -297,6 +298,30 @@ async function fetchPublicPage(rawUrl) {
 }
 
 async function executeAssistantTool(env, sessionId, name, args = {}) {
+  if (name === "android_open_app") {
+    const packageName = typeof args.package_name === "string" ? args.package_name.trim() : "";
+    const appName = typeof args.app_name === "string" ? args.app_name.trim().slice(0, 80) : "";
+    if (!/^[A-Za-z0-9_.]{3,180}$/.test(packageName) || !appName) {
+      return { error: "Nome do aplicativo e identificador Android válido são necessários." };
+    }
+    return { queuedForDevice: true, clientAction: { type: "open_app", packageName, appName }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android. Não afirme que o aplicativo já abriu." };
+  }
+  if (name === "android_schedule_reminder") {
+    const title = typeof args.title === "string" ? args.title.trim().slice(0, 180) : "";
+    const at = typeof args.at === "string" ? args.at.trim() : "";
+    const epochMillis = Date.parse(at);
+    if (!title || !Number.isFinite(epochMillis) || epochMillis <= Date.now() || epochMillis > Date.now() + 366 * 24 * 60 * 60 * 1000) {
+      return { error: "Informe o título e uma data/hora futura válida, dentro de um ano." };
+    }
+    return { queuedForDevice: true, clientAction: { type: "schedule_reminder", title, at }, instruction: "O lembrete ainda não foi agendado. Aguarde a confirmação do Android antes de afirmar que foi agendado." };
+  }
+  if (name === "android_open_settings") {
+    const section = typeof args.section === "string" ? args.section : "";
+    if (!["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"].includes(section)) {
+      return { error: "Seção de configurações do Android inválida." };
+    }
+    return { queuedForDevice: true, clientAction: { type: "open_settings", section }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android." };
+  }
   if (name === "fetch_public_page") {
     return await fetchPublicPage(args.url);
   }
@@ -394,6 +419,29 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
   const tools = [{
     functionDeclarations: [
       {
+        name: "android_open_app",
+        description: "Abre um aplicativo no Android do usuário. Use SOMENTE quando ele pedir explicitamente para abrir/iniciar um aplicativo. Informe nome e package name correto; não adivinhe identificadores incertos.",
+        parameters: { type: "OBJECT", properties: {
+          app_name: { type: "STRING", description: "Nome do aplicativo solicitado." },
+          package_name: { type: "STRING", description: "Identificador de pacote Android confirmado, por exemplo com.whatsapp." }
+        }, required: ["app_name", "package_name"] }
+      },
+      {
+        name: "android_schedule_reminder",
+        description: "Solicita ao aplicativo Android nativo que agende uma notificação local. Use apenas quando o usuário pedir explicitamente um lembrete com data e hora. Data/hora ISO 8601 com fuso explícito.",
+        parameters: { type: "OBJECT", properties: {
+          title: { type: "STRING", description: "Texto curto do lembrete." },
+          at: { type: "STRING", description: "Data e hora ISO 8601 futura, com fuso horário explícito." }
+        }, required: ["title", "at"] }
+      },
+      {
+        name: "android_open_settings",
+        description: "Abre uma tela de configurações do Android quando o usuário pedir explicitamente.",
+        parameters: { type: "OBJECT", properties: {
+          section: { type: "STRING", enum: ["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"] }
+        }, required: ["section"] }
+      },
+      {
         name: "fetch_public_page",
         description: "Lê uma página pública HTTPS indicada pelo usuário para analisar seu conteúdo. Não acessa endereços privados, arquivos binários nem segue redirecionamentos.",
         parameters: {
@@ -477,6 +525,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
   const thinkingLevel = selectThinkingLevel(contents);
   const MAX_AGENT_STEPS = 5;
   let latestResponse = null;
+  const clientActions = [];
 
   for (let step = 0; step <= MAX_AGENT_STEPS; step++) {
     const body = {
@@ -546,11 +595,11 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
           status: 502
         });
       }
-      return reply.slice(0, 30000);
+      return { text: reply.slice(0, 30000), clientActions };
     }
 
     if (step === MAX_AGENT_STEPS) {
-      return "Analisei o pedido, mas atingi o limite de etapas de execução disponíveis nesta versão. Posso continuar assim que houver uma ferramenta ou etapa adicional disponível.";
+      return { text: "Analisei o pedido, mas atingi o limite de etapas de execução disponíveis nesta versão. Posso continuar assim que houver uma ferramenta ou etapa adicional disponível.", clientActions };
     }
 
     transcript.push(modelContent);
@@ -560,7 +609,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
       const call = part.functionCall;
       let toolResult;
       try {
-        toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {});
+        toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {});\n        if (toolResult?.clientAction) clientActions.push(toolResult.clientAction);
       } catch (toolError) {
         console.error("Assistant tool failed:", call.name, toolError);
         toolResult = { error: "A ferramenta falhou ao executar. Nenhuma conclusão deve ser presumida." };
@@ -586,7 +635,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
     .join("")
     .trim();
 
-  if (finalText) return finalText.slice(0, 30000);
+  if (finalText) return { text: finalText.slice(0, 30000), clientActions };
   throw Object.assign(new Error("O Jâmes atingiu o limite de etapas internas sem produzir uma resposta final."), {
     status: 502
   });
@@ -782,16 +831,17 @@ export default {
 
       const currentTurn = { role: "user", parts };
       let reply;
+      let clientActions = [];
       let usedModel = MODEL;
       try {
-        reply = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories);
+        const result = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories);\n        reply = result.text;\n        clientActions = result.clientActions || [];
       } catch (primaryError) {
         const retryable = primaryError?.kind === "gemini" &&
           [429, 503].includes(primaryError.status);
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories);
+        const result = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories);\n        reply = result.text;\n        clientActions = result.clientActions || [];
       }
 
       if (env.DB) {
@@ -806,8 +856,7 @@ export default {
       }
 
       return json({
-        reply,
-        model: usedModel,
+        reply,\n        clientActions,\n        model: usedModel,
         reasoningLevel: selectThinkingLevel([...history, currentTurn]),
         savedMemories: memories.length,
         memory: memoryAvailable ? "available" : "temporarily_unavailable"
