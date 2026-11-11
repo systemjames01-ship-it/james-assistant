@@ -307,7 +307,7 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
     const title = typeof args.title === "string" ? args.title.trim().slice(0, 180) : "";
     const at = typeof args.at === "string" ? args.at.trim() : "";
     const epochMillis = Date.parse(at);
-    if (!title || !Number.isFinite(epochMillis) || epochMillis <= Date.now() || epochMillis > Date.now() + 366 * 24 * 60 * 60 * 1000) return { error: "Informe o título e uma data/hora futura válida, dentro de um ano." };
+    if (!title || !/(Z|[+-]\\d{2}:\\d{2})$/.test(at) || !Number.isFinite(epochMillis) || epochMillis <= Date.now() || epochMillis > Date.now() + 366 * 24 * 60 * 60 * 1000) return { error: "Informe o título e uma data/hora futura válida, dentro de um ano." };
     return { queuedForDevice: true, clientAction: { type: "schedule_reminder", title, at }, instruction: "O lembrete ainda não foi agendado. Aguarde a confirmação do Android antes de afirmar que foi agendado." };
   }
   if (name === "android_open_settings") {
@@ -408,12 +408,26 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
     ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
       memories.map(item => "- " + item.key + ": " + item.value).join("\n")
     : "";
-  const deviceInfo = deviceContext && typeof deviceContext === "object"
-    ? "\n\nCONTEXTO LOCAL DO DISPOSITIVO (fornecido pelo navegador/aplicativo; use para datas, fuso e capacidades):\n" +
-      "Plataforma: " + String(deviceContext.platform || "web").slice(0, 30) + "\n" +
-      "Fuso horário: " + String(deviceContext.timezone || "desconhecido").slice(0, 80) + "\n" +
-      "Data/hora local ISO: " + String(deviceContext.localNow || "não fornecida").slice(0, 50)
-    : "";
+  let deviceInfo = "";
+  if (deviceContext && typeof deviceContext === "object") {
+    const platform = deviceContext.platform === "android" ? "android" : "web";
+    let timezone = "desconhecido";
+    if (typeof deviceContext.timezone === "string" && deviceContext.timezone.length <= 80) {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: deviceContext.timezone });
+        timezone = deviceContext.timezone;
+      } catch {}
+    }
+    const localNow = typeof deviceContext.localNow === "string" &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/.test(deviceContext.localNow) &&
+      Number.isFinite(Date.parse(deviceContext.localNow))
+      ? deviceContext.localNow
+      : "não fornecida";
+    deviceInfo = "\n\nCONTEXTO LOCAL DO DISPOSITIVO (valores validados):\n" +
+      "Plataforma: " + platform + "\n" +
+      "Fuso horário: " + timezone + "\n" +
+      "Data/hora local ISO: " + localNow;
+  }
   const activeInstruction = baseInstruction + memoryContext + deviceInfo;
   const tools = [{
     functionDeclarations: [
