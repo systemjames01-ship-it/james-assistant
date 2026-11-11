@@ -863,7 +863,14 @@ export default {
       try { livePayload = await request.json(); }
       catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
       const sessionId = typeof livePayload?.sessionId === "string" ? livePayload.sessionId : "";
+      const voiceProfile = Number.isInteger(livePayload?.voiceProfile) ? Math.max(0, Math.min(3, livePayload.voiceProfile)) : 0;
       if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
+      const voiceDirections = [
+        "Perfil vocal JARVIS: português brasileiro, voz adulta masculina grave, elegante, serena e precisa; ritmo moderado, articulação nítida e autoridade tranquila.",
+        "Perfil vocal DAMON: português brasileiro, voz adulta masculina grave, aveludada e suave; ritmo natural, pausas expressivas e timbre encorpado.",
+        "Perfil vocal OPTIMUS: português brasileiro, voz adulta masculina firme, encorpada e ressonante; dicção clara e presença marcante sem gritar.",
+        "Perfil vocal JANE: português brasileiro, voz adulta masculina clara, articulada e conversacional; ritmo ágil e ironia sutil apenas quando apropriado."
+      ];
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const now = Date.now();
       try {
@@ -899,7 +906,7 @@ export default {
                 sessionResumption: {},
                 tools: [{ functionDeclarations: LIVE_FUNCTION_DECLARATIONS }],
                 systemInstruction: {
-                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ AO VIVO: converse em português brasileiro com naturalidade. Use ferramentas declaradas quando forem necessárias para cumprir um pedido explícito. Antes de ações externas, destrutivas, financeiras ou que exponham dados, peça confirmação. Para ações Android, aguarde a confirmação real do dispositivo antes de afirmar sucesso." }]
+                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ AO VIVO: converse em português brasileiro com naturalidade. Use ferramentas declaradas quando forem necessárias para cumprir um pedido explícito. Antes de ações externas, destrutivas, financeiras ou que exponham dados, peça confirmação. Para ações Android, aguarde a confirmação real do dispositivo antes de afirmar sucesso.\n\n" + voiceDirections[voiceProfile] }]
                 }
               }
             }
