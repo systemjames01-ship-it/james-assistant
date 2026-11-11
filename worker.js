@@ -293,7 +293,7 @@ async function searchPublicWeb(rawQueries) {
       });
       if (!response.ok) continue;
       const html = (await response.text()).slice(0, 1_000_000);
-      const anchors = [...html.matchAll(/<a\\b([^>]*class=["'][^"']*result__a[^"']*["'][^>]*)>([\\s\\S]*?)<\\/a>/gi)];
+      const anchors = [...html.matchAll(/<a\b([^>]*class=["'][^"']*result__a[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi)];
       for (const match of anchors) {
         const href = match[1].match(/href=["']([^"']+)["']/i)?.[1];
         if (!href) continue;
@@ -306,7 +306,7 @@ async function searchPublicWeb(rawQueries) {
         if (target.protocol !== "https:" || seen.has(target.href)) continue;
         const title = extractPageText(match[2]).slice(0, 220);
         const after = html.slice(match.index + match[0].length, match.index + match[0].length + 1800);
-        const snippetMatch = after.match(/class=["'][^"']*result__snippet[^"']*["'][^>]*>([\\s\\S]*?)<\\/[^>]+>/i);
+        const snippetMatch = after.match(/class=["'][^"']*result__snippet[^"']*["'][^>]*>([\s\S]*?)<\/[^>]+>/i);
         const snippet = snippetMatch ? extractPageText(snippetMatch[1]).slice(0, 500) : "";
         if (!title) continue;
         seen.add(target.href);
