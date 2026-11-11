@@ -16,10 +16,19 @@ if (manifest.name !== "Jâmes — Assistente Pessoal" || manifest.display !== "s
 }
 readFileSync(new URL("../icons/james-icon.svg", import.meta.url), "utf8");
 
+const hologramCss = readFileSync(new URL("../hologram-v24.css", import.meta.url), "utf8");
+const hologramJs = readFileSync(new URL("../hologram-v24.js", import.meta.url), "utf8");
+new vm.Script(hologramJs, { filename: "hologram-v24.js" });
+if (!html.includes('id="jamesGlobeCanvas"') || !html.includes('id="headMic"') ||
+    !html.includes('href="./hologram-v24.css"') || !html.includes('src="./hologram-v24.js"') ||
+    !hologramCss.includes(".globe-stage") || !hologramJs.includes("SpeechRecognition")) {
+  throw new Error("Holographic globe, styles, voice interaction, or script integration is missing.");
+}
+
 const serviceWorker = readFileSync(new URL("../service-worker.js", import.meta.url), "utf8");
 new vm.Script(serviceWorker, { filename: "service-worker.js" });
 
 if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)speak(data.reply)")) {
   throw new Error("Voice output must remain user-controllable and connected to AI replies.");
 }
-console.log("Validated " + scripts.length + " inline script block(s), PWA manifest, icon, service worker, and voice controls.");
+console.log("Validated inline scripts, holographic globe assets, voice interaction, PWA manifest, icon, service worker, and voice controls.");
