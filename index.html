@@ -187,6 +187,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 @media(prefers-reduced-motion:reduce){.eye-aura,.irisPulse,.scanOrbit{animation:none!important}}
 
 </style>
+<link rel="stylesheet" href="./interface-v27.css">
  <link rel="stylesheet" href="./hologram-v24.css">
 </head>
 <body>
@@ -203,40 +204,82 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  <div id="status" role="status" aria-live="polite">Pronto para conversar.</div>
 </header>
 
-<section class="hero view head-view" id="overviewView" aria-label="Núcleo neural holográfico do Jâmes">
- <div class="reactor-wrap" aria-label="Representação holográfica do cérebro tecnológico do Jâmes">
-  <div class="globe-stage neural-stage" role="img" aria-label="Cérebro tecnológico holográfico com conexões neurais animadas em tempo real">
-   <div class="globe-readout">JÂMES / NEURAL CORE<br>REDE: DINÂMICA<br>PROCESSAMENTO: VISUALIZADO</div>
-   <div class="globe-readout right">PERCEPÇÃO: SOB PERMISSÃO<br>ATIVIDADE: <span id="globeState">STANDBY</span><br>LINK: <span id="neuralLinkState">AGUARDANDO</span></div>
-   <div class="neural-aura"></div>
-   <canvas class="globe-canvas neural-canvas" id="jamesGlobeCanvas" aria-hidden="true"></canvas>
-   <div class="globe-label">MATRIZ NEURAL // NÚCLEO COGNITIVO</div>
+<section class="hero view head-view" id="overviewView" aria-label="Central holográfica de comando do Jâmes">
+ <div class="hero-copy command-identity">
+  <div class="eyebrow"><span class="live-dot"></span> SISTEMA PESSOAL · JAMERSON RAMOS</div>
+  <h1>À sua disposição.</h1>
+  <p>Inteligência, percepção e execução reunidas em uma central. Dê uma ordem por voz ou use o console de conversa.</p>
+  <div class="identity-status">
+   <div><span>ESTADO DO NÚCLEO</span><strong id="globeState">STANDBY</strong></div>
+   <div><span>CONEXÃO AO VIVO</span><strong id="neuralLinkState">AGUARDANDO</strong></div>
+   <div><span>PERFIL DE VOZ</span><strong id="holoVoiceName">JARVIS</strong></div>
+  </div>
+  <div class="hero-actions">
+   <button type="button" id="headOpenChat">ABRIR CONVERSA</button>
+   <button type="button" class="secondary" id="headOpenControl">CENTRAL DE CONTROLE</button>
   </div>
  </div>
- <div class="hero-copy">
-  <div class="eyebrow">INTERFACE PRINCIPAL · JÂMES</div>
-  <h1>À sua disposição.</h1>
-  <p>Um núcleo de inteligência conectado aos seus módulos de conversa, percepção e execução autorizada. A atividade visual acompanha o estado real da sessão.</p>
-  <div class="hero-meta">
-   <span class="meta-chip"><b>01</b> · INTELIGÊNCIA</span>
-   <span class="meta-chip"><b>02</b> · PERCEPÇÃO</span>
-   <span class="meta-chip"><b>03</b> · AÇÕES AUTORIZADAS</span>
+ <div class="reactor-wrap projection-zone" aria-label="Projeção holográfica tridimensional da inteligência artificial">
+  <div class="projection-frame" id="holoProjection" data-state="standby">
+   <div class="projection-caption top">PROJEÇÃO NEURAL <span>JÂMES / 01</span></div>
+   <div class="projection-beam"></div>
+   <div class="holo-entity">
+    <svg class="holo-figure" viewBox="0 0 520 590" role="img" aria-label="Silhueta humanoide artificial formada por linhas holográficas e conexões neurais">
+     <defs>
+      <linearGradient id="holoStroke" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9ffff"/><stop offset=".42" stop-color="#3dd8ff"/><stop offset="1" stop-color="#337bff"/></linearGradient>
+      <radialGradient id="holoFill"><stop offset="0" stop-color="#28cfff" stop-opacity=".2"/><stop offset="1" stop-color="#1265bd" stop-opacity=".015"/></radialGradient>
+      <filter id="holoGlow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <clipPath id="holoHeadClip"><path d="M260 62 C174 62 128 127 132 225 C135 298 171 350 205 374 L205 414 C174 436 120 444 88 478 L68 548 L452 548 L432 478 C400 444 346 436 315 414 L315 374 C349 350 385 298 388 225 C392 127 346 62 260 62Z"/></clipPath>
+     </defs>
+     <g class="figure-back" fill="none" stroke="url(#holoStroke)" stroke-width="1.1" opacity=".42">
+      <path d="M260 62 C174 62 128 127 132 225 C135 298 171 350 205 374 L205 414 C174 436 120 444 88 478 L68 548 L452 548 L432 478 C400 444 346 436 315 414 L315 374 C349 350 385 298 388 225 C392 127 346 62 260 62Z"/>
+      <path d="M260 80 C185 80 148 137 150 222 C152 292 183 335 214 360 M260 80 C335 80 372 137 370 222 C368 292 337 335 306 360"/>
+      <path d="M205 414 Q260 450 315 414 M174 462 Q260 490 346 462 M108 520 Q260 555 412 520"/>
+      <path d="M205 374 Q260 395 315 374 M205 414 L205 450 M315 414 L315 450"/>
+     </g>
+     <g clip-path="url(#holoHeadClip)" class="figure-mesh" fill="none" stroke="url(#holoStroke)" stroke-width=".8">
+      <path d="M90 120 L430 120 M70 155 L450 155 M60 190 L460 190 M55 225 L465 225 M65 260 L455 260 M75 295 L445 295 M90 330 L430 330 M105 365 L415 365 M95 400 L425 400 M75 435 L445 435 M65 470 L455 470 M60 505 L460 505"/>
+      <path d="M130 45 L145 560 M170 40 L180 560 M210 35 L215 560 M260 30 L260 565 M310 35 L305 560 M350 40 L340 560 M390 45 L375 560"/>
+      <path d="M135 120 Q260 210 385 120 M130 185 Q260 270 390 185 M135 250 Q260 335 385 250 M160 320 Q260 390 360 320 M185 390 Q260 445 335 390"/>
+      <path d="M135 120 L210 190 L260 145 L310 190 L385 120 M130 225 L205 260 L260 225 L315 260 L390 225 M145 300 L215 330 L260 295 L305 330 L375 300 M175 370 L230 400 L260 365 L290 400 L345 370"/>
+     </g>
+     <g class="face-contours" fill="url(#holoFill)" stroke="url(#holoStroke)" stroke-width="1.8" filter="url(#holoGlow)">
+      <path d="M260 94 C190 94 158 145 160 224 C162 286 192 334 225 354 L225 385 Q260 402 295 385 L295 354 C328 334 358 286 360 224 C362 145 330 94 260 94Z"/>
+      <path d="M188 224 Q220 204 244 225 M276 225 Q300 204 332 224" fill="none"/>
+      <path d="M260 224 L248 278 L260 288 L272 278" fill="none"/>
+      <path d="M220 318 Q260 337 300 318" fill="none"/>
+      <path d="M214 352 Q260 374 306 352" fill="none" opacity=".6"/>
+     </g>
+     <g class="neural-nodes" filter="url(#holoGlow)">
+      <path d="M260 125 L218 165 L191 214 L224 250 L205 294 L260 320 L315 294 L296 250 L329 214 L302 165Z M218 165 L260 190 L302 165 M191 214 L260 190 L329 214 M224 250 L260 190 L296 250 M205 294 L260 320 L315 294 M260 190 L260 320" fill="none" stroke="#a9fbff" stroke-width="1.4"/>
+      <g fill="#e5ffff"><circle cx="260" cy="125" r="4"/><circle cx="218" cy="165" r="3"/><circle cx="302" cy="165" r="3"/><circle cx="191" cy="214" r="3"/><circle cx="329" cy="214" r="3"/><circle cx="260" cy="190" r="4"/><circle cx="224" cy="250" r="3"/><circle cx="296" cy="250" r="3"/><circle cx="205" cy="294" r="3"/><circle cx="315" cy="294" r="3"/><circle cx="260" cy="320" r="4"/></g>
+     </g>
+     <g class="figure-sparks" fill="#d9ffff"><circle cx="112" cy="176" r="2"/><circle cx="403" cy="205" r="2"/><circle cx="150" cy="380" r="1.8"/><circle cx="365" cy="390" r="1.8"/><circle cx="235" cy="50" r="2"/><circle cx="290" cy="42" r="1.5"/></g>
+    </svg>
+   </div>
+   <div class="projection-scan"></div><div class="projection-grid"></div>
+   <div class="projection-base"><i></i><i></i><i></i></div>
+   <div class="projection-readout left">SENSORIAL<br><b>NEURAL MESH</b><br>PT-BR / LIVE</div>
+   <div class="projection-readout right">LINK<br><b id="holoLink">STANDBY</b><br>SECURE SESSION</div>
+   <div class="projection-caption bottom">HOLOGRAPHIC INTERFACE <span id="neuralActivityLabel">EM ESPERA</span></div>
   </div>
-  <div class="head-actions"><button type="button" id="headOpenChat">ABRIR CHAT</button><button type="button" class="secondary" id="headOpenControl">PAINEL DE CONTROLE</button></div>
+ </div>
+ <div class="head-control-stack">
+  <div class="control-heading"><span>CONTROLE PRINCIPAL</span><b>01 / POWER</b></div>
   <div class="power-console">
    <button type="button" id="jamesPower" class="power-button" aria-pressed="false"><span class="power-symbol">⏻</span><span id="jamesPowerLabel">LIGAR JÂMES</span></button>
-   <div class="power-copy"><strong id="jamesPowerState">NÚCLEO AO VIVO DESLIGADO</strong><span id="jamesPowerHelp">Este botão inicia ou encerra a sessão ao vivo de voz e câmera. O Android/Chrome ainda exige sua autorização; chat e ferramentas de texto continuam disponíveis.</span></div>
+   <div class="power-copy"><strong id="jamesPowerState">NÚCLEO AO VIVO DESLIGADO</strong><span id="jamesPowerHelp">Inicia a conversa ao vivo e solicita as permissões de microfone e câmera. O Android ainda exige sua autorização.</span></div>
   </div>
+  <div class="control-heading"><span>PERCEPÇÃO E ÁUDIO</span><b>02 / SENSORS</b></div>
   <div class="head-mic">
    <button type="button" id="headMic" class="secondary" aria-label="Iniciar apenas conversa por voz" aria-pressed="false">🎙</button>
    <button type="button" id="headVision" class="secondary" aria-label="Ativar ou desativar visão ao vivo" aria-pressed="false" disabled>◎</button>
    <button type="button" id="headCameraFlip" class="secondary" aria-label="Alternar câmera frontal e traseira" disabled>↻</button>
-   <div class="head-mic-copy"><strong>Controles individuais</strong><span id="headMicState">O botão principal liga/desliga a sessão ao vivo. Os controles individuais permitem iniciar só a voz ou alternar as câmeras frontal e traseira.</span></div>
   </div>
-  <video id="headVisionVideo" playsinline muted hidden></video>
-  <canvas id="headVisionCanvas" hidden></canvas>
-  <div class="head-transcript" id="headTranscript" aria-live="polite">Aguardando ativação do núcleo…</div>
-  <div class="visual-output"><div class="visual-output-head"><span>ATIVIDADE DO NÚCLEO</span><span id="neuralActivityLabel">EM ESPERA</span></div><canvas id="jamesVisualCanvas" width="720" height="100" aria-label="Visualização animada do processamento da sessão"></canvas></div>
+  <div class="sensor-legend"><span><i class="sensor-led"></i> MICROFONE</span><span><i class="sensor-led"></i> CÂMERA</span><span id="headMicState">AGUARDANDO AUTORIZAÇÃO</span></div>
+  <video id="headVisionVideo" playsinline muted hidden></video><canvas id="headVisionCanvas" hidden></canvas>
+  <div class="projection-transcript" id="headTranscript" aria-live="polite">Aguardando ativação do sistema…</div>
+  <div class="holo-activity"><div><span>ATIVIDADE DA SESSÃO</span><b>REAL-TIME</b></div><canvas id="jamesVisualCanvas" width="720" height="100" aria-label="Visualização animada da atividade de áudio"></canvas></div>
  </div>
 </section>
 
@@ -247,6 +290,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  <button type="button" data-view-target="voices" aria-pressed="false">♫ VOZES</button>
  <button type="button" data-view-target="perception" aria-pressed="false">◎ VISÃO</button>
  <button type="button" data-view-target="device" aria-pressed="false">▦ SISTEMA</button>
+ <button type="button" data-view-target="world" aria-pressed="false">⌖ MUNDO</button>
 </nav>
 <section id="controlView" class="view" hidden>
  <div class="overview-grid">
@@ -297,20 +341,20 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  <div class="voice-layout">
   <section class="panel voice-main">
    <div class="panel-head"><div><div class="panel-title">Identidade vocal</div><div class="panel-kicker">SÍNTESE DE VOZ · CONFIGURAÇÃO LOCAL</div></div></div>
-   <p class="panel-description">Escolha uma voz em português do Brasil disponível neste aparelho e ajuste a forma de falar do Jâmes. Os estilos abaixo alteram ritmo e entonação; não são clonagens de atores, dubladores ou personagens.</p>
+   <p class="panel-description">Escolha um perfil vocal do Jâmes. Na conversa ao vivo, cada perfil seleciona uma voz neural pt-BR compatível e orienta a interpretação. No chat, o aparelho usa a voz brasileira instalada. São interpretações originais inspiradas nas características que você pediu, não cópias das vozes de atores ou dubladores.</p>
    <label class="field-label" for="jamesVoiceSelect">VOZ DISPONÍVEL</label>
    <select id="jamesVoiceSelect" class="voice-select"><option value="">Carregando vozes disponíveis…</option></select>
    <div class="voice-style-grid">
-    <button type="button" class="voice-style active" data-voice-style="jarvis"><strong>Clássica</strong><span>Calma, precisa e formal</span></button>
-    <button type="button" class="voice-style" data-voice-style="patrick"><strong>Envolvente</strong><span>Natural, firme e expressiva</span></button>
-    <button type="button" class="voice-style" data-voice-style="demon"><strong>Intensa</strong><span>Grave, confiante e dramática</span></button>
+    <button type="button" class="voice-style active" data-voice-style="jarvis"><strong>JARVIS · CLÁSSICA</strong><span>Charon · informativa, grave e precisa</span></button>
+    <button type="button" class="voice-style" data-voice-style="patrick"><strong>PATRICK JANE · ENVOLVENTE</strong><span>Algieba · suave, aveludada e conversacional</span></button>
+    <button type="button" class="voice-style" data-voice-style="demon"><strong>DAMON SALVATORE · INTENSA</strong><span>Algenib · grave, encorpada e rouca</span></button>
    </div>
    <div class="voice-adjust">
     <label for="voiceRate">VELOCIDADE <output id="voiceRateValue">1,00×</output></label><input id="voiceRate" type="range" min="0.75" max="1.25" step="0.05" value="1">
     <label for="voicePitch">TOM <output id="voicePitchValue">1,00</output></label><input id="voicePitch" type="range" min="0.75" max="1.25" step="0.05" value="1">
    </div>
-   <div class="module-actions"><button type="button" id="testJamesVoice">OUVIR AMOSTRA</button><button type="button" class="secondary" id="saveJamesVoice">SALVAR CONFIGURAÇÃO</button></div>
-   <p class="small" id="voiceAvailability">As vozes dependem do mecanismo de síntese instalado no dispositivo. Nenhum áudio será enviado para teste.</p>
+   <div class="module-actions"><button type="button" id="testJamesVoice">OUVIR AMOSTRA LOCAL</button><button type="button" class="secondary" id="saveJamesVoice">SALVAR CONFIGURAÇÃO</button></div>
+   <p class="small" id="voiceAvailability">Chat: voz pt-BR instalada no aparelho. Conversa ao vivo: Charon, Algieba ou Algenib no Gemini Live. Os perfis são originais, não clonagens nem arquivos de voz baixados.</p>
   </section>
   <section class="panel voice-side"><div class="panel-head"><div class="panel-title">Entrada por voz</div></div>
    <div class="voice-orb-mini">◉</div><h2>Escuta sob comando</h2>
@@ -358,6 +402,26 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
 </section>
 
+<section id="worldView" class="view world-view" hidden>
+ <div class="world-heading"><div><div class="eyebrow">INTELIGÊNCIA GEOESPACIAL · DADOS PÚBLICOS</div><h1>God’s Eye View</h1><p>Conecte o Jâmes ao observatório geoespacial open-source no Windows.</p></div><span class="world-license">OPEN SOURCE · MIT</span></div>
+ <div class="world-grid">
+  <article class="world-card world-primary">
+   <div class="world-visual"><div class="world-orbit"></div><div class="world-core">GEV</div><span class="world-point p1"></span><span class="world-point p2"></span><span class="world-point p3"></span></div>
+   <div class="world-copy"><span class="eyebrow">OBSERVATÓRIO GLOBAL</span><h2>O mundo em uma única tela.</h2><p>Visualize dados públicos de satélites, aeronaves, navios, terremotos, clima, rádio e câmeras públicas. O Jâmes poderá abrir o painel local do Windows depois que o componente de integração for instalado.</p>
+    <div class="world-actions"><button type="button" id="openGodsEye">ABRIR NO WINDOWS</button><button type="button" class="secondary" id="updateGodsEye">ATUALIZAR PROJETO</button><button type="button" class="secondary" id="stopGodsEye">ENCERRAR</button></div>
+   </div>
+  </article>
+  <article class="world-card">
+   <span class="eyebrow">CONFIGURAÇÃO INICIAL · WINDOWS</span><h2>Preparar integração local</h2>
+   <p>É necessária uma única instalação no computador Windows. Ela registra o protocolo local james:// e prepara o lançador que baixa e inicia o projeto oficial.</p>
+   <ol><li>Abra o PowerShell no Windows.</li><li>Execute o instalador abaixo.</li><li>Depois disso, os botões desta aba poderão abrir, atualizar ou encerrar o observatório.</li></ol>
+   <pre class="install-command" id="windowsInstallCommand">irm https://raw.githubusercontent.com/systemjames01-ship-it/james-assistant/main/windows-companion/Install-JamesCompanion.ps1 | iex</pre>
+   <button type="button" class="secondary" id="copyWindowsInstall">COPIAR COMANDO DE INSTALAÇÃO</button>
+   <p class="world-note">O instalador pode solicitar o uso do winget para instalar Git e Node.js se estiverem ausentes. A versão básica do God's Eye View começa sem chaves de API; camadas premium opcionais podem ter custos.</p>
+  </article>
+ </div>
+ <div class="world-sources"><span>FONTE OFICIAL</span><a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noopener noreferrer">github.com/bilawalsidhu/gods-eye-view</a><a href="https://godseyeview.ai/download/" target="_blank" rel="noopener noreferrer">Guia oficial de instalação</a></div>
+</section>
 <footer class="footer"><span>JÂMES // ASSISTENTE PESSOAL</span><span>CRIADO POR JAMERSON RAMOS · EXECUÇÃO SOB CONTROLE DO USUÁRIO</span></footer>
 </div>
 <script>
@@ -753,7 +817,7 @@ async function sendMessage(message,attachments=null){
  }
 }
 
-const viewIds={overview:"overviewView",control:"controlView",intelligence:"intelligenceView",voices:"voicesView",perception:"perceptionView",device:"deviceView"};
+const viewIds={overview:"overviewView",control:"controlView",intelligence:"intelligenceView",voices:"voicesView",perception:"perceptionView",device:"deviceView",world:"worldView"};
 function switchView(name){
  const active=viewIds[name]?name:"overview";
  for(const [key,id] of Object.entries(viewIds))$(id).hidden=key!==active;
@@ -765,6 +829,11 @@ function switchView(name){
  window.scrollTo({top:0,behavior:"smooth"});
 }
 document.querySelectorAll("[data-view-target]").forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.viewTarget)));
+const launchWindowsWorld=action=>{window.location.href="james://world/"+action;statusBox.textContent="Enviando comando ao componente Windows. Se ainda não estiver instalado, execute primeiro o instalador desta aba no computador.";};
+$("openGodsEye").addEventListener("click",()=>launchWindowsWorld("open"));
+$("updateGodsEye").addEventListener("click",()=>launchWindowsWorld("update"));
+$("stopGodsEye").addEventListener("click",()=>launchWindowsWorld("stop"));
+$("copyWindowsInstall").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("windowsInstallCommand").textContent.trim());statusBox.textContent="Comando de instalação copiado.";}catch(error){statusBox.textContent="Selecione e copie o comando exibido na tela.";}});
 document.querySelectorAll("[data-scroll-target]").forEach(button=>button.addEventListener("click",()=>{
  switchView("intelligence");
  const target=$(button.dataset.scrollTarget);
@@ -791,7 +860,7 @@ $("stopVoice").addEventListener("click",()=>{
 });
 updateVoiceOutputButton();
 $("jamesVoiceSelect").addEventListener("change",event=>{selectedJamesVoice=event.target.value;});
-document.querySelectorAll("[data-voice-style]").forEach(button=>button.addEventListener("click",()=>{jamesVoiceStyle=button.dataset.voiceStyle;applyJamesVoiceStyle();}));
+document.querySelectorAll("[data-voice-style]").forEach(button=>button.addEventListener("click",()=>{jamesVoiceStyle=button.dataset.voiceStyle;localStorage.setItem("james_voice_style",jamesVoiceStyle);applyJamesVoiceStyle();const label=$("holoVoiceName");if(label)label.textContent={jarvis:"JARVIS",patrick:"PATRICK JANE",demon:"DAMON SALVATORE"}[jamesVoiceStyle];}));
 $("voiceRate").addEventListener("input",event=>$("voiceRateValue").textContent=Number(event.target.value).toFixed(2).replace(".",",")+"×");
 $("voicePitch").addEventListener("input",event=>$("voicePitchValue").textContent=Number(event.target.value).toFixed(2).replace(".",","));
 $("testJamesVoice").addEventListener("click",()=>speak("Olá. Eu sou Jâmes. Sistema de inteligência pessoal pronto para ajudar."));
@@ -807,6 +876,7 @@ const savedPitch=localStorage.getItem("james_voice_pitch");if(savedPitch)$("voic
 $("voiceRateValue").textContent=Number($("voiceRate").value).toFixed(2).replace(".",",")+"×";
 $("voicePitchValue").textContent=Number($("voicePitch").value).toFixed(2).replace(".",",");
 applyJamesVoiceStyle();
+if($("holoVoiceName"))$("holoVoiceName").textContent={jarvis:"JARVIS",patrick:"PATRICK JANE",demon:"DAMON SALVATORE"}[jamesVoiceStyle]||"JARVIS";
 $("refreshTasks").addEventListener("click",loadTasks);
 $("refreshMemories").addEventListener("click",loadMemories);
 $("form").addEventListener("submit",event=>{
