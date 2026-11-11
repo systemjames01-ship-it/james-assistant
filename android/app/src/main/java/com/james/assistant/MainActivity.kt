@@ -848,10 +848,12 @@ class MainActivity : android.app.Activity() {
         val asksToStartVision = normalized.contains("ligar visao") || normalized.contains("ativar visao") || normalized.contains("abra os olhos")
         if (asksToStopVision) { stopLiveVision(); return true }
         if (asksToStartVision) { if (liveCamera == null && !liveVisionPending) toggleLiveVision(); return true }
-        val asksForVoice = normalized.contains("mudar voz") || normalized.contains("mudar para voz") || normalized.contains("mudar a voz") ||
-            normalized.contains("trocar voz") || normalized.contains("trocar a voz") || normalized.contains("alterar voz") ||
-            normalized.contains("escolher voz") || normalized.contains("usar voz") || normalized.contains("voz do james") ||
-            normalized.contains("voz jarvis") || normalized.contains("voz damon") || normalized.contains("voz patrick")
+        val namedVoiceOnly = normalized.trim() in listOf("jarvis", "patrick jane", "patrick james", "damon", "damon salvatore")
+        val asksForVoice = namedVoiceOnly || normalized.contains("mudar voz") || normalized.contains("mudar para voz") ||
+            normalized.contains("mudar para jarvis") || normalized.contains("mudar para patrick") || normalized.contains("mudar para damon") ||
+            normalized.contains("mudar a voz") || normalized.contains("trocar voz") || normalized.contains("trocar a voz") ||
+            normalized.contains("alterar voz") || normalized.contains("escolher voz") || normalized.contains("usar voz") ||
+            normalized.contains("voz do james") || normalized.contains("voz jarvis") || normalized.contains("voz damon") || normalized.contains("voz patrick")
         if (!asksForVoice) return false
         val index = when {
             normalized.contains("voz 3") || normalized.contains("voz tres") || normalized.contains("terceira voz") ||
