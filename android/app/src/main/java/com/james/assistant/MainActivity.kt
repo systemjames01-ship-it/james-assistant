@@ -1227,7 +1227,8 @@ class MainActivity : android.app.Activity() {
         statusText.text = message.uppercase(Locale("pt", "BR")).take(42)
         statusText.setTextColor(if (message.contains("FALHA") || message.contains("NÃO") || message.contains("OFFLINE")) COLOR_RED else COLOR_GREEN)
         val mode = when {
-            message.contains("VISÃO") || message.contains("VISAO") -> 3
+            message.contains("VISÃO AO VIVO DESATIVADA") || message.contains("VISAO AO VIVO DESATIVADA") -> 0
+            message.contains("VISÃO E VOZ AO VIVO ATIVAS") || message.contains("VISAO E VOZ AO VIVO ATIVAS") -> 3
             message.contains("FALANDO") || message.contains("RESPONDENDO") -> 2
             message.contains("OUVINDO") || message.contains("ESCUTANDO") -> 1
             else -> 0
