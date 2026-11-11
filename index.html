@@ -261,11 +261,65 @@ let capturedAttachments=[];
 let recognition=null;
 let isListening=false;
 let voiceOutputEnabled=localStorage.getItem("james_voice_enabled")!=="false";
-let conversationMode=localStorage.getItem("james_mode")==="chat"?"chat":"assistant";
 
 let historyBefore=null;
 let historyHasMore=false;
 let historyLoading=false;
+
+function readNativeDeviceInfo(){
+ if(!window.JamesAndroid||typeof window.JamesAndroid.getDeviceInfo!=="function")return null;
+ try{return JSON.parse(window.JamesAndroid.getDeviceInfo()||"null");}catch(error){return null;}
+}
+
+async function refreshBackendStatus(){
+ const indicator=$("backendStatus");
+ try{
+  const response=await fetch(WORKER_URL,{method:"GET",cache:"no-store"});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data.status!=="online")throw new Error(data.error||"Serviço indisponível");
+  indicator.textContent="NÚCLEO ONLINE";
+  indicator.dataset.state="online";
+  $("overviewCoreState").textContent="ONLINE";
+  $("overviewCoreDetail").textContent="Serviço de inteligência conectado · modelo "+(data.model||"não informado")+". Ferramentas autorizadas disponíveis no núcleo.";
+  $("deviceBackendState").textContent="ONLINE";
+  $("deviceBackendDetail").textContent="Worker respondeu corretamente. Modelo: "+(data.model||"não informado")+".";
+ }catch(error){
+  indicator.textContent="NÚCLEO OFFLINE";
+  indicator.dataset.state="offline";
+  $("overviewCoreState").textContent="SEM CONEXÃO";
+  $("overviewCoreDetail").textContent="Não foi possível confirmar a conexão com o núcleo. "+(error.message||"");
+  $("deviceBackendState").textContent="OFFLINE";
+  $("deviceBackendDetail").textContent=error.message||"Serviço indisponível.";
+ }
+}
+
+function refreshDeviceDiagnostics(){
+ const target=$("deviceDiagnostics");
+ const info=readNativeDeviceInfo();
+ target.replaceChildren();
+ const rows=info?[
+  ["Plataforma",info.platform],
+  ["Fabricante",info.manufacturer],
+  ["Modelo",info.model],
+  ["Android",info.androidVersion+" (API "+info.apiLevel+")"],
+  ["Bateria",info.batteryPercent==null?"Indisponível":info.batteryPercent+"%"],
+  ["Carregamento",info.charging?"Conectado":"Não conectado"],
+  ["Internet",info.networkConnected?"Conectada":"Sem validação de internet"]
+ ]:[["Plataforma","Navegador / PWA"],["Estado","Informações nativas disponíveis somente no aplicativo Android."]];
+ for(const [label,value] of rows){
+  const line=document.createElement("div");line.className="device-line";
+  const name=document.createElement("span");name.textContent=label;
+  const detail=document.createElement("strong");detail.textContent=value==null?"Indisponível":String(value);
+  line.append(name,detail);target.appendChild(line);
+ }
+ $("overviewBattery").textContent=info&&Number.isInteger(info.batteryPercent)?info.batteryPercent+"%":"--";
+ $("overviewDeviceName").textContent=info?[info.manufacturer,info.model].filter(Boolean).join(" "):"Abra o APK Android para ler o aparelho";
+}
+
+$("refreshDevice").addEventListener("click",refreshDeviceDiagnostics);
+$("refreshBackend").addEventListener("click",refreshBackendStatus);
+refreshBackendStatus();
+refreshDeviceDiagnostics();
 
 function renderHistoryMessage(message,prepend=false){
  const div=document.createElement("div");
@@ -284,7 +338,6 @@ async function loadHistory(older=false){
   const params=new URLSearchParams({
    action:"history",
    sessionId:getSessionId(),
-   mode:conversationMode,
    limit:"30"
   });
   if(older&&historyBefore)params.set("before",String(historyBefore));
@@ -322,15 +375,6 @@ async function loadHistory(older=false){
  }
 }
 
-function setConversationMode(mode){
- conversationMode=mode;
- localStorage.setItem("james_mode",mode);
- $("assistantMode").setAttribute("aria-pressed",String(mode==="assistant"));
- $("chatMode").setAttribute("aria-pressed",String(mode==="chat"));
- $("assistantMode").classList.toggle("secondary",mode!=="assistant");
- $("chatMode").classList.toggle("secondary",mode!=="chat");
- statusBox.textContent=mode==="assistant"?"Modo Assistente: iniciativa e ferramentas autorizadas.":"Modo Chat: conversa por texto.";
-}
 
 async function loadMemories(){
  const container=$("memoryList");
@@ -381,7 +425,7 @@ async function loadTasks(){
  if(!container)return;
  container.textContent="Carregando tarefas...";
  try{
-  const params=new URLSearchParams({action:"tasks",sessionId:getSessionId(),mode:conversationMode});
+  const params=new URLSearchParams({action:"tasks",sessionId:getSessionId()});
   const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||"Lista indisponível.");
@@ -519,11 +563,11 @@ async function sendMessage(message,attachments=null){
   const payload={
    message:text||"Analise os anexos enviados.",
    sessionId:getSessionId(),
-   mode:conversationMode,
    deviceContext:{
     platform:window.JamesAndroid?"android":"web",
     timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"desconhecido",
-    localNow
+    localNow,
+    device:readNativeDeviceInfo()
    }
   };
 
@@ -566,17 +610,25 @@ async function sendMessage(message,attachments=null){
  }
 }
 
-$("assistantMode").addEventListener("click",()=>{
- setConversationMode("assistant");
- loadHistory(false);
- loadTasks();
-});
-$("chatMode").addEventListener("click",()=>{
- setConversationMode("chat");
- loadHistory(false);
- loadTasks();
-});
-setConversationMode(conversationMode);
+const viewIds={overview:"overviewView",intelligence:"intelligenceView",perception:"perceptionView",device:"deviceView"};
+function switchView(name){
+ const active=viewIds[name]?name:"overview";
+ for(const [key,id] of Object.entries(viewIds))$(id).hidden=key!==active;
+ document.querySelectorAll("[data-view-target]").forEach(button=>{
+  if(button.dataset.viewTarget)button.setAttribute("aria-pressed",String(button.dataset.viewTarget===active));
+ });
+ if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();}
+ if(active==="device")refreshDeviceDiagnostics();
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+document.querySelectorAll("[data-view-target]").forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.viewTarget)));
+document.querySelectorAll("[data-scroll-target]").forEach(button=>button.addEventListener("click",()=>{
+ switchView("intelligence");
+ const target=$(button.dataset.scrollTarget);
+ if(target)target.scrollIntoView({behavior:"smooth",block:"start"});
+}));
+$("overviewVoice").addEventListener("click",()=>{switchView("intelligence");$("voice").click();});
+switchView("overview");
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
 $("voiceOutput").addEventListener("click",()=>{
  voiceOutputEnabled=!voiceOutputEnabled;
