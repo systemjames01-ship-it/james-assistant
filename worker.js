@@ -836,6 +836,25 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.searchParams.get("action") === "live-turn") {
+      let turnPayload;
+      try { turnPayload = await request.json(); }
+      catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
+      const sessionId = typeof turnPayload?.sessionId === "string" ? turnPayload.sessionId : "";
+      const userText = typeof turnPayload?.userText === "string" ? turnPayload.userText.trim().slice(0, MAX_TEXT_LENGTH) : "";
+      const modelText = typeof turnPayload?.modelText === "string" ? turnPayload.modelText.trim().slice(0, 30000) : "";
+      if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
+      if (!userText && !modelText) return json({ saved: false }, 200, origin);
+      if (!env.DB) return json({ error: "Histórico persistente indisponível." }, 503, origin);
+      try {
+        await saveConversationTurn(env.DB, sessionId, userText || "[Entrada de voz sem transcrição disponível]", modelText || "[Resposta de voz sem transcrição disponível]");
+        return json({ saved: true }, 200, origin);
+      } catch (error) {
+        console.error("Live conversation history save failed:", error);
+        return json({ error: "Não foi possível sincronizar o histórico da conversa ao vivo." }, 503, origin);
+      }
+    }
+
     if (url.searchParams.get("action") === "live-tool") {
       let toolPayload;
       try { toolPayload = await request.json(); }
@@ -882,10 +901,28 @@ export default {
         console.error("Live token rate-limit storage failed:", error);
         return json({ error: "Não foi possível validar o limite de sessões de voz." }, 503, origin);
       }
+      let liveContextText = "";
+      try {
+        const recentConversation = await loadConversation(env.DB, sessionId);
+        const recentMemories = await loadPersistentMemories(env.DB, sessionId);
+        if (recentConversation.length) {
+          const transcript = recentConversation.map(item => {
+            const role = item.role === "model" ? "Jâmes" : "Usuário";
+            const text = (item.parts || []).map(part => typeof part.text === "string" ? part.text : "").join(" ").trim();
+            return text ? role + ": " + text : "";
+          }).filter(Boolean).join("\n");
+          if (transcript) liveContextText += "\n\nCONTEXTO RECENTE DA CONVERSA COMPARTILHADA COM O CHAT DE TEXTO:\n" + transcript;
+        }
+        if (recentMemories.length) {
+          liveContextText += "\n\nMEMÓRIAS AUTORIZADAS PELO USUÁRIO:\n" + recentMemories.map(item => "- " + item.key + ": " + item.value).join("\n");
+        }
+      } catch (contextError) {
+        console.warn("Live session context unavailable:", contextError);
+      }
       const expireTime = new Date(now + 30 * 60 * 1000).toISOString();
       const newSessionExpireTime = new Date(now + 60 * 1000).toISOString();
       try {
-        const tokenResponse = await fetch("https://generativelanguage.googleapis.com/v1alpha/auth_tokens", {
+        const tokenResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {
           method: "POST",
           headers: {
             "x-goog-api-key": env.GEMINI_API_KEY,
@@ -917,7 +954,7 @@ export default {
                 sessionResumption: {},
                 tools: [{ functionDeclarations: LIVE_FUNCTION_DECLARATIONS }],
                 systemInstruction: {
-                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ E PERCEPÇÃO AO VIVO: converse em português brasileiro com naturalidade. Ao receber áudio, escute tanto a fala quanto sons do ambiente; transcreva, diferencie vozes de ruídos e identifique categorias de sons apenas quando houver evidência suficiente, declarando incerteza quando necessário. Ao receber quadros da câmera, observe o ambiente, objetos, textos legíveis, posições relativas e mudanças entre quadros; descreva o que realmente aparece e não invente detalhes fora do campo visual. Não alegue visão noturna infravermelha nem capacidades de mira. Use ferramentas declaradas quando necessárias para cumprir pedidos explícitos. Antes de ações externas, destrutivas, financeiras ou que exponham dados, peça confirmação. Para ações Android, aguarde a confirmação real do dispositivo antes de afirmar sucesso.\n\n" + voiceDirections[voiceProfile] }]
+                  parts: [{ text: SYSTEM_INSTRUCTION + liveContextText + "\n\nMODO DE VOZ E PERCEPÇÃO AO VIVO: converse em português brasileiro com naturalidade. Ao receber áudio, escute tanto a fala quanto sons do ambiente; transcreva, diferencie vozes de ruídos e identifique categorias de sons apenas quando houver evidência suficiente, declarando incerteza quando necessário. Ao receber quadros da câmera, observe o ambiente, objetos, textos legíveis, posições relativas e mudanças entre quadros; descreva o que realmente aparece e não invente detalhes fora do campo visual. Não alegue visão noturna infravermelha nem capacidades de mira. Use ferramentas declaradas quando necessárias para cumprir pedidos explícitos. Antes de ações externas, destrutivas, financeiras ou que exponham dados, peça confirmação. Para ações Android, aguarde a confirmação real do dispositivo antes de afirmar sucesso.\n\n" + voiceDirections[voiceProfile] }]
                 }
               }
             }
