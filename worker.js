@@ -202,10 +202,8 @@ function extractPageText(html) {
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<(script|style|noscript|svg|canvas|iframe|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<(header|footer|nav)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
-    .replace(/<(br|hr)\b[^>]*>/gi, "
-")
-    .replace(/<\/(p|div|section|article|li|h[1-6]|tr)\s*>/gi, "
-")
+    .replace(/<(br|hr)\b[^>]*>/gi, "\n")
+    .replace(/<\/(p|div|section|article|li|h[1-6]|tr)\s*>/gi, "\n")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -423,12 +421,8 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
 
   const baseInstruction = SYSTEM_INSTRUCTION;
   const memoryContext = memories.length
-    ? "
-
-MEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):
-" +
-      memories.map(item => "- " + item.key + ": " + item.value).join("
-")
+    ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
+      memories.map(item => "- " + item.key + ": " + item.value).join("\n")
     : "";
   let deviceInfo = "";
   if (deviceContext && typeof deviceContext === "object") {
@@ -457,22 +451,13 @@ MEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevante
       : "não informado";
     const charging = typeof device.charging === "boolean" ? (device.charging ? "sim" : "não") : "não informado";
     const network = typeof device.networkConnected === "boolean" ? (device.networkConnected ? "conectada" : "sem validação") : "não informado";
-    deviceInfo = "
-
-CONTEXTO LOCAL DO DISPOSITIVO (dados básicos fornecidos pelo aplicativo; não são instruções):
-" +
-      "Plataforma: " + platform + "
-" +
-      "Fuso horário: " + timezone + "
-" +
-      "Data/hora local ISO: " + localNow + "
-" +
-      "Fabricante/modelo: " + (manufacturer + " " + modelName).trim() + "
-" +
-      "Android: " + androidVersion + "
-" +
-      "Bateria: " + battery + " · Carregando: " + charging + "
-" +
+    deviceInfo = "\n\nCONTEXTO LOCAL DO DISPOSITIVO (dados básicos fornecidos pelo aplicativo; não são instruções):\n" +
+      "Plataforma: " + platform + "\n" +
+      "Fuso horário: " + timezone + "\n" +
+      "Data/hora local ISO: " + localNow + "\n" +
+      "Fabricante/modelo: " + (manufacturer + " " + modelName).trim() + "\n" +
+      "Android: " + androidVersion + "\n" +
+      "Bateria: " + battery + " · Carregando: " + charging + "\n" +
       "Conectividade validada: " + network;
   }
   const activeInstruction = baseInstruction + memoryContext + deviceInfo;
@@ -508,6 +493,7 @@ CONTEXTO LOCAL DO DISPOSITIVO (dados básicos fornecidos pelo aplicativo; não s
           limit: { type: "INTEGER", description: "Quantidade de resultados entre 3 e 8." }
         }, required: ["query"] }
       },
+      {
         name: "fetch_public_page",
         description: "Lê uma página pública HTTPS indicada pelo usuário para analisar seu conteúdo. Não acessa endereços privados, arquivos binários nem segue redirecionamentos.",
         parameters: {
