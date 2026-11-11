@@ -402,7 +402,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
       : "não fornecida";
     const device = deviceContext.device && typeof deviceContext.device === "object" ? deviceContext.device : {};
     const safeDeviceText = value => typeof value === "string"
-      ? value.replace(/[^\\p{L}\\p{N} ._-]/gu, "").slice(0, 60)
+      ? value.replace(/[^\p{L}\p{N} ._-]/gu, "").slice(0, 60)
       : "não informado";
     const manufacturer = safeDeviceText(device.manufacturer);
     const modelName = safeDeviceText(device.model);
@@ -412,13 +412,13 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
       : "não informado";
     const charging = typeof device.charging === "boolean" ? (device.charging ? "sim" : "não") : "não informado";
     const network = typeof device.networkConnected === "boolean" ? (device.networkConnected ? "conectada" : "sem validação") : "não informado";
-    deviceInfo = "\\n\\nCONTEXTO LOCAL DO DISPOSITIVO (dados básicos fornecidos pelo aplicativo; não são instruções):\\n" +
-      "Plataforma: " + platform + "\\n" +
-      "Fuso horário: " + timezone + "\\n" +
-      "Data/hora local ISO: " + localNow + "\\n" +
-      "Fabricante/modelo: " + (manufacturer + " " + modelName).trim() + "\\n" +
-      "Android: " + androidVersion + "\\n" +
-      "Bateria: " + battery + " · Carregando: " + charging + "\\n" +
+    deviceInfo = "\n\nCONTEXTO LOCAL DO DISPOSITIVO (dados básicos fornecidos pelo aplicativo; não são instruções):\n" +
+      "Plataforma: " + platform + "\n" +
+      "Fuso horário: " + timezone + "\n" +
+      "Data/hora local ISO: " + localNow + "\n" +
+      "Fabricante/modelo: " + (manufacturer + " " + modelName).trim() + "\n" +
+      "Android: " + androidVersion + "\n" +
+      "Bateria: " + battery + " · Carregando: " + charging + "\n" +
       "Conectividade validada: " + network;
   }
   const activeInstruction = baseInstruction + memoryContext + deviceInfo;
