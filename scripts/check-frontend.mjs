@@ -25,6 +25,12 @@ if (!html.includes('id="holoProjection"') || !html.includes('id="headMic"') ||
   throw new Error("Holographic command deck, Windows world integration, master power, camera switching, real-time voice, or script integration is missing.");
 }
 
+const windowsInstaller = readFileSync(new URL("../windows-companion/Install-JamesCompanion.ps1", import.meta.url), "utf8");
+const windowsAgent = readFileSync(new URL("../windows-companion/James-WorldView.ps1", import.meta.url), "utf8");
+if (!windowsInstaller.includes("HKCU:\\Software\\Classes\\james") || !windowsAgent.includes("github.com/bilawalsidhu/gods-eye-view.git") || !["install", "open", "update", "stop"].every(action => windowsAgent.includes('"'+action+'"'))) {
+  throw new Error("Windows companion installer or allowed world-view actions are missing.");
+}
+
 const serviceWorker = readFileSync(new URL("../service-worker.js", import.meta.url), "utf8");
 new vm.Script(serviceWorker, { filename: "service-worker.js" });
 
