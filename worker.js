@@ -81,7 +81,7 @@ function errorMessage(payload, status) {
   if (typeof message === "string" && message.trim()) {
     return message.slice(0, 700);
   }
-  return "A API Gemini respondeu com HTTP " + status + ".";
+  return "O núcleo de inteligência respondeu com HTTP " + status + ".";
 }
 
 async function ensureConversationTable(db) {
@@ -821,7 +821,6 @@ export default {
       return json({
         status: "online",
         service: "Jâmes AI Worker",
-        model: MODEL,
         aiConfigured: Boolean(env.GEMINI_API_KEY),
         databaseConfigured: Boolean(env.DB),
         capabilities: ["unified_context", "agent_planning", "parallel_tool_execution", "public_web_research", "tool_execution", "image_analysis", "pdf_analysis", "device_action_handoff"]
@@ -1065,7 +1064,7 @@ export default {
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 502;
       const safeMessage = error?.kind === "gemini" && status === 503
-        ? "O serviço Gemini está temporariamente indisponível ou com limite de solicitações. Tente novamente em instantes."
+        ? "O núcleo está temporariamente indisponível ou atingiu seu limite de solicitações. Tente novamente em instantes."
         : error?.message || "Falha ao processar a solicitação.";
       return json({ error: safeMessage }, status, origin);
     }
