@@ -189,7 +189,7 @@ test("assistant creates a persistent task through the D1 tool", async () => {
   }
 });
 
-test("chat and assistant modes share recent conversational context", async () => {
+test("the unified Jâmes core keeps one context and tools available in every conversation", async () => {
   const originalFetch = globalThis.fetch;
   let sentBody;
   let historyBindings;
@@ -231,8 +231,10 @@ test("chat and assistant modes share recent conversational context", async () =>
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.reply, "Contexto compartilhado recebido.");
-    assert.deepEqual(historyBindings, ["session_test_12345_assistant", "session_test_12345_chat"]);
+    assert.deepEqual(historyBindings, ["session_test_12345", "session_test_12345_assistant", "session_test_12345_chat"]);
     assert.ok(sentBody.contents.some(item => item.parts?.some(part => part.text === "Lembre que meu projeto se chama Jâmes.")));
+    assert.ok(sentBody.tools[0].functionDeclarations.some(tool => tool.name === "android_open_app"));
+    assert.equal(sentBody.systemInstruction.parts[0].text.includes("Você não é apenas um chatbot."), true);
   } finally {
     globalThis.fetch = originalFetch;
   }
