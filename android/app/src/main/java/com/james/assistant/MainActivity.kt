@@ -57,7 +57,7 @@ class MainActivity : android.app.Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
                 val target = request.url
-                return target.scheme != "https" || target.host != "systemjames01-ship-it.github.io" || !target.path.startsWith("/james-assistant/")
+                return target.scheme != "https" || target.host != "systemjames01-ship-it.github.io" || !(target.path ?: "").startsWith("/james-assistant/")
             }
         }
         webView.webChromeClient = object : WebChromeClient() {
