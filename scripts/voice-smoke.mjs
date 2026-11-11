@@ -14,6 +14,7 @@ try {
   page.on("pageerror", error => pageErrors.push(error.message));
 
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.locator('[data-view-target="voices"]').click();
   await page.locator("#downloadNeuralVoice").waitFor({ state: "visible", timeout: 30000 });
   await page.locator("#downloadNeuralVoice").click();
 
