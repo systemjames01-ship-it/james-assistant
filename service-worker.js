@@ -1,11 +1,12 @@
-const CACHE_NAME = "james-shell-v3-5";
+const CACHE_NAME = "james-shell-v3-6";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./icons/james-icon.svg",
   "./hologram-v24.css",
-  "./hologram-v24.js"
+  "./hologram-v24.js",
+  "./interface-v27.css"
 ];
 
 self.addEventListener("install", event => {
