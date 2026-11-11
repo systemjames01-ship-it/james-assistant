@@ -4,7 +4,6 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
   "use strict";
 
   const GPU_MODEL_URL = "https://huggingface.co/litert-community/Kokoro-82M/resolve/main/kokoro_int8_gpu_fp16.litertlm";
-  const CPU_MODEL_URL = "https://huggingface.co/litert-community/Kokoro-82M/resolve/main/kokoro_int8_fp16.litertlm";
   const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@1.2.2/wasm";
   const profiles = {
     jarvis: { label: "Jâmes · Clássica", voiceId: "pm_alex", rate: 1.0 },
@@ -67,9 +66,9 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
             speakingRate: 1.0
           });
         } catch (gpuError) {
-          status("A aceleração gráfica não está disponível. Tentando o motor local por CPU; esse modo pode consumir mais memória.", "loading");
+          status("A aceleração gráfica não está disponível. Reutilizando o mesmo modelo em CPU; a fala pode ficar mais lenta e consumir mais memória.", "loading");
           instance = await TextToSpeech.createFromOptions(wasmFileset, {
-            baseOptions: { modelAssetPath: CPU_MODEL_URL, delegate: "CPU" },
+            baseOptions: { modelAssetPath: GPU_MODEL_URL, delegate: "CPU" },
             defaultVoiceId: profile.voiceId,
             defaultLocale: "pt-BR",
             speakingRate: 1.0
@@ -165,6 +164,67 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
     }
   }
 
+
+  function startNeuralCanvas() {
+    const canvas = document.getElementById("jamesNeuralCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+    let width = 0, height = 0, phase = 0, frame = 0, lastDraw = 0, raf = 0;
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+      width = Math.max(1, Math.round(rect.width * ratio));
+      height = Math.max(1, Math.round(rect.height * ratio));
+      canvas.width = width;
+      canvas.height = height;
+    };
+    const draw = now => {
+      raf = requestAnimationFrame(draw);
+      if (document.hidden || now - lastDraw < 42) return;
+      lastDraw = now;
+      phase += 0.022;
+      frame++;
+      ctx.clearRect(0, 0, width, height);
+      const mid = height * 0.52;
+      ctx.strokeStyle = "rgba(128,217,232,.10)";
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 6; i++) {
+        const y = height * i / 6;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+      }
+      const active = document.getElementById("holoProjection")?.dataset.state === "live";
+      const amp = height * (active ? 0.25 : 0.12);
+      for (let layer = 0; layer < 4; layer++) {
+        ctx.beginPath();
+        for (let x = 0; x <= width; x += 3) {
+          const t = x / Math.max(1, width);
+          const envelope = 0.12 + Math.pow(Math.sin(Math.PI * t), 1.4) * 0.88;
+          const y = mid + Math.sin(t * 21 + phase * (1 + layer * .13) + layer) * amp * envelope * (1 - layer * .13)
+            + Math.sin(t * 57 - phase * .7 + layer * 2) * amp * .18;
+          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = layer === 0 ? "rgba(216,183,122,.92)" : `rgba(128,217,232,${.52 - layer * .09})`;
+        ctx.lineWidth = layer === 0 ? 1.8 : 1;
+        ctx.stroke();
+      }
+      const scanX = (frame * 1.4) % Math.max(1, width);
+      const gradient = ctx.createLinearGradient(scanX - 35, 0, scanX + 35, 0);
+      gradient.addColorStop(0, "rgba(128,217,232,0)");
+      gradient.addColorStop(.5, "rgba(128,217,232,.12)");
+      gradient.addColorStop(1, "rgba(128,217,232,0)");
+      ctx.fillStyle = gradient; ctx.fillRect(scanX - 35, 0, 70, height);
+    };
+    resize();
+    if ("ResizeObserver" in window) new ResizeObserver(resize).observe(canvas);
+    else window.addEventListener("resize", resize, { passive: true });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) cancelAnimationFrame(raf);
+      else raf = requestAnimationFrame(draw);
+    });
+    raf = requestAnimationFrame(draw);
+  }
+
   window.JamesNeuralVoice = {
     initialize,
     speak,
@@ -176,6 +236,7 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
 
   document.addEventListener("DOMContentLoaded", () => {
     setProfile(selectedProfile);
+    startNeuralCanvas();
     const button = document.getElementById("downloadNeuralVoice");
     if (button) button.addEventListener("click", loadAndTest);
     status("Voz neural ainda não carregada. Toque em “Carregar voz neural” para baixar o modelo local (aprox. 295 MB).", "idle");
