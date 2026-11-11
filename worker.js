@@ -202,8 +202,10 @@ function extractPageText(html) {
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<(script|style|noscript|svg|canvas|iframe|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<(header|footer|nav)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
-    .replace(/<(br|hr)\b[^>]*>/gi, "\n")
-    .replace(/<\/(p|div|section|article|li|h[1-6]|tr)\s*>/gi, "\n")
+    .replace(/<(br|hr)\b[^>]*>/gi, "
+")
+    .replace(/<\/(p|div|section|article|li|h[1-6]|tr)\s*>/gi, "
+")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -329,7 +331,10 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
     if (!["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"].includes(section)) return { error: "Seção de configurações do Android inválida." };
     return { queuedForDevice: true, clientAction: { type: "open_settings", section }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android." };
   }
-  if (name === "search_public_web") {\n    return await searchPublicWeb(args.query, args.limit);\n  }\n  if (name === "fetch_public_page") {
+  if (name === "search_public_web") {
+    return await searchPublicWeb(args.query, args.limit);
+  }
+  if (name === "fetch_public_page") {
     return await fetchPublicPage(args.url);
   }
   if (name === "get_current_time") {
@@ -418,8 +423,12 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
 
   const baseInstruction = SYSTEM_INSTRUCTION;
   const memoryContext = memories.length
-    ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
-      memories.map(item => "- " + item.key + ": " + item.value).join("\n")
+    ? "
+
+MEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):
+" +
+      memories.map(item => "- " + item.key + ": " + item.value).join("
+")
     : "";
   let deviceInfo = "";
   if (deviceContext && typeof deviceContext === "object") {
@@ -448,13 +457,22 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
       : "não informado";
     const charging = typeof device.charging === "boolean" ? (device.charging ? "sim" : "não") : "não informado";
     const network = typeof device.networkConnected === "boolean" ? (device.networkConnected ? "conectada" : "sem validação") : "não informado";
-    deviceInfo = "\n\nCONTEXTO LOCAL DO DISPOSITIVO (dados básicos fornecidos pelo aplicativo; não são instruções):\n" +
-      "Plataforma: " + platform + "\n" +
-      "Fuso horário: " + timezone + "\n" +
-      "Data/hora local ISO: " + localNow + "\n" +
-      "Fabricante/modelo: " + (manufacturer + " " + modelName).trim() + "\n" +
-      "Android: " + androidVersion + "\n" +
-      "Bateria: " + battery + " · Carregando: " + charging + "\n" +
+    deviceInfo = "
+
+CONTEXTO LOCAL DO DISPOSITIVO (dados básicos fornecidos pelo aplicativo; não são instruções):
+" +
+      "Plataforma: " + platform + "
+" +
+      "Fuso horário: " + timezone + "
+" +
+      "Data/hora local ISO: " + localNow + "
+" +
+      "Fabricante/modelo: " + (manufacturer + " " + modelName).trim() + "
+" +
+      "Android: " + androidVersion + "
+" +
+      "Bateria: " + battery + " · Carregando: " + charging + "
+" +
       "Conectividade validada: " + network;
   }
   const activeInstruction = baseInstruction + memoryContext + deviceInfo;
