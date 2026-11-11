@@ -225,7 +225,7 @@ class MainActivity : android.app.Activity() {
         addText(privacy, "PRIVACIDADE E CONTROLE", 10f, COLOR_CYAN, true)
         addText(privacy, "O Jâmes não escuta continuamente nem observa a câmera em segundo plano. O acesso à câmera e ao microfone começa somente quando você solicita. Ações no aparelho dependem das permissões do Android.", 11f, COLOR_MUTED, top = 8)
         page.addView(privacy)
-        content.addView(page)
+        mountScrollable(page)
     }
 
     private fun renderIntelligence() {
@@ -264,11 +264,22 @@ class MainActivity : android.app.Activity() {
         actions.addView(makeButton("ENVIAR") { sendMessage() }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { rightMargin = dp(5) })
         actions.addView(makeButton("FALAR", true) { startVoiceInput() }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { leftMargin = dp(5) })
         composer.addView(actions, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
-        val stop = makeButton("PARAR VOZ", true) {
+        val voiceControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val voiceToggle = makeButton("VOZ: LIGADA", true) {
+            voiceOutputEnabled = !voiceOutputEnabled
+            if (!voiceOutputEnabled) textToSpeech?.stop()
+        }
+        voiceToggle.setOnClickListener {
+            voiceOutputEnabled = !voiceOutputEnabled
+            voiceToggle.text = if (voiceOutputEnabled) "VOZ: LIGADA" else "VOZ: DESLIGADA"
+            if (!voiceOutputEnabled) textToSpeech?.stop()
+        }
+        voiceControls.addView(voiceToggle, LinearLayout.LayoutParams(0, dp(40), 1f).apply { rightMargin = dp(5) })
+        voiceControls.addView(makeButton("PARAR VOZ", true) {
             textToSpeech?.stop()
             setStatus("Voz interrompida.")
-        }
-        composer.addView(stop)
+        }, LinearLayout.LayoutParams(0, dp(40), 1f).apply { leftMargin = dp(5) })
+        composer.addView(voiceControls, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
         page.addView(composer)
         content.addView(page)
         loadHistory()
@@ -281,7 +292,7 @@ class MainActivity : android.app.Activity() {
         addText(intro, "A câmera só é ativada quando você pede. Você também pode selecionar imagens e PDFs para o núcleo analisar.", 12f, COLOR_MUTED, top = 7)
         addButton(intro, "CAPTURAR COM A CÂMERA") { openCamera() }
         addButton(intro, "SELECIONAR IMAGEM OU PDF", secondary = true) { openFilePicker() }
-        attachmentStatus = addText(intro, "Nenhum anexo selecionado.", 10f, COLOR_MUTED, top = 10)
+        attachmentStatus = addText(intro, if (pendingAttachments.isEmpty()) "Nenhum anexo selecionado." else "ANEXOS: " + pendingAttachments.joinToString(", ") { it.optString("name") }, 10f, COLOR_MUTED, top = 10)
         addButton(intro, "ENVIAR PARA ANÁLISE") {
             if (pendingAttachments.isEmpty()) {
                 setStatus("Selecione ou capture um arquivo primeiro.")
@@ -297,7 +308,7 @@ class MainActivity : android.app.Activity() {
         addText(note, "LIMITES ATUAIS", 10f, COLOR_CYAN, true)
         addText(note, "A versão atual envia capturas e arquivos para análise. Ainda não existe vídeo contínuo, reconhecimento visual em segundo plano ou monitoramento permanente.", 11f, COLOR_MUTED, top = 7)
         page.addView(note)
-        content.addView(page)
+        mountScrollable(page)
     }
 
     private fun renderTasks() {
@@ -307,7 +318,7 @@ class MainActivity : android.app.Activity() {
         addText(panel, "Tarefas registradas e lembretes locais do Android. Peça ao núcleo para criar ou concluir tarefas.", 11f, COLOR_MUTED, top = 6)
         addButton(panel, "ATUALIZAR TAREFAS", secondary = true) { loadTasksInto(panel) }
         page.addView(panel)
-        content.addView(page)
+        mountScrollable(page)
         loadTasksInto(panel)
     }
 
@@ -318,7 +329,7 @@ class MainActivity : android.app.Activity() {
         addText(panel, "Memórias salvas explicitamente nesta sessão do aplicativo. Não há sincronização de conta entre dispositivos.", 11f, COLOR_MUTED, top = 6)
         addButton(panel, "ATUALIZAR MEMÓRIAS", secondary = true) { loadMemoriesInto(panel) }
         page.addView(panel)
-        content.addView(page)
+        mountScrollable(page)
         loadMemoriesInto(panel)
     }
 
@@ -342,7 +353,7 @@ class MainActivity : android.app.Activity() {
         addText(service, backendSummary, 11f, COLOR_MUTED, top = 7)
         addButton(service, "TESTAR CONEXÃO", secondary = true) { refreshBackendStatus() }
         page.addView(service)
-        content.addView(page)
+        mountScrollable(page)
     }
 
     private fun loadHistory() {
@@ -639,7 +650,10 @@ class MainActivity : android.app.Activity() {
 
     private fun encodedSize(dataUrl: String): Int {
         val comma = dataUrl.indexOf(',')
-        return if (comma >= 0) dataUrl.length - comma - 1 else 0
+        if (comma < 0) return 0
+        val encoded = dataUrl.length - comma - 1
+        val padding = if (dataUrl.endsWith("==")) 2 else if (dataUrl.endsWith("=")) 1 else 0
+        return (encoded * 3 / 4) - padding
     }
 
     private fun queryDisplayName(uri: android.net.Uri): String {
@@ -731,8 +745,16 @@ class MainActivity : android.app.Activity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, 0, 0, dp(12))
-            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
+    }
+
+    private fun mountScrollable(page: LinearLayout) {
+        val scroller = ScrollView(this).apply {
+            isFillViewport = true
+            addView(page)
+        }
+        content.addView(scroller, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     }
 
     private fun card(): LinearLayout {
@@ -790,7 +812,7 @@ class MainActivity : android.app.Activity() {
             isAllCaps = false
             setTextColor(if (secondary) COLOR_TEXT else 0xFF04121A.toInt())
             background = background(if (secondary) 0xFF13273A.toInt() else COLOR_CYAN, if (secondary) 0xFF29465A.toInt() else COLOR_CYAN)
-            minHeight = dp(40)
+            minimumHeight = dp(40)
             setPadding(dp(12), 0, dp(12), 0)
             if (action != null) setOnClickListener { action() }
         }
