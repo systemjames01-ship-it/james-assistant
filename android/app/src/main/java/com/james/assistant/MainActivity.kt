@@ -613,11 +613,10 @@ class MainActivity : android.app.Activity() {
                 val online = result.optString("status") == "online"
                 val ai = result.optBoolean("aiConfigured", false)
                 val db = result.optBoolean("databaseConfigured", false)
-                val model = result.optString("model", "não informado")
                 val summary = when {
                     !online -> "WORKER OFFLINE"
-                    !ai -> "WORKER ONLINE · IA NÃO VALIDADA"
-                    else -> "NÚCLEO ONLINE · " + model + " · D1 " + if (db) "CONECTADO" else "INDISPONÍVEL"
+                    !ai -> "NÚCLEO ONLINE · SERVIÇO NÃO VALIDADO"
+                    else -> "NÚCLEO ONLINE · MEMÓRIA " + if (db) "CONECTADA" else "INDISPONÍVEL"
                 }
                 runOnUiThread {
                     backendSummary = summary
@@ -640,7 +639,7 @@ class MainActivity : android.app.Activity() {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.requestMethod = method
         connection.connectTimeout = 20000
-        connection.readTimeout = 0
+        connection.readTimeout = 30000
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("Origin", APP_ORIGIN)
         connection.setRequestProperty("User-Agent", "JamesAndroid/3.0.0")
