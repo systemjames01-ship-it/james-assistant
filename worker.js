@@ -819,6 +819,67 @@ export default {
       return json({ error: "Método não permitido." }, 405, origin);
     }
 
+    const url = new URL(request.url);
+    if (url.searchParams.get("action") === "live-token") {
+      if (!env.GEMINI_API_KEY) return json({ error: "A chave GEMINI_API_KEY não está configurada no Worker." }, 500, origin);
+      if (!env.DB) return json({ error: "O banco D1 é necessário para limitar a emissão de tokens Live." }, 503, origin);
+      let livePayload;
+      try { livePayload = await request.json(); }
+      catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
+      const sessionId = typeof livePayload?.sessionId === "string" ? livePayload.sessionId : "";
+      if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const now = Date.now();
+      try {
+        await env.DB.prepare("CREATE TABLE IF NOT EXISTS james_live_rate_limits (ip TEXT PRIMARY KEY, last_issued_at INTEGER NOT NULL)").run();
+        const previous = await env.DB.prepare("SELECT last_issued_at FROM james_live_rate_limits WHERE ip = ?").bind(ip).first();
+        if (previous && now - Number(previous.last_issued_at) < 20000) {
+          return json({ error: "Aguarde alguns segundos antes de iniciar outra sessão de voz." }, 429, origin);
+        }
+        await env.DB.prepare("INSERT INTO james_live_rate_limits (ip, last_issued_at) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET last_issued_at = excluded.last_issued_at").bind(ip, now).run();
+      } catch (error) {
+        console.error("Live token rate-limit storage failed:", error);
+        return json({ error: "Não foi possível validar o limite de sessões de voz." }, 503, origin);
+      }
+      const expireTime = new Date(now + 10 * 60 * 1000).toISOString();
+      const newSessionExpireTime = new Date(now + 60 * 1000).toISOString();
+      try {
+        const tokenResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {
+          method: "POST",
+          headers: {
+            "x-goog-api-key": env.GEMINI_API_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            uses: 1,
+            expireTime,
+            newSessionExpireTime,
+            liveConnectConstraints: {
+              model: "models/gemini-3.8-live",
+              config: {
+                responseModalities: ["AUDIO"],
+                inputAudioTranscription: {},
+                outputAudioTranscription: {},
+                sessionResumption: {},
+                systemInstruction: {
+                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ AO VIVO: converse em português brasileiro com naturalidade, em respostas concisas e úteis. Não alegue executar ações no aparelho: peça que o usuário use o console para ações que exijam ferramentas." }]
+                }
+              }
+            }
+          })
+        });
+        const tokenData = await tokenResponse.json().catch(() => ({}));
+        if (!tokenResponse.ok || typeof tokenData.name !== "string") {
+          console.error("Gemini Live token provisioning failed:", tokenData?.error?.message || tokenResponse.status);
+          return json({ error: "A API Gemini não disponibilizou uma sessão de voz ao vivo (HTTP " + tokenResponse.status + ")." }, 502, origin);
+        }
+        return json({ token: tokenData.name, model: "gemini-3.8-live", expiresAt: expireTime }, 200, origin);
+      } catch (error) {
+        console.error("Gemini Live token request failed:", error);
+        return json({ error: "Falha ao solicitar a sessão de voz ao vivo." }, 502, origin);
+      }
+    }
+
     if (!env.GEMINI_API_KEY) {
       return json({ error: "A chave GEMINI_API_KEY não está configurada no Worker." }, 500, origin);
     }
