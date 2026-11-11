@@ -479,7 +479,7 @@ class MainActivity : android.app.Activity() {
         if (sending) return
         val text = prompt.text?.toString()?.trim().orEmpty()
         if (text.isNotEmpty() && handleVoiceCommand(text)) { prompt.setText(""); return }
-        if (liveConversationEnabled && text.isNotEmpty() && pendingAttachments.isEmpty()) {
+        if (liveConversationEnabled && currentPage != "intelligence" && text.isNotEmpty() && pendingAttachments.isEmpty()) {
             addChatMessage(text, false)
             prompt.setText("")
             if (liveVoiceSession?.sendText(text) != true) setStatus("SESSÃO DE VOZ AINDA NÃO ESTÁ PRONTA")
