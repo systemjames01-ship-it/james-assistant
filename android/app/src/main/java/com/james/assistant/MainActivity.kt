@@ -38,8 +38,9 @@ class MainActivity : android.app.Activity() {
         webView.settings.allowContentAccess = false
         webView.settings.javaScriptCanOpenWindowsAutomatically = false
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return !url.startsWith(origin)
+            override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
+                val target = request.url
+                return target.scheme != "https" || target.host != "systemjames01-ship-it.github.io"
             }
         }
         webView.webChromeClient = WebChromeClient()
