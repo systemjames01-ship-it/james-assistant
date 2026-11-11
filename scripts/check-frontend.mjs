@@ -41,6 +41,8 @@ if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)
 const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
 const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta.url), "utf8");
 const liveVoice = hologramJs;
+const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
+const appShell = serviceWorker;
 if (!html.includes('id="jamesNeuralCanvas"') ||
     !html.includes('id="downloadNeuralVoice"') ||
     !html.includes('type="module" src="./james-neural-voice.js"') ||
@@ -57,7 +59,12 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     html.includes("SpeechSynthesisUtterance") ||
     html.includes("JamesAndroid.speak") ||
     !liveVoice.includes('responseModalities:["TEXT"]') ||
-    !liveVoice.includes("window.JamesNeuralVoice?.speak")) {
+    !liveVoice.includes("window.JamesNeuralVoice?.speak") ||
+    !workerCode.includes('responseModalities: ["TEXT"]') ||
+    workerCode.includes('responseModalities: ["AUDIO"]') ||
+    workerCode.includes("voiceName: [\"Charon\", \"Algieba\", \"Algenib\"]") ||
+    !appShell.includes("./james-neural-voice.js") ||
+    !appShell.includes("./james-v3.css")) {
   throw new Error("Local Kokoro voice, male Brazilian Portuguese profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
 }
 
