@@ -5,7 +5,7 @@
   "scripts": {
     "check:worker": "node --check worker.js",
     "check:frontend": "node scripts/check-frontend.mjs",
-    "check:voice": "node --check james-neural-voice.js",
+    "check:voice": "node --check james-neural-voice.js && node --check scripts/serve-static.mjs && node --check scripts/voice-smoke.mjs",
     "test": "npm run check:worker && npm run check:frontend && npm run check:voice && node --test tests/*.test.mjs"
   },
   "type": "module"
