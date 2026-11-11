@@ -78,10 +78,10 @@ function json(data, status, origin) {
 
 function errorMessage(payload, status) {
   const message = payload?.error?.message;
-  if (typeof message === "string" && message.trim()) {
-    return message.slice(0, 700);
-  }
-  return "A API Gemini respondeu com HTTP " + status + ".";
+  if (status === 429) return "O núcleo atingiu temporariamente o limite de solicitações. Tente novamente em instantes.";
+  if (status >= 500) return "O núcleo de inteligência está temporariamente indisponível. Tente novamente em instantes.";
+  if (typeof message === "string" && message.trim()) return "O núcleo recusou a solicitação. Revise o pedido e tente novamente.";
+  return "O núcleo de inteligência respondeu com HTTP " + status + ".";
 }
 
 async function ensureConversationTable(db) {
@@ -821,7 +821,6 @@ export default {
       return json({
         status: "online",
         service: "Jâmes AI Worker",
-        model: MODEL,
         aiConfigured: Boolean(env.GEMINI_API_KEY),
         databaseConfigured: Boolean(env.DB),
         capabilities: ["unified_context", "agent_planning", "parallel_tool_execution", "public_web_research", "tool_execution", "image_analysis", "pdf_analysis", "device_action_handoff"]
@@ -863,13 +862,12 @@ export default {
       try { livePayload = await request.json(); }
       catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
       const sessionId = typeof livePayload?.sessionId === "string" ? livePayload.sessionId : "";
-      const voiceProfile = Number.isInteger(livePayload?.voiceProfile) ? Math.max(0, Math.min(3, livePayload.voiceProfile)) : 0;
+      const voiceProfile = Number.isInteger(livePayload?.voiceProfile) ? Math.max(0, Math.min(2, livePayload.voiceProfile)) : 0;
       if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
       const voiceDirections = [
-        "Perfil vocal JARVIS: português brasileiro, voz adulta masculina grave, elegante, serena e precisa; ritmo moderado, articulação nítida e autoridade tranquila.",
-        "Perfil vocal DAMON: português brasileiro, voz adulta masculina grave, aveludada e suave; ritmo natural, pausas expressivas e timbre encorpado.",
-        "Perfil vocal OPTIMUS: português brasileiro, voz adulta masculina firme, encorpada e ressonante; dicção clara e presença marcante sem gritar.",
-        "Perfil vocal JANE: português brasileiro, voz adulta masculina clara, articulada e conversacional; ritmo ágil e ironia sutil apenas quando apropriado."
+        "PERFIL JARVIS: fale sempre em português brasileiro. Voz masculina adulta, grave, elegante, serena, precisa e articulada; ritmo moderado, dicção impecável, autoridade tranquila, humor discreto e polidez tecnológica. É uma interpretação original inspirada no assistente JARVIS e na tradição da dublagem brasileira; não imite nem alegue ser um dublador específico.",
+        "PERFIL PATRICK JANE: fale sempre em português brasileiro. Voz masculina adulta, suave, aveludada, inteligente e persuasiva; ritmo conversacional, pausas calculadas, calor humano, observações espirituosas e ironia sutil. Interpretação original inspirada no personagem Patrick Jane e em sua dublagem brasileira; não imite nem alegue ser o ator ou dublador.",
+        "PERFIL DAMON SALVATORE: fale sempre em português brasileiro. Voz masculina adulta, grave, encorpada, levemente rouca e sedutora; ritmo relaxado, confiança, sarcasmo elegante e emoção controlada. Interpretação original inspirada no personagem Damon Salvatore e em sua dublagem brasileira; não imite nem alegue ser o ator ou dublador."
       ];
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const now = Date.now();
@@ -906,7 +904,7 @@ export default {
                 sessionResumption: {},
                 tools: [{ functionDeclarations: LIVE_FUNCTION_DECLARATIONS }],
                 systemInstruction: {
-                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ AO VIVO: converse em português brasileiro com naturalidade. Use ferramentas declaradas quando forem necessárias para cumprir um pedido explícito. Antes de ações externas, destrutivas, financeiras ou que exponham dados, peça confirmação. Para ações Android, aguarde a confirmação real do dispositivo antes de afirmar sucesso.\n\n" + voiceDirections[voiceProfile] }]
+                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ E PERCEPÇÃO AO VIVO: converse em português brasileiro com naturalidade. Ao receber áudio, escute tanto a fala quanto sons do ambiente; transcreva, diferencie vozes de ruídos e identifique categorias de sons apenas quando houver evidência suficiente, declarando incerteza quando necessário. Ao receber quadros da câmera, observe o ambiente, objetos, textos legíveis, posições relativas e mudanças entre quadros; descreva o que realmente aparece e não invente detalhes fora do campo visual. Não alegue visão noturna infravermelha nem capacidades de mira. Use ferramentas declaradas quando necessárias para cumprir pedidos explícitos. Antes de ações externas, destrutivas, financeiras ou que exponham dados, peça confirmação. Para ações Android, aguarde a confirmação real do dispositivo antes de afirmar sucesso.\n\n" + voiceDirections[voiceProfile] }]
                 }
               }
             }
@@ -915,9 +913,9 @@ export default {
         const tokenData = await tokenResponse.json().catch(() => ({}));
         if (!tokenResponse.ok || typeof tokenData.name !== "string") {
           console.error("Gemini Live token provisioning failed:", tokenData?.error?.message || tokenResponse.status);
-          return json({ error: "A API Gemini não disponibilizou uma sessão de voz ao vivo (HTTP " + tokenResponse.status + ")." }, 502, origin);
+          return json({ error: "O núcleo de voz não disponibilizou uma sessão ao vivo (HTTP " + tokenResponse.status + ")." }, 502, origin);
         }
-        return json({ token: tokenData.name, model: "gemini-3.8-live", expiresAt: expireTime }, 200, origin);
+        return json({ token: tokenData.name, expiresAt: expireTime }, 200, origin);
       } catch (error) {
         console.error("Gemini Live token request failed:", error);
         return json({ error: "Falha ao solicitar a sessão de voz ao vivo." }, 502, origin);
@@ -1058,15 +1056,14 @@ export default {
       return json({
         reply,
         clientActions,
-        model: usedModel,
         reasoningLevel: selectThinkingLevel([...history, currentTurn]),
         savedMemories: memories.length,
         memory: memoryAvailable ? "available" : "temporarily_unavailable"
       }, 200, origin);
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 502;
-      const safeMessage = error?.kind === "gemini" && status === 503
-        ? "O serviço Gemini está temporariamente indisponível ou com limite de solicitações. Tente novamente em instantes."
+      const safeMessage = error?.kind === "gemini"
+        ? (status === 429 ? "O núcleo atingiu temporariamente o limite de solicitações. Tente novamente em instantes." : "O núcleo de inteligência está temporariamente indisponível. Tente novamente em instantes.")
         : error?.message || "Falha ao processar a solicitação.";
       return json({ error: safeMessage }, status, origin);
     }

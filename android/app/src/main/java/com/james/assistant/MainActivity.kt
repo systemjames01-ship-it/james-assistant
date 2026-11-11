@@ -17,6 +17,7 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
 import android.graphics.drawable.GradientDrawable
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -58,6 +59,7 @@ class MainActivity : android.app.Activity() {
         private const val REQ_NOTIFICATIONS = 4102
         private const val REQ_MICROPHONE = 4106
         private const val REQ_CAMERA_PERMISSION = 4107
+        private const val REQ_EXPORT_TEXT = 4108
         private const val COLOR_BG = 0xFF050A12.toInt()
         private const val COLOR_PANEL = 0xFF0B1A29.toInt()
         private const val COLOR_CYAN = 0xFF68E4F2.toInt()
@@ -78,6 +80,8 @@ class MainActivity : android.app.Activity() {
     private lateinit var prompt: EditText
     private lateinit var attachmentStatus: TextView
     private val pendingAttachments = mutableListOf<JSONObject>()
+    private var pendingExportText: String? = null
+    private var pendingExportPdf = false
     private var currentPage = "overview"
     private var sending = false
     private var backendSummary = "Verificando o núcleo..."
@@ -85,11 +89,13 @@ class MainActivity : android.app.Activity() {
     private var liveConversationEnabled = false
     private var liveVoiceSession: JamesLiveAudioSession? = null
     private var liveButton: Button? = null
+    private var voiceProfileLabel: TextView? = null
     private var visionButton: Button? = null
     private var orbView: JamesHologramView? = null
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
     private var resumeLiveAfterBackground = false
+    private var pendingVoicePreview = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,7 +107,7 @@ class MainActivity : android.app.Activity() {
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", it).apply()
             }
         createNotificationChannel()
-        selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 3)
+        selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 2)
         buildShell()
         showPage("overview")
         refreshBackendStatus()
@@ -151,8 +157,10 @@ class MainActivity : android.app.Activity() {
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         navButtons = mutableMapOf()
         val pages = listOf(
-            "overview" to "VISÃO GERAL",
-            "intelligence" to "NÚCLEO",
+            "overview" to "CABEÇA",
+            "control" to "CONTROLE",
+            "voices" to "VOZES",
+            "intelligence" to "CHAT",
             "perception" to "PERCEPÇÃO",
             "automation" to "AUTOMAÇÕES",
             "memory" to "MEMÓRIA",
@@ -192,6 +200,8 @@ class MainActivity : android.app.Activity() {
         content.removeAllViews()
         when (page) {
             "overview" -> renderOverview()
+            "control" -> renderControlCenter()
+            "voices" -> renderVoiceProfiles()
             "intelligence" -> renderIntelligence()
             "perception" -> renderPerception()
             "automation" -> renderTasks()
@@ -239,17 +249,17 @@ class MainActivity : android.app.Activity() {
         page.addView(liveButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply {
             topMargin = dp(8); bottomMargin = dp(6)
         })
-        val voiceState = TextView(this).apply {
-            text = "VOZ ATIVA POR PADRÃO  ·  PERFIL JARVIS  ·  DIGA “MUDAR VOZ” PARA TROCAR"
-            textSize = 8f
+        voiceProfileLabel = TextView(this).apply {
+            text = "PERFIL VOCAL  ·  " + voiceProfileNames[selectedVoiceProfile]
+            textSize = 9f
             gravity = Gravity.CENTER
             setTextColor(COLOR_MUTED)
         }
-        page.addView(voiceState, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
-        visionButton = makeButton("ATIVAR SENSOR VISUAL", true) { toggleLiveVision() }
+        page.addView(voiceProfileLabel, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
+        visionButton = makeButton("ABRIR OS OLHOS · VISÃO AO VIVO", true) { toggleLiveVision() }
         page.addView(visionButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { bottomMargin = dp(6) })
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        controls.addView(makeButton("ABRIR CONSOLE DE TEXTO", true) { showPage("intelligence") },
+        controls.addView(makeButton("CONVERSAR POR TEXTO", true) { showPage("intelligence") },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)))
         page.addView(controls)
         val modules = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
@@ -259,6 +269,95 @@ class MainActivity : android.app.Activity() {
         }
         page.addView(modules, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply { topMargin = dp(8) })
         content.addView(page)
+    }
+
+    private val voiceProfileNames = arrayOf("JARVIS", "PATRICK JANE", "DAMON SALVATORE")
+    private val voiceProfileModels = arrayOf("Charon", "Algieba", "Algenib")
+
+    private fun renderVoiceProfiles() {
+        val page = verticalPage()
+        val intro = card()
+        addText(intro, "IDENTIDADE VOCAL DO JÂMES", 13f, COLOR_CYAN, true)
+        addText(intro, "Três perfis de voz masculina em português brasileiro, com timbre, ritmo e presença próprios.", 11f, COLOR_MUTED, top = 7)
+        page.addView(intro)
+        voiceProfileNames.forEachIndexed { index, name ->
+            val panel = card()
+            addText(panel, name, 13f, if (selectedVoiceProfile == index) COLOR_GREEN else COLOR_CYAN, true)
+            val detail = when (index) {
+                0 -> "JARVIS · formal, grave, sereno e preciso. Referência de dublagem: Eduardo Borgerth / Clécio Souto."
+                1 -> "PATRICK JANE · suave, inteligente, persuasivo e conversacional. Referência de dublagem: Márcio Simões."
+                else -> "DAMON SALVATORE · grave, aveludado, confiante e irônico. Referência de dublagem: Clécio Souto."
+            }
+            addText(panel, detail, 11f, COLOR_MUTED, top = 5)
+            addText(panel, "Timbre do perfil: " + voiceProfileModels[index], 9f, COLOR_MUTED, top = 5)
+            addButton(panel, if (selectedVoiceProfile == index) "PERFIL ATUAL" else "USAR ESTA VOZ", secondary = selectedVoiceProfile == index) {
+                selectVoiceProfile(index)
+            }
+            addButton(panel, "OUVIR AMOSTRA", secondary = true) {
+                previewVoiceProfile(index)
+            }
+            page.addView(panel)
+        }
+        val note = card()
+        addText(note, "SOBRE AS REFERÊNCIAS", 10f, COLOR_CYAN, true)
+        addText(note, "São interpretações vocais originais inspiradas nos personagens e na dublagem brasileira, não clonagens nem gravações dos dubladores.", 10f, COLOR_MUTED, top = 6)
+        page.addView(note)
+        mountScrollable(page)
+    }
+
+    private fun selectVoiceProfile(index: Int) {
+        if (index !in 0..2) return
+        val changed = selectedVoiceProfile != index
+        applyVoiceProfile(index)
+        getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", index).apply()
+        setStatus("PERFIL " + voiceProfileNames[index] + " SELECIONADO")
+        if (changed && liveConversationEnabled) restartLiveConversation()
+        showPage("voices")
+    }
+
+    private fun previewVoiceProfile(index: Int) {
+        selectVoiceProfile(index)
+        pendingVoicePreview = true
+        if (liveConversationEnabled) {
+            if (liveVoiceSession?.sendText("Faça uma apresentação curta em português brasileiro para demonstrar sua voz. Diga apenas: Olá. Eu sou o Jâmes. Como posso ajudar?") == true) {
+                pendingVoicePreview = false
+            }
+        } else {
+            startLiveConversation()
+        }
+    }
+
+    private fun renderControlCenter() {
+        val page = verticalPage()
+        val core = card()
+        addText(core, "CENTRAL DE CONTROLE", 13f, COLOR_CYAN, true)
+        addText(core, backendSummary, 10f, COLOR_GREEN, top = 6)
+        addButton(core, if (liveConversationEnabled) "ENCERRAR LINK DE VOZ" else "INICIAR LINK DE VOZ") { toggleLiveConversation() }
+        addButton(core, if (liveCamera != null || liveVisionPending) "DESLIGAR CÂMERA" else "ATIVAR OLHOS · CÂMERA AO VIVO", secondary = true) { toggleLiveVision() }
+        addButton(core, "ABRIR PERFIS VOCAIS", secondary = true) { showPage("voices") }
+        addButton(core, "ABRIR CONVERSA DE TEXTO", secondary = true) { showPage("intelligence") }
+        page.addView(core)
+
+        val sensors = card()
+        addText(sensors, "SENSORES E PERCEPÇÃO", 11f, COLOR_CYAN, true)
+        addInfoLine(sensors, "Audição", if (liveConversationEnabled) "Sessão solicitada" else "Em espera")
+        addInfoLine(sensors, "Visão", if (liveCamera != null) "Câmera ao vivo ativa" else "Desativada")
+        addInfoLine(sensors, "Microfone", if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) "Autorizado" else "Pendente")
+        addInfoLine(sensors, "Câmera", if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) "Autorizada" else "Pendente")
+        addButton(sensors, "CONFIGURAR PERMISSÕES", secondary = true) {
+            try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + packageName))) } catch (_: Exception) { }
+        }
+        page.addView(sensors)
+
+        val systems = card()
+        addText(systems, "MÓDULOS DO SISTEMA", 11f, COLOR_CYAN, true)
+        addModule(systems, "CHAT E RACIOCÍNIO", "Conversa textual, contexto e ferramentas") { showPage("intelligence") }
+        addModule(systems, "MEMÓRIA", "Memórias autorizadas") { showPage("memory") }
+        addModule(systems, "AUTOMAÇÕES", "Tarefas, lembretes e ações Android") { showPage("automation") }
+        addModule(systems, "APARELHO", "Estado do dispositivo e acessibilidade") { showPage("device") }
+        addButton(systems, "VERIFICAR CONEXÃO DO NÚCLEO", secondary = true) { refreshBackendStatus() }
+        page.addView(systems)
+        mountScrollable(page)
     }
 
     private fun renderIntelligence() {
@@ -404,7 +503,7 @@ class MainActivity : android.app.Activity() {
         if (sending) return
         val text = prompt.text?.toString()?.trim().orEmpty()
         if (text.isNotEmpty() && handleVoiceCommand(text)) { prompt.setText(""); return }
-        if (liveConversationEnabled && text.isNotEmpty() && pendingAttachments.isEmpty()) {
+        if (liveConversationEnabled && currentPage != "intelligence" && text.isNotEmpty() && pendingAttachments.isEmpty()) {
             addChatMessage(text, false)
             prompt.setText("")
             if (liveVoiceSession?.sendText(text) != true) setStatus("SESSÃO DE VOZ AINDA NÃO ESTÁ PRONTA")
@@ -538,11 +637,10 @@ class MainActivity : android.app.Activity() {
                 val online = result.optString("status") == "online"
                 val ai = result.optBoolean("aiConfigured", false)
                 val db = result.optBoolean("databaseConfigured", false)
-                val model = result.optString("model", "não informado")
                 val summary = when {
                     !online -> "WORKER OFFLINE"
-                    !ai -> "WORKER ONLINE · IA NÃO VALIDADA"
-                    else -> "NÚCLEO ONLINE · " + model + " · D1 " + if (db) "CONECTADO" else "INDISPONÍVEL"
+                    !ai -> "NÚCLEO ONLINE · SERVIÇO NÃO VALIDADO"
+                    else -> "NÚCLEO ONLINE · MEMÓRIA " + if (db) "CONECTADA" else "INDISPONÍVEL"
                 }
                 runOnUiThread {
                     backendSummary = summary
@@ -565,7 +663,7 @@ class MainActivity : android.app.Activity() {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.requestMethod = method
         connection.connectTimeout = 20000
-        connection.readTimeout = 0
+        connection.readTimeout = 30000
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("Origin", APP_ORIGIN)
         connection.setRequestProperty("User-Agent", "JamesAndroid/3.0.0")
@@ -639,13 +737,19 @@ class MainActivity : android.app.Activity() {
                 if (token.isBlank()) throw IOException("O núcleo não forneceu um token de sessão.")
                 runOnUiThread {
                     if (!liveConversationEnabled) return@runOnUiThread
-                    val voiceProfiles = arrayOf("Charon", "Algieba", "Kore", "Zephyr")
-                    val voice = voiceProfiles[selectedVoiceProfile.coerceIn(0, 3)]
+                    val voice = voiceProfileModels[selectedVoiceProfile.coerceIn(0, 2)]
                     liveVoiceSession = JamesLiveAudioSession(this, token, voice, object : JamesLiveAudioSession.Listener {
                         override fun onStatus(message: String) {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
                                     setStatus(message)
+                                    if (message.contains("JÂMES AO VIVO")) {
+                                        liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
+                                        if (pendingVoicePreview) {
+                                            pendingVoicePreview = false
+                                            liveVoiceSession?.sendText("Faça uma apresentação curta em português brasileiro para demonstrar sua voz. Diga apenas: Olá. Eu sou o Jâmes. Como posso ajudar?")
+                                        }
+                                    }
                                     if (liveVisionPending && message.contains("JÂMES AO VIVO")) startLiveVision()
                                 }
                             }
@@ -660,7 +764,7 @@ class MainActivity : android.app.Activity() {
                         }
                         override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
                         override fun onAudioLevel(level: Float, speaking: Boolean) {
-                            runOnUiThread { orbView?.setAudioLevel(level) }
+                            runOnUiThread { orbView?.setAudioLevel(level); orbView?.setMode(if (speaking) 2 else if (liveConversationEnabled) 1 else 0) }
                         }
                         override fun onToolCall(id: String, name: String, args: JSONObject) {
                             handleLiveToolCall(id, name, args)
@@ -675,7 +779,6 @@ class MainActivity : android.app.Activity() {
                             }
                         }
                     }).also { it.start() }
-                    liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -757,12 +860,13 @@ class MainActivity : android.app.Activity() {
         liveVoiceSession?.close()
         liveVoiceSession = null
         orbView?.setAudioLevel(0f)
-        liveButton?.text = "INICIAR CONVERSA AO VIVO"
+        liveButton?.text = "CONECTAR AO JÂMES"
         setStatus("CONVERSA AO VIVO ENCERRADA")
     }
 
     private fun applyVoiceProfile(profile: Int) {
-        selectedVoiceProfile = profile.coerceIn(0, 3)
+        selectedVoiceProfile = profile.coerceIn(0, 2)
+        voiceProfileLabel?.text = "PERFIL VOCAL  ·  " + voiceProfileNames[selectedVoiceProfile]
     }
 
     private fun handleVoiceCommand(text: String): Boolean {
@@ -772,18 +876,18 @@ class MainActivity : android.app.Activity() {
         val asksToStartVision = normalized.contains("ligar visao") || normalized.contains("ativar visao") || normalized.contains("abra os olhos")
         if (asksToStopVision) { stopLiveVision(); return true }
         if (asksToStartVision) { if (liveCamera == null && !liveVisionPending) toggleLiveVision(); return true }
-        val asksForVoice = normalized.contains("mudar voz") || normalized.contains("mudar para voz") || normalized.contains("mudar a voz") ||
-            normalized.contains("trocar voz") || normalized.contains("trocar a voz") || normalized.contains("alterar voz") ||
-            normalized.contains("escolher voz") || normalized.contains("voz do james") || normalized.contains("jarvis") ||
-            normalized.contains("damon") || normalized.contains("optimus") || normalized.contains("jane")
+        val namedVoiceOnly = normalized.trim() in listOf("jarvis", "patrick jane", "patrick james", "damon", "damon salvatore")
+        val asksForVoice = namedVoiceOnly || normalized.contains("mudar voz") || normalized.contains("mudar para voz") ||
+            normalized.contains("mudar para jarvis") || normalized.contains("mudar para patrick") || normalized.contains("mudar para damon") ||
+            normalized.contains("mudar a voz") || normalized.contains("trocar voz") || normalized.contains("trocar a voz") ||
+            normalized.contains("alterar voz") || normalized.contains("escolher voz") || normalized.contains("usar voz") ||
+            normalized.contains("voz do james") || normalized.contains("voz jarvis") || normalized.contains("voz damon") || normalized.contains("voz patrick")
         if (!asksForVoice) return false
         val index = when {
-            normalized.contains("voz 4") || normalized.contains("voz quatro") || normalized.contains("quarta voz") ||
-                normalized.contains("márcio") || normalized.contains("marcio") || normalized.contains("jane") -> 3
             normalized.contains("voz 3") || normalized.contains("voz tres") || normalized.contains("terceira voz") ||
-                normalized.contains("guilherme") || normalized.contains("optimus") -> 2
+                normalized.contains("clecio") || normalized.contains("damon") || normalized.contains("salvatore") -> 2
             normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") ||
-                normalized.contains("clecio") || normalized.contains("damon") -> 1
+                normalized.contains("marcio") || normalized.contains("patrick") || normalized.contains("jane") -> 1
             normalized.contains("voz 1") || normalized.contains("voz um") || normalized.contains("primeira voz") ||
                 normalized.contains("eduardo") || normalized.contains("jarvis") -> 0
             else -> -1
@@ -794,7 +898,7 @@ class MainActivity : android.app.Activity() {
             setStatus("PERFIL VOCAL " + (index + 1) + " SELECIONADO")
             if (liveConversationEnabled) restartLiveConversation()
         } else {
-            val next = (selectedVoiceProfile + 1) % 4
+            val next = (selectedVoiceProfile + 1) % 3
             applyVoiceProfile(next)
             getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", next).apply()
             setStatus("PERFIL VOCAL " + (next + 1) + " SELECIONADO")
@@ -823,8 +927,28 @@ class MainActivity : android.app.Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK) {
+            if (requestCode == REQ_EXPORT_TEXT) { pendingExportText = null; pendingExportPdf = false }
+            return
+        }
         when (requestCode) {
+            REQ_EXPORT_TEXT -> {
+                val content = pendingExportText ?: return
+                pendingExportText = null
+                val uri = data?.data ?: return
+                try {
+                    val output = contentResolver.openOutputStream(uri) ?: throw IOException("Destino de arquivo indisponível.")
+                    output.use {
+                        if (pendingExportPdf) writeTextPdf(content, it)
+                        else it.write(content.toByteArray(Charsets.UTF_8))
+                    }
+                    Toast.makeText(this, if (pendingExportPdf) "PDF criado." else "Arquivo TXT criado.", Toast.LENGTH_LONG).show()
+                } catch (error: Exception) {
+                    Toast.makeText(this, "Falha ao salvar o anexo: " + (error.message ?: "erro"), Toast.LENGTH_LONG).show()
+                } finally {
+                    pendingExportPdf = false
+                }
+            }
             REQ_CAMERA -> {
                 val bitmap = data?.extras?.get("data") as? Bitmap ?: return
                 val output = ByteArrayOutputStream()
@@ -1054,15 +1178,83 @@ class MainActivity : android.app.Activity() {
         }
         val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         params.bottomMargin = dp(9)
+        if (fromJames && !isError) {
+            bubble.setOnLongClickListener {
+                exportChatText(text)
+                true
+            }
+        }
         chatMessages.addView(bubble, params)
         chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
+    private fun exportChatText(text: String) {
+        if (text.isBlank()) return
+        AlertDialog.Builder(this)
+            .setTitle("CRIAR ANEXO")
+            .setItems(arrayOf("Documento PDF", "Arquivo TXT")) { _, choice ->
+                pendingExportText = text
+                pendingExportPdf = choice == 0
+                val pdf = pendingExportPdf
+                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = if (pdf) "application/pdf" else "text/plain"
+                    putExtra(Intent.EXTRA_TITLE, if (pdf) "james-resposta.pdf" else "james-resposta.txt")
+                }
+                try { startActivityForResult(intent, REQ_EXPORT_TEXT) }
+                catch (_: Exception) {
+                    pendingExportText = null
+                    pendingExportPdf = false
+                    Toast.makeText(this, "Não foi possível criar o anexo.", Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton("CANCELAR", null)
+            .show()
+    }
+
+    private fun writeTextPdf(text: String, output: java.io.OutputStream) {
+        val document = PdfDocument()
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 12f }
+        val pageWidth = 595
+        val pageHeight = 842
+        val maxWidth = 511f
+        val lines = mutableListOf<String>()
+        text.split('\n').forEach { paragraph ->
+            var current = ""
+            paragraph.split(Regex("\\s+")).forEach { word ->
+                val candidate = if (current.isEmpty()) word else current + " " + word
+                if (current.isNotEmpty() && paint.measureText(candidate) > maxWidth) {
+                    lines.add(current)
+                    current = word
+                } else current = candidate
+            }
+            lines.add(current)
+            lines.add("")
+        }
+        var lineIndex = 0
+        var pageNumber = 1
+        do {
+            val info = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+            val page = document.startPage(info)
+            page.canvas.drawColor(Color.WHITE)
+            var y = 52f
+            while (lineIndex < lines.size && y < pageHeight - 42f) {
+                page.canvas.drawText(lines[lineIndex].take(220), 42f, y, paint)
+                y += 18f
+                lineIndex++
+            }
+            document.finishPage(page)
+            pageNumber++
+        } while (lineIndex < lines.size)
+        try { document.writeTo(output) } finally { document.close() }
     }
 
     private fun setStatus(message: String) {
         statusText.text = message.uppercase(Locale("pt", "BR")).take(42)
         statusText.setTextColor(if (message.contains("FALHA") || message.contains("NÃO") || message.contains("OFFLINE")) COLOR_RED else COLOR_GREEN)
         val mode = when {
-            message.contains("VISÃO") || message.contains("VISAO") -> 3
+            message.contains("VISÃO AO VIVO DESATIVADA") || message.contains("VISAO AO VIVO DESATIVADA") -> 0
+            message.contains("VISÃO E VOZ AO VIVO ATIVAS") || message.contains("VISAO E VOZ AO VIVO ATIVAS") -> 3
             message.contains("FALANDO") || message.contains("RESPONDENDO") -> 2
             message.contains("OUVINDO") || message.contains("ESCUTANDO") -> 1
             else -> 0

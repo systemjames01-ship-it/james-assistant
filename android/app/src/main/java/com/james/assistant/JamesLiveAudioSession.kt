@@ -57,8 +57,7 @@ class JamesLiveAudioSession(
         audioManager.isSpeakerphoneOn = true
 
         val request = Request.Builder()
-            .url("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent")
-            .header("Authorization", "Token $token")
+            .url("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=" + java.net.URLEncoder.encode(token, "UTF-8"))
             .build()
         socket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -66,7 +65,7 @@ class JamesLiveAudioSession(
                     .put("model", "models/gemini-3.8-live")
                     .put("generationConfig", JSONObject()
                         .put("responseModalities", org.json.JSONArray().put("AUDIO"))
-                        .put("speechConfig", JSONObject().put("voiceConfig", JSONObject()
+                        .put("speechConfig", JSONObject().put("languageCode", "pt-BR").put("voiceConfig", JSONObject()
                             .put("prebuiltVoiceConfig", JSONObject().put("voiceName", voiceName)))))
                     .put("inputAudioTranscription", JSONObject())
                     .put("outputAudioTranscription", JSONObject())
@@ -79,6 +78,12 @@ class JamesLiveAudioSession(
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
                     val message = JSONObject(text)
+                    val serverError = message.optJSONObject("error")
+                    if (serverError != null) {
+                        listener.onFailure("O núcleo recusou a sessão: " + serverError.optString("message", "erro de configuração"))
+                        close()
+                        return
+                    }
                     val toolCall = message.optJSONObject("toolCall")
                     if (toolCall != null) {
                         val calls = toolCall.optJSONArray("functionCalls") ?: org.json.JSONArray()
@@ -135,7 +140,8 @@ class JamesLiveAudioSession(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                if (running.get()) listener.onFailure("Conexão de voz perdida: " + (t.message ?: "falha de rede"))
+                val httpDetail = response?.let { " · HTTP " + it.code + " " + (it.message ?: "") } ?: ""
+                if (running.get()) listener.onFailure("Conexão de voz perdida" + httpDetail + ": " + (t.message ?: "falha de rede"))
                 close()
             }
 
