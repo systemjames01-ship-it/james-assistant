@@ -482,17 +482,43 @@ class MainActivity : android.app.Activity() {
         }
     }
 
+    private fun executeClientAction(action: JSONObject): Pair<Boolean, String> {
+        return when (action.optString("type")) {
+            "open_app" -> openApp(action.optString("appName"))
+            "schedule_reminder" -> scheduleReminder(action.optString("title"), action.optString("at"))
+            "open_settings" -> openSystemSettings(action.optString("section"))
+            "ui_action" -> JamesAccessibilityService.execute(action)
+            else -> false to "Ação Android não reconhecida."
+        }
+    }
+
     private fun executeClientActions(actions: JSONArray) {
         for (i in 0 until actions.length()) {
             val action = actions.optJSONObject(i) ?: continue
-            val result = when (action.optString("type")) {
-                "open_app" -> openApp(action.optString("appName"))
-                "schedule_reminder" -> scheduleReminder(action.optString("title"), action.optString("at"))
-                "open_settings" -> openSystemSettings(action.optString("section"))
-                "ui_action" -> JamesAccessibilityService.execute(action)
-                else -> false to "Ação Android não reconhecida."
-            }
+            val result = executeClientAction(action)
             addChatMessage((if (result.first) "ANDROID CONFIRMOU: " else "ANDROID NÃO CONCLUIU: ") + result.second, result.first, !result.first)
+        }
+    }
+
+    private fun handleLiveToolCall(callId: String, name: String, args: JSONObject) {
+        executor.execute {
+            try {
+                val payload = JSONObject().put("sessionId", sessionId).put("name", name).put("args", args)
+                val response = request(WORKER_URL + "/?action=live-tool", "POST", payload)
+                val result = response.optJSONObject("result") ?: JSONObject().put("error", "A ferramenta não retornou resultado.")
+                val clientAction = result.optJSONObject("clientAction")
+                if (clientAction != null) {
+                    runOnUiThread {
+                        val outcome = executeClientAction(clientAction)
+                        addChatMessage((if (outcome.first) "ANDROID CONFIRMOU: " else "ANDROID NÃO CONCLUIU: ") + outcome.second, outcome.first, !outcome.first)
+                        liveVoiceSession?.sendToolResponse(callId, name, JSONObject().put("success", outcome.first).put("message", outcome.second))
+                    }
+                } else {
+                    liveVoiceSession?.sendToolResponse(callId, name, result)
+                }
+            } catch (error: Exception) {
+                liveVoiceSession?.sendToolResponse(callId, name, JSONObject().put("error", error.message ?: "Falha ao executar ferramenta."))
+            }
         }
     }
 
@@ -675,6 +701,9 @@ class MainActivity : android.app.Activity() {
                             }
                         }
                         override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
+                        override fun onToolCall(id: String, name: String, args: JSONObject) {
+                            handleLiveToolCall(id, name, args)
+                        }
                         override fun onFailure(message: String) {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
