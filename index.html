@@ -207,7 +207,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  <div class="reactor-wrap" aria-label="Representação holográfica do cérebro tecnológico do Jâmes">
   <div class="globe-stage neural-stage" role="img" aria-label="Cérebro tecnológico holográfico com conexões neurais animadas em tempo real">
    <div class="globe-readout">JÂMES / NEURAL CORE<br>REDE: DINÂMICA<br>PROCESSAMENTO: VISUALIZADO</div>
-   <div class="globe-readout right">PERCEPÇÃO: AUTORIZADA<br>ATIVIDADE: <span id="globeState">STANDBY</span><br>LINK: <span id="neuralLinkState">AGUARDANDO</span></div>
+   <div class="globe-readout right">PERCEPÇÃO: SOB PERMISSÃO<br>ATIVIDADE: <span id="globeState">STANDBY</span><br>LINK: <span id="neuralLinkState">AGUARDANDO</span></div>
    <div class="neural-aura"></div>
    <canvas class="globe-canvas neural-canvas" id="jamesGlobeCanvas" aria-hidden="true"></canvas>
    <div class="globe-label">MATRIZ NEURAL // NÚCLEO COGNITIVO</div>
@@ -225,11 +225,12 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
   <div class="head-actions"><button type="button" id="headOpenChat">ABRIR CHAT</button><button type="button" class="secondary" id="headOpenControl">PAINEL DE CONTROLE</button></div>
   <div class="power-console">
    <button type="button" id="jamesPower" class="power-button" aria-pressed="false"><span class="power-symbol">⏻</span><span id="jamesPowerLabel">LIGAR JÂMES</span></button>
-   <div class="power-copy"><strong id="jamesPowerState">SISTEMA DESLIGADO</strong><span id="jamesPowerHelp">Ao ligar, o Jâmes solicitará acesso ao microfone e à câmera. Você decide cada permissão no Android.</span></div>
+   <div class="power-copy"><strong id="jamesPowerState">SISTEMA DESLIGADO</strong><span id="jamesPowerHelp">Ao ligar, o Jâmes solicitará microfone e câmera juntos quando possível. O Android/Chrome ainda exige sua autorização; o botão não pode liberar permissões sozinho.</span></div>
   </div>
   <div class="head-mic">
    <button type="button" id="headMic" class="secondary" aria-label="Iniciar apenas conversa por voz" aria-pressed="false">🎙</button>
-   <button type="button" id="headVision" class="secondary" aria-label="Ativar ou desativar visão ao vivo" aria-pressed="false" disabled>◎</button>\n   <button type="button" id="headCameraFlip" class="secondary" aria-label="Alternar câmera frontal e traseira" disabled>↻</button>
+   <button type="button" id="headVision" class="secondary" aria-label="Ativar ou desativar visão ao vivo" aria-pressed="false" disabled>◎</button>
+   <button type="button" id="headCameraFlip" class="secondary" aria-label="Alternar câmera frontal e traseira" disabled>↻</button>
    <div class="head-mic-copy"><strong>Controles individuais</strong><span id="headMicState">Use o botão principal para iniciar voz e solicitar câmera; os controles individuais permitem ajustar cada módulo.</span></div>
   </div>
   <video id="headVisionVideo" playsinline muted hidden></video>
@@ -240,7 +241,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 </section>
 
 <nav class="view-nav module-nav" aria-label="Módulos do Jâmes">
- <button type="button" data-view-target="overview" aria-pressed="true">◉ CABEÇA</button>
+ <button type="button" data-view-target="overview" aria-pressed="true">◉ NÚCLEO</button>
  <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
  <button type="button" data-view-target="intelligence" aria-pressed="false">▤ CHAT</button>
  <button type="button" data-view-target="voices" aria-pressed="false">♫ VOZES</button>
