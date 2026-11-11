@@ -968,5 +968,40 @@ class MainActivity : android.app.Activity() {
         super.onDestroy()
     }
 
-${orbClass}    private class FrameLayoutCompat(context: Context) : android.widget.FrameLayout(context)
+    private class JamesOrbView(context: Context) : View(context) {
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 2.2f * resources.displayMetrics.density
+            color = 0x9968E4F2.toInt()
+        }
+        private val density = resources.displayMetrics.density
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val cx = width / 2f
+            val cy = height / 2f
+            val radius = (minOf(width, height) * 0.31f).coerceAtLeast(42f * density)
+            val phase = (System.currentTimeMillis() % 2600L) / 2600f
+            val pulse = 1f + 0.035f * kotlin.math.sin(phase * Math.PI * 2).toFloat()
+            val r = radius * pulse
+            paint.shader = RadialGradient(cx, cy, r * 1.65f,
+                intArrayOf(0x8868E4F2.toInt(), 0x3368E4F2, 0x0068E4F2),
+                floatArrayOf(0f, 0.58f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawCircle(cx, cy, r * 1.65f, paint)
+            paint.shader = RadialGradient(cx - r * 0.28f, cy - r * 0.34f, r * 1.5f,
+                intArrayOf(0xFFECFFFF.toInt(), 0xFF56CFE1.toInt(), 0xFF0A3450.toInt(), 0xFF020A14.toInt()),
+                floatArrayOf(0f, 0.22f, 0.7f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawCircle(cx, cy, r, paint)
+            paint.shader = null
+            ringPaint.alpha = (150 + 70 * kotlin.math.sin(phase * Math.PI * 2).toFloat()).toInt()
+            canvas.drawCircle(cx, cy, r * 1.12f, ringPaint)
+            ringPaint.alpha = 65
+            ringPaint.strokeWidth = 1.2f * density
+            canvas.drawCircle(cx, cy, r * 1.28f, ringPaint)
+            postInvalidateDelayed(48L)
+        }
+    }
+
+    private class FrameLayoutCompat(context: Context) : android.widget.FrameLayout(context)
 }
