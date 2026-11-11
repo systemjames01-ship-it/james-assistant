@@ -911,9 +911,10 @@ class MainActivity : android.app.Activity() {
                 pendingExportText = null
                 val uri = data?.data ?: return
                 try {
-                    contentResolver.openOutputStream(uri)?.use { output ->
-                        if (pendingExportPdf) writeTextPdf(content, output)
-                        else output.write(content.toByteArray(Charsets.UTF_8))
+                    val output = contentResolver.openOutputStream(uri) ?: throw IOException("Destino de arquivo indisponível.")
+                    output.use {
+                        if (pendingExportPdf) writeTextPdf(content, it)
+                        else it.write(content.toByteArray(Charsets.UTF_8))
                     }
                     Toast.makeText(this, if (pendingExportPdf) "PDF criado." else "Arquivo TXT criado.", Toast.LENGTH_LONG).show()
                 } catch (error: Exception) {
