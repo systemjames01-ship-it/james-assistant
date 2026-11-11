@@ -169,6 +169,63 @@ test("assistant executes calculator tool and returns its result to Gemini", asyn
   }
 });
 
+test("assistant hands explicit God's Eye View requests to the Windows companion", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    requests.push(body);
+    if (requests.length === 1) {
+      return new Response(JSON.stringify({
+        candidates: [{ content: { role: "model", parts: [{
+          functionCall: { name: "windows_gods_eye_view", args: { action: "open" } }
+        }] } }]
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    const toolResponse = requests[1].contents.at(-1).parts[0].functionResponse.response;
+    assert.equal(toolResponse.queuedForDevice, true);
+    assert.equal(toolResponse.clientAction.type, "windows_protocol");
+    assert.equal(toolResponse.clientAction.uri, "james://world/open");
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Comando encaminhado ao componente Windows." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Abra o God's Eye View no meu Windows", sessionId: "session_test_12345", mode: "assistant" })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Comando encaminhado ao componente Windows.");
+    assert.deepEqual(body.clientActions, [{ type: "windows_protocol", uri: "james://world/open" }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("live tool endpoint returns only allowlisted Windows protocol commands", async () => {
+  const request = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "session_test_12345", name: "windows_gods_eye_view", args: { action: "update" } })
+  });
+  const response = await worker.fetch(request, {});
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.result.clientAction.uri, "james://world/update");
+  const denied = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "session_test_12345", name: "windows_gods_eye_view", args: { action: "format_disk" } })
+  });
+  const deniedResponse = await worker.fetch(denied, {});
+  assert.equal(deniedResponse.status, 200);
+  assert.equal((await deniedResponse.json()).result.error, "Ação Windows não permitida.");
+});
+
 test("assistant creates a persistent task through the D1 tool", async () => {
   const originalFetch = globalThis.fetch;
   const executedSql = [];
