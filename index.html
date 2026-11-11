@@ -124,6 +124,68 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 @media(max-width:760px){.app-shell{padding:12px 10px 24px}.topbar{flex-wrap:wrap;padding-bottom:13px}#status{order:3;flex:1 1 100%;max-width:none}.top-right{margin-left:auto}.creator{display:none}.hero{grid-template-columns:1fr;gap:8px;min-height:0;padding:16px 18px 22px;margin:12px 0}.reactor-wrap{min-height:180px}.reactor{width:165px}.reactor-label{bottom:-7px}.hero-copy{text-align:center}.hero-copy>p{margin:auto;font-size:12px}.hero-meta{justify-content:center;margin-top:14px}.hero h1{font-size:34px}.dashboard{grid-template-columns:1fr}.side-column{grid-template-columns:1fr 1fr;align-items:start}.lower-grid{grid-template-columns:1fr 1fr}.panel-head{padding:13px}.conversation-tools{justify-content:flex-end}.panel-kicker{display:none}#chat{height:390px;min-height:280px}.msg{max-width:94%}}
 @media(max-width:520px){.brand-mark{width:37px;height:37px;font-size:15px}.brand-name{font-size:17px}.brand-sub{font-size:8px}.system-indicator{font-size:8px;padding:7px 9px}.hero{border-radius:13px}.reactor-wrap{min-height:155px}.reactor{width:140px}.hero h1{font-size:29px}.eyebrow{font-size:8px}.meta-chip{font-size:8px}.side-column,.lower-grid{grid-template-columns:1fr}.panel-head{align-items:flex-start;flex-direction:column}.conversation-tools{width:100%;justify-content:space-between}.mode-switch{flex:1}.mode-switch button{flex:1}#chat{height:360px;padding:12px 10px}.msg{font-size:12px;padding:11px 12px}#form{padding:12px}#prompt{min-height:68px}.footer{font-size:8px;flex-direction:column}.row button{flex:1 1 calc(50% - 8px)}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}}
+ 
+/* JÂMES HOLOGRAPHIC COMMAND INTERFACE */
+:root{--bg:#02060d;--panel:#081522;--panel2:#0b2030;--line:rgba(88,218,255,.22);--cyan:#62e8ff;--blue:#398cff;--ice:#e8fcff}
+body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparent 42%),radial-gradient(ellipse at 50% 100%,rgba(0,72,112,.15),transparent 45%),#02060d}
+.app-shell{max-width:1680px;padding:22px clamp(14px,3vw,48px) 42px}
+.topbar{border-bottom-color:rgba(98,232,255,.22)}
+.brand-mark{background:radial-gradient(circle,#173d55,#071522 70%);box-shadow:0 0 28px rgba(58,202,255,.28),inset 0 0 20px rgba(98,232,255,.18)}
+.hero.head-view{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.1fr);min-height:510px;margin:24px 0 20px;padding:35px clamp(18px,5vw,76px);border-radius:26px;border-color:rgba(98,232,255,.26);background:radial-gradient(ellipse at 24% 50%,rgba(18,102,147,.24),transparent 42%),linear-gradient(125deg,rgba(5,19,32,.98),rgba(3,10,20,.98));box-shadow:0 30px 90px rgba(0,0,0,.45),inset 0 0 55px rgba(33,164,220,.055)}
+.reactor-wrap{min-height:390px}
+.reactor.holographic-eye{width:min(370px,72vw);filter:drop-shadow(0 0 42px rgba(36,195,255,.35))}
+.holographic-eye:before{inset:1%;border:1px solid rgba(96,232,255,.5);box-shadow:0 0 55px rgba(45,191,255,.25),inset 0 0 38px rgba(52,189,255,.16)}
+.holographic-eye:after{inset:9%;border:1px dashed rgba(88,178,255,.7)}
+.eye-aura{position:absolute;inset:18%;border-radius:50%;background:radial-gradient(circle,rgba(35,181,255,.15),transparent 68%);filter:blur(10px);animation:eyeAura 4s ease-in-out infinite}
+.eye-shell{position:relative;width:69%;height:43%;border-radius:50% 50% 48% 48% / 58% 58% 42% 42%;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(158,247,255,.75);background:radial-gradient(ellipse at 50% 38%,rgba(102,231,255,.38),rgba(13,67,105,.75) 53%,rgba(3,15,29,.94) 75%);box-shadow:0 0 22px rgba(68,215,255,.45),inset 0 0 26px rgba(101,236,255,.26);transform:rotate(-4deg)}
+.eye-iris{position:relative;width:46%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:repeating-conic-gradient(from 0deg,#7cf5ff 0deg 3deg,#126b9c 4deg 7deg,#45c5ed 8deg 10deg);box-shadow:0 0 20px #4bdfff,0 0 54px rgba(47,181,255,.8);animation:irisPulse 5s ease-in-out infinite}
+.eye-pupil{width:43%;height:75%;border-radius:50%;background:radial-gradient(ellipse at 40% 35%,#123b58,#020711 72%);box-shadow:0 0 16px rgba(0,0,0,.9),0 0 0 2px rgba(156,248,255,.75);display:grid;place-items:center}
+.eye-pupil i{width:3px;height:3px;border-radius:50%;background:#fff;box-shadow:0 0 12px 4px #a9faff}
+.eye-glint{position:absolute;top:17%;left:25%;width:13%;height:8%;border-radius:50%;background:#efffff;filter:blur(2px);box-shadow:0 0 14px 5px #8af6ff}
+.eye-scan{position:absolute;inset:18% 12%;border-top:1px solid rgba(124,238,255,.35);border-bottom:1px solid rgba(124,238,255,.18);border-radius:50%;animation:scanOrbit 8s linear infinite}
+.reactor-label{bottom:-25px;letter-spacing:.2em;color:#8ceaff}
+.hero-copy{max-width:650px}
+.hero h1{font-size:clamp(34px,5vw,64px);letter-spacing:-.035em}
+.hero-copy>p{font-size:15px;max-width:540px}
+.head-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.head-actions button{min-width:180px}
+.module-nav{position:sticky;top:0;z-index:8;padding:12px 0 15px;background:rgba(2,8,15,.9);backdrop-filter:blur(16px);border-bottom:1px solid rgba(98,232,255,.12)}
+.module-nav button{min-height:48px;min-width:120px;border-radius:12px;font-size:10px;letter-spacing:.08em}
+.module-nav button[aria-pressed="true"]{background:linear-gradient(135deg,rgba(29,142,180,.5),rgba(7,33,54,.98));border-color:rgba(98,232,255,.7);box-shadow:0 0 22px rgba(37,181,232,.14),inset 0 0 18px rgba(98,232,255,.08)}
+.view{min-height:52vh}
+#controlView{padding-top:10px}
+.overview-card,.panel{border-radius:17px;border-color:rgba(98,232,255,.2);background:linear-gradient(145deg,rgba(8,25,41,.97),rgba(3,12,23,.98));box-shadow:0 18px 48px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.035)}
+.overview-card{padding:22px}
+.overview-card h2,.panel-title{font-size:12px;letter-spacing:.16em}
+.metric{color:#c8f8ff;text-shadow:0 0 22px rgba(98,232,255,.15)}
+#chat{height:min(62vh,720px);min-height:420px;background:radial-gradient(ellipse at 50% 0%,rgba(20,93,130,.2),transparent 55%),rgba(1,7,14,.5)}
+#prompt{min-height:94px;border-radius:14px;background:rgba(1,7,14,.85);border-color:rgba(98,232,255,.24)}
+#form{background:rgba(4,15,26,.94)}
+.msg{border-radius:15px;font-size:14px;line-height:1.8}
+.user{background:linear-gradient(135deg,rgba(14,89,126,.94),rgba(8,43,68,.98))}
+.bot{background:linear-gradient(135deg,rgba(12,36,55,.98),rgba(7,21,35,.98))}
+.voice-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.7fr);gap:16px;padding-top:18px}
+.voice-main,.voice-side{padding:22px}
+.voice-select{width:100%;padding:13px;border:1px solid rgba(98,232,255,.3);border-radius:10px;background:#061522;color:#e7fbff;margin:9px 0 18px}
+.field-label,.voice-adjust label{display:flex;justify-content:space-between;color:#80bfd0;font:10px 'DM Mono',monospace;letter-spacing:.12em}
+.voice-style-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.voice-style{display:flex;flex-direction:column;gap:6px;text-align:left;min-height:82px;padding:14px;border:1px solid rgba(98,232,255,.2);background:rgba(4,20,34,.8);color:#dffaff}
+.voice-style strong{font-size:11px}.voice-style span{font-size:9px;color:#8caabb;font-weight:500}
+.voice-style.active{border-color:#62e8ff;box-shadow:inset 0 0 20px rgba(98,232,255,.1)}
+.voice-adjust{display:grid;gap:9px;margin-top:22px}
+.voice-adjust input{width:100%;accent-color:#62e8ff;margin-bottom:10px}
+.voice-adjust output{color:#e7fbff}
+.voice-orb-mini{width:84px;height:84px;margin:18px auto;border-radius:50%;display:grid;place-items:center;font-size:42px;color:#b9faff;border:1px solid rgba(98,232,255,.55);background:radial-gradient(circle,#1d8bb3,#061421 70%);box-shadow:0 0 35px rgba(39,190,240,.25)}
+.voice-side h2{text-align:center;color:#e4fbff;font-size:14px}
+.voice-side .panel-description{text-align:center}
+.voice-side button{width:100%;white-space:normal}
+@keyframes eyeAura{0%,100%{opacity:.45;transform:scale(.92)}50%{opacity:1;transform:scale(1.12)}}
+@keyframes irisPulse{0%,100%{transform:scale(.96)}50%{transform:scale(1.05)}}
+@keyframes scanOrbit{to{transform:rotate(360deg)}}
+@media(max-width:760px){.hero.head-view{grid-template-columns:1fr;min-height:0;padding:24px 18px 32px;gap:10px}.reactor-wrap{min-height:290px}.reactor.holographic-eye{width:260px}.head-actions{justify-content:center}.head-actions button{flex:1 1 100%}.voice-layout{grid-template-columns:1fr}.module-nav{gap:6px}.module-nav button{min-width:108px}}
+@media(max-width:520px){.app-shell{padding:10px 10px 26px}.reactor-wrap{min-height:240px}.reactor.holographic-eye{width:220px}.hero h1{font-size:34px}.hero-copy>p{font-size:12px}.voice-style-grid{grid-template-columns:1fr}.voice-style{min-height:60px}.module-nav button{min-width:98px;padding:8px}.overview-card{padding:17px}}
+@media(prefers-reduced-motion:reduce){.eye-aura,.irisPulse,.scanOrbit{animation:none!important}}
+
 </style>
 </head>
 <body>
@@ -140,32 +202,37 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
  <div id="status" role="status" aria-live="polite">Pronto para conversar.</div>
 </header>
 
-<section class="hero" aria-label="Central de comando do Jâmes">
+<section class="hero view head-view" id="overviewView" aria-label="Cabeça holográfica do Jâmes">
  <div class="reactor-wrap" aria-hidden="true">
-  <div class="reactor"><div class="orbit"></div><div class="orbit two"></div><div class="orbit three"></div><div class="core"></div></div>
-  <div class="reactor-label">CENTRAL JÂMES // ESTADO DINÂMICO</div>
+  <div class="reactor holographic-eye" id="jamesEye" data-state="idle" role="img" aria-label="Olho holográfico do Jâmes em repouso">
+   <div class="eye-aura"></div><div class="orbit"></div><div class="orbit two"></div><div class="orbit three"></div>
+   <div class="eye-shell"><div class="eye-iris"><div class="eye-pupil"><i></i></div><div class="eye-glint"></div></div></div>
+   <div class="eye-scan"></div>
+  </div>
+  <div class="reactor-label" id="eyeState">NÚCLEO ÓPTICO // EM REPOUSO</div>
  </div>
  <div class="hero-copy">
   <div class="eyebrow">CENTRAL DE COMANDO PESSOAL</div>
-  <h1>Jâmes está pronto.</h1>
-  <p>Um núcleo de inteligência conectado a ferramentas, contexto e recursos do dispositivo. Selecione um subsistema ou dê uma instrução direta.</p>
+  <h1>Estou à sua disposição.</h1>
+  <p>Uma interface de comando pessoal. Converse, configure os módulos e acompanhe os estados do sistema em um só lugar.</p>
   <div class="hero-meta">
    <span class="meta-chip"><b>01</b> · NÚCLEO COGNITIVO</span>
    <span class="meta-chip"><b>02</b> · PERCEPÇÃO</span>
    <span class="meta-chip"><b>03</b> · EXECUÇÃO AUTORIZADA</span>
   </div>
+  <div class="head-actions"><button type="button" id="headOpenChat">INICIAR CONVERSA</button><button type="button" class="secondary" id="headOpenControl">PAINEL DE CONTROLE</button></div>
  </div>
 </section>
 
-<nav class="view-nav" aria-label="Subsistemas do Jâmes">
- <button type="button" data-view-target="overview" aria-pressed="true">VISÃO GERAL</button>
- <button type="button" data-view-target="intelligence" aria-pressed="false">NÚCLEO</button>
- <button type="button" data-view-target="perception" aria-pressed="false">PERCEPÇÃO</button>
- <button type="button" data-scroll-target="tasksSection">AUTOMAÇÕES</button>
- <button type="button" data-scroll-target="memoriesSection">MEMÓRIA</button>
- <button type="button" data-view-target="device" aria-pressed="false">DISPOSITIVO</button>
+<nav class="view-nav module-nav" aria-label="Módulos do Jâmes">
+ <button type="button" data-view-target="overview" aria-pressed="true">◉ CABEÇA</button>
+ <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
+ <button type="button" data-view-target="intelligence" aria-pressed="false">▤ CHAT</button>
+ <button type="button" data-view-target="voices" aria-pressed="false">♫ VOZES</button>
+ <button type="button" data-view-target="perception" aria-pressed="false">◎ VISÃO</button>
+ <button type="button" data-view-target="device" aria-pressed="false">▦ SISTEMA</button>
 </nav>
-<section id="overviewView" class="view">
+<section id="controlView" class="view" hidden>
  <div class="overview-grid">
   <article class="overview-card wide"><h2>Núcleo de inteligência</h2><div class="metric" id="overviewCoreState">INICIALIZANDO</div><p id="overviewCoreDetail">Verificando a conexão com o serviço de inteligência e suas ferramentas.</p><div class="module-actions"><button type="button" data-view-target="intelligence">Abrir console de comando</button><button type="button" class="secondary" id="overviewVoice">Falar com Jâmes</button></div></article>
   <article class="overview-card"><h2>Dispositivo</h2><div class="metric" id="overviewBattery">--</div><div class="metric-sub" id="overviewDeviceName">Dados do aparelho indisponíveis</div><div class="module-actions"><button type="button" class="secondary" data-view-target="device">Diagnóstico</button></div></article>
@@ -209,6 +276,33 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
   </section>
  </aside>
 </div>
+
+<section id="voicesView" class="view voice-view" hidden>
+ <div class="voice-layout">
+  <section class="panel voice-main">
+   <div class="panel-head"><div><div class="panel-title">Identidade vocal</div><div class="panel-kicker">SÍNTESE DE VOZ · CONFIGURAÇÃO LOCAL</div></div></div>
+   <p class="panel-description">Escolha uma voz em português do Brasil disponível neste aparelho e ajuste a forma de falar do Jâmes. Os estilos abaixo alteram ritmo e entonação; não são clonagens de atores, dubladores ou personagens.</p>
+   <label class="field-label" for="jamesVoiceSelect">VOZ DISPONÍVEL</label>
+   <select id="jamesVoiceSelect" class="voice-select"><option value="">Carregando vozes disponíveis…</option></select>
+   <div class="voice-style-grid">
+    <button type="button" class="voice-style active" data-voice-style="jarvis"><strong>Clássica</strong><span>Calma, precisa e formal</span></button>
+    <button type="button" class="voice-style" data-voice-style="patrick"><strong>Envolvente</strong><span>Natural, firme e expressiva</span></button>
+    <button type="button" class="voice-style" data-voice-style="demon"><strong>Intensa</strong><span>Grave, confiante e dramática</span></button>
+   </div>
+   <div class="voice-adjust">
+    <label for="voiceRate">VELOCIDADE <output id="voiceRateValue">1,00×</output></label><input id="voiceRate" type="range" min="0.75" max="1.25" step="0.05" value="1">
+    <label for="voicePitch">TOM <output id="voicePitchValue">1,00</output></label><input id="voicePitch" type="range" min="0.75" max="1.25" step="0.05" value="1">
+   </div>
+   <div class="module-actions"><button type="button" id="testJamesVoice">OUVIR AMOSTRA</button><button type="button" class="secondary" id="saveJamesVoice">SALVAR CONFIGURAÇÃO</button></div>
+   <p class="small" id="voiceAvailability">As vozes dependem do mecanismo de síntese instalado no dispositivo. Nenhum áudio será enviado para teste.</p>
+  </section>
+  <section class="panel voice-side"><div class="panel-head"><div class="panel-title">Entrada por voz</div></div>
+   <div class="voice-orb-mini">◉</div><h2>Escuta sob comando</h2>
+   <p class="panel-description">O reconhecimento de fala precisa de um mecanismo de entrada autorizado. Esta interface não abrirá a janela externa do Google. No navegador, a gravação e transcrição ainda não estão conectadas ao núcleo.</p>
+   <button type="button" class="secondary" id="voiceInputStatus" disabled>MICROFONE DO NAVEGADOR: NÃO CONECTADO</button>
+  </section>
+ </div>
+</section>
 
 <section id="perceptionView" class="lower-grid view" hidden>
  <section class="panel lower-panel">
@@ -501,17 +595,47 @@ function getSessionId(){
  return id;
 }
 
+let jamesVoices=[];
+let selectedJamesVoice=localStorage.getItem("james_voice_uri")||"";
+let jamesVoiceStyle=localStorage.getItem("james_voice_style")||"jarvis";
+function refreshJamesVoices(){
+ if(!("speechSynthesis" in window))return;
+ jamesVoices=window.speechSynthesis.getVoices().filter(v=>/^pt[-_]BR$/i.test(v.lang));
+ const select=$("jamesVoiceSelect");
+ if(!select)return;
+ select.replaceChildren();
+ if(!jamesVoices.length){
+  const option=document.createElement("option");option.value="";option.textContent="Nenhuma voz pt-BR detectada neste aparelho";select.appendChild(option);
+  $("voiceAvailability").textContent="O navegador não informou vozes brasileiras disponíveis. Instale/ative uma voz pt-BR nas configurações de texto para fala do Android.";
+  return;
+ }
+ jamesVoices.forEach((voice,index)=>{
+  const option=document.createElement("option");option.value=voice.voiceURI;option.textContent="Voz brasileira "+(index+1);select.appendChild(option);
+ });
+ if(!jamesVoices.some(v=>v.voiceURI===selectedJamesVoice))selectedJamesVoice=jamesVoices[0].voiceURI;
+ select.value=selectedJamesVoice;
+ $("voiceAvailability").textContent=jamesVoices.length+" voz(es) pt-BR detectada(s). A voz é sintetizada pelo mecanismo instalado no aparelho.";
+}
+if("speechSynthesis" in window){refreshJamesVoices();window.speechSynthesis.onvoiceschanged=refreshJamesVoices;}
+function applyJamesVoiceStyle(){
+ document.querySelectorAll("[data-voice-style]").forEach(button=>button.classList.toggle("active",button.dataset.voiceStyle===jamesVoiceStyle));
+}
 function speak(text){
  if(window.JamesAndroid){
   try{
    const result=JSON.parse(window.JamesAndroid.speak(String(text).slice(0,15000))||"{}");
    if(!result.success)statusBox.textContent=result.message||"A voz do Android não está disponível.";
-  }catch(error){
-   statusBox.textContent="Não foi possível iniciar a voz do Android.";
-  }
+  }catch(error){statusBox.textContent="Não foi possível iniciar a voz do Android.";}
   return;
  }
- statusBox.textContent="A síntese de voz própria está disponível na sessão de voz do aplicativo Android Jâmes.";
+ if(!("speechSynthesis" in window)||!jamesVoices.length){statusBox.textContent="Nenhuma voz brasileira compatível está disponível neste navegador.";return;}
+ const styles={jarvis:{rate:1,pitch:.94},patrick:{rate:1.04,pitch:1.02},demon:{rate:.94,pitch:.82}};
+ const style=styles[jamesVoiceStyle]||styles.jarvis;
+ const utterance=new SpeechSynthesisUtterance(String(text).slice(0,15000));
+ utterance.lang="pt-BR";utterance.voice=jamesVoices.find(v=>v.voiceURI===selectedJamesVoice)||jamesVoices[0];
+ utterance.rate=style.rate*Number($("voiceRate")?.value||1);
+ utterance.pitch=style.pitch*Number($("voicePitch")?.value||1);
+ window.speechSynthesis.cancel();window.speechSynthesis.speak(utterance);
 }
 
 function executeAndroidActions(actions){
@@ -552,7 +676,7 @@ async function sendMessage(message,attachments=null){
  $("prompt").value="";
  $("send").disabled=true;
  $("sendImage").disabled=true;
- statusBox.textContent="Jâmes está pensando...";
+ statusBox.textContent="Jâmes está pensando...";const eye=$("jamesEye");if(eye){eye.dataset.state="thinking";$("eyeState").textContent="NÚCLEO ÓPTICO // PROCESSANDO";}
 
  try{
   const now=new Date();
@@ -594,6 +718,7 @@ async function sendMessage(message,attachments=null){
 
   addMessage(data.reply,"bot");
   executeAndroidActions(data.clientActions);
+  if(eye){eye.dataset.state="idle";$("eyeState").textContent="NÚCLEO ÓPTICO // RESPOSTA CONCLUÍDA";}
   statusBox.textContent=data.reasoningLevel==="high"
    ?"Resposta concluída após análise aprofundada."
    :"Resposta recebida.";
@@ -604,6 +729,7 @@ async function sendMessage(message,attachments=null){
  }catch(error){
   const detail=error.message||"O serviço não forneceu detalhes adicionais.";
   addMessage("Não foi possível concluir este comando.\\nMotivo informado pelo serviço: "+detail,"error");
+  if(eye){eye.dataset.state="idle";$("eyeState").textContent="NÚCLEO ÓPTICO // AGUARDANDO";}
   statusBox.textContent="Solicitação não concluída: "+detail;
  }finally{
   $("send").disabled=false;
@@ -611,7 +737,7 @@ async function sendMessage(message,attachments=null){
  }
 }
 
-const viewIds={overview:"overviewView",intelligence:"intelligenceView",perception:"perceptionView",device:"deviceView"};
+const viewIds={overview:"overviewView",control:"controlView",intelligence:"intelligenceView",voices:"voicesView",perception:"perceptionView",device:"deviceView"};
 function switchView(name){
  const active=viewIds[name]?name:"overview";
  for(const [key,id] of Object.entries(viewIds))$(id).hidden=key!==active;
@@ -629,6 +755,8 @@ document.querySelectorAll("[data-scroll-target]").forEach(button=>button.addEven
  if(target)target.scrollIntoView({behavior:"smooth",block:"start"});
 }));
 $("overviewVoice").addEventListener("click",()=>{switchView("intelligence");$("voice").click();});
+$("headOpenChat").addEventListener("click",()=>switchView("intelligence"));
+$("headOpenControl").addEventListener("click",()=>switchView("control"));
 switchView("overview");
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
 $("voiceOutput").addEventListener("click",()=>{
@@ -646,6 +774,23 @@ $("stopVoice").addEventListener("click",()=>{
  statusBox.textContent="Voz interrompida.";
 });
 updateVoiceOutputButton();
+$("jamesVoiceSelect").addEventListener("change",event=>{selectedJamesVoice=event.target.value;});
+document.querySelectorAll("[data-voice-style]").forEach(button=>button.addEventListener("click",()=>{jamesVoiceStyle=button.dataset.voiceStyle;applyJamesVoiceStyle();}));
+$("voiceRate").addEventListener("input",event=>$("voiceRateValue").textContent=Number(event.target.value).toFixed(2).replace(".",",")+"×");
+$("voicePitch").addEventListener("input",event=>$("voicePitchValue").textContent=Number(event.target.value).toFixed(2).replace(".",","));
+$("testJamesVoice").addEventListener("click",()=>speak("Olá. Eu sou Jâmes. Sistema de inteligência pessoal pronto para ajudar."));
+$("saveJamesVoice").addEventListener("click",()=>{
+ localStorage.setItem("james_voice_uri",selectedJamesVoice);
+ localStorage.setItem("james_voice_style",jamesVoiceStyle);
+ localStorage.setItem("james_voice_rate",$("voiceRate").value);
+ localStorage.setItem("james_voice_pitch",$("voicePitch").value);
+ statusBox.textContent="Preferências de voz salvas neste aparelho.";
+});
+const savedRate=localStorage.getItem("james_voice_rate");if(savedRate)$("voiceRate").value=savedRate;
+const savedPitch=localStorage.getItem("james_voice_pitch");if(savedPitch)$("voicePitch").value=savedPitch;
+$("voiceRateValue").textContent=Number($("voiceRate").value).toFixed(2).replace(".",",")+"×";
+$("voicePitchValue").textContent=Number($("voicePitch").value).toFixed(2).replace(".",",");
+applyJamesVoiceStyle();
 $("refreshTasks").addEventListener("click",loadTasks);
 $("refreshMemories").addEventListener("click",loadMemories);
 $("form").addEventListener("submit",event=>{

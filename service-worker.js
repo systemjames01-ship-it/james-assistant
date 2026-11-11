@@ -1,4 +1,4 @@
-const CACHE_NAME = "james-shell-v3-0";
+const CACHE_NAME = "james-shell-v3-2";
 const APP_SHELL = [
   "./",
   "./index.html",
