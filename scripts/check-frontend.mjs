@@ -49,12 +49,12 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     !html.includes('href="./james-v3.css"') ||
     !neuralCss.includes(".hero.head-view") ||
     !neuralCss.includes("#jamesNeuralCanvas") ||
-    !neuralVoice.includes("litert-community/Kokoro-82M") ||
+    !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
     !neuralVoice.includes("falarEmFluxo") ||
-    !neuralVoice.includes('"pm_alex"') ||
-    !neuralVoice.includes('"pm_santa"') ||
-    !neuralVoice.includes('delegate: "GPU"') ||
-    !neuralVoice.includes('delegate: "CPU"') ||
+    !neuralVoice.includes("pt_BR-faber-medium-uint8.onnx") ||
+    !neuralVoice.includes('dispositivo: "auto"') ||
+    !neuralVoice.includes("aoProgredir") ||
+    !neuralVoice.includes("Piper.carregar") ||
     html.includes("speechSynthesis") ||
     html.includes("SpeechSynthesisUtterance") ||
     html.includes("JamesAndroid.speak") ||
@@ -65,7 +65,7 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     workerCode.includes("voiceName: [\"Charon\", \"Algieba\", \"Algenib\"]") ||
     !appShell.includes("./james-neural-voice.js") ||
     !appShell.includes("./james-v3.css")) {
-  throw new Error("Local Kokoro voice, male Brazilian Portuguese profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
+  throw new Error("Local Piper/Faber Brazilian Portuguese voice, original voice profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
 }
 
-console.log("Validated Jâmes v3 command interface, local Kokoro TTS, male pt-BR profiles, live text-to-neural-speech, PWA, and legacy integrations.");
+console.log("Validated Jâmes v3 command interface, local Piper/Faber pt-BR TTS, voice profiles, live text-to-neural-speech, PWA, and legacy integrations.");
