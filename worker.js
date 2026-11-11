@@ -299,10 +299,9 @@ async function fetchPublicPage(rawUrl) {
 
 async function executeAssistantTool(env, sessionId, name, args = {}) {
   if (name === "android_open_app") {
-    const packageName = typeof args.package_name === "string" ? args.package_name.trim() : "";
     const appName = typeof args.app_name === "string" ? args.app_name.trim().slice(0, 80) : "";
-    if (!/^[A-Za-z0-9_.]{3,180}$/.test(packageName) || !appName) return { error: "Nome do aplicativo e identificador Android válido são necessários." };
-    return { queuedForDevice: true, clientAction: { type: "open_app", packageName, appName }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android. Não afirme que o aplicativo já abriu." };
+    if (!appName) return { error: "Informe o nome do aplicativo que o usuário pediu para abrir." };
+    return { queuedForDevice: true, clientAction: { type: "open_app", appName }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android. Não afirme que o aplicativo já abriu." };
   }
   if (name === "android_schedule_reminder") {
     const title = typeof args.title === "string" ? args.title.trim().slice(0, 180) : "";
@@ -414,11 +413,10 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
     functionDeclarations: [
       {
         name: "android_open_app",
-        description: "Abre um aplicativo no Android do usuário. Use SOMENTE quando ele pedir explicitamente para abrir/iniciar um aplicativo. Informe nome e package name correto; não adivinhe identificadores incertos.",
+        description: "Abre um aplicativo instalado no Android do usuário. Use SOMENTE quando ele pedir explicitamente para abrir/iniciar um aplicativo. Informe o nome visível do aplicativo, sem adivinhar package names.",
         parameters: { type: "OBJECT", properties: {
-          app_name: { type: "STRING", description: "Nome do aplicativo solicitado." },
-          package_name: { type: "STRING", description: "Identificador de pacote Android correto." }
-        }, required: ["app_name", "package_name"] }
+          app_name: { type: "STRING", description: "Nome visível do aplicativo solicitado, por exemplo WhatsApp." }
+        }, required: ["app_name"] }
       },
       {
         name: "android_schedule_reminder",
