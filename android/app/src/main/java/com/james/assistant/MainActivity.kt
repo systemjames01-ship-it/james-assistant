@@ -730,8 +730,15 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun restartLiveConversation() {
+        val restoreVision = liveCamera != null || liveVisionPending
         stopLiveConversation()
-        startLiveConversation()
+        liveVisionPending = restoreVision
+        Thread({
+            try { Thread.sleep(2200) } catch (_: InterruptedException) { return@Thread }
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed) startLiveConversation()
+            }
+        }, "JamesVoiceProfileSwitch").apply { isDaemon = true; start() }
     }
 
     private fun stopLiveVision() {
@@ -830,7 +837,7 @@ class MainActivity : android.app.Activity() {
         val asksToStartVision = normalized.contains("ligar visao") || normalized.contains("ativar visao") || normalized.contains("abra os olhos")
         if (asksToStopVision) { stopLiveVision(); return true }
         if (asksToStartVision) { if (liveCamera == null && !liveVisionPending) toggleLiveVision(); return true }
-        val asksForVoice = normalized.contains("mudar voz") || normalized.contains("trocar voz") || normalized.contains("escolher voz") || normalized.contains("voz do james")
+        val asksForVoice = normalized.contains("mudar voz") || normalized.contains("mudar para voz") || normalized.contains("trocar voz") || normalized.contains("trocar a voz") || normalized.contains("alterar voz") || normalized.contains("escolher voz") || normalized.contains("voz do james")
         if (!asksForVoice) return false
         val second = normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") || normalized.contains("voz alternativa")
         val first = normalized.contains("voz 1") || normalized.contains("voz um") || normalized.contains("primeira voz") || normalized.contains("voz principal")
