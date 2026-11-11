@@ -710,6 +710,9 @@ class MainActivity : android.app.Activity() {
                             }
                         }
                         override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
+                        override fun onAudioLevel(level: Float, speaking: Boolean) {
+                            runOnUiThread { orbView?.setAudioLevel(level) }
+                        }
                         override fun onToolCall(id: String, name: String, args: JSONObject) {
                             handleLiveToolCall(id, name, args)
                         }
@@ -804,6 +807,7 @@ class MainActivity : android.app.Activity() {
         liveConversationEnabled = false
         liveVoiceSession?.close()
         liveVoiceSession = null
+        orbView?.setAudioLevel(0f)
         liveButton?.text = "INICIAR CONVERSA AO VIVO"
         setStatus("CONVERSA AO VIVO ENCERRADA")
     }
