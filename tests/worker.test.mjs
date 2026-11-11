@@ -559,7 +559,7 @@ test("live token endpoint returns a one-use token without exposing the API key",
     }
   };
   globalThis.fetch = async (url, options) => {
-    assert.equal(String(url), "https://generativelanguage.googleapis.com/v1beta/auth_tokens");
+    assert.equal(String(url), "https://generativelanguage.googleapis.com/v1alpha/auth_tokens");
     assert.equal(options.headers["x-goog-api-key"], "secret-test-key");
     provisionBody = JSON.parse(options.body);
     return new Response(JSON.stringify({ name: "auth_tokens/short-lived" }), { status: 200 });
@@ -568,7 +568,7 @@ test("live token endpoint returns a one-use token without exposing the API key",
     const request = new Request("https://worker.test/?action=live-token", {
       method: "POST",
       headers: { Origin: origin, "CF-Connecting-IP": "192.0.2.20", "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: "session_test_12345" })
+      body: JSON.stringify({ sessionId: "session_test_12345", voiceProfile: 2 })
     });
     const response = await worker.fetch(request, { GEMINI_API_KEY: "secret-test-key", DB: db });
     const body = await response.json();
@@ -578,7 +578,10 @@ test("live token endpoint returns a one-use token without exposing the API key",
     assert.equal(JSON.stringify(body).includes("secret-test-key"), false);
     assert.equal(provisionBody.uses, 1);
     assert.equal(provisionBody.liveConnectConstraints.model, "models/gemini-3.8-live");
-    assert.deepEqual(provisionBody.liveConnectConstraints.config.responseModalities, ["AUDIO"]);
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.generationConfig.responseModalities, ["AUDIO"]);
+    assert.equal(provisionBody.liveConnectConstraints.config.generationConfig.speechConfig.languageCode, "pt-BR");
+    assert.equal(provisionBody.liveConnectConstraints.config.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Algenib");
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.realtimeInputConfig.automaticActivityDetection, { disabled: false });
   } finally {
     globalThis.fetch = originalFetch;
   }
