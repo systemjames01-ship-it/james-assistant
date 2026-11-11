@@ -93,14 +93,21 @@ class MainActivity : android.app.Activity() {
         @JavascriptInterface fun version(): String = "2.5.0"
         @JavascriptInterface fun platform(): String = "android"
 
-        @JavascriptInterface fun openApp(packageName: String): String {
-            if (!packageName.matches(Regex("[A-Za-z0-9_.]{3,180}"))) return result(false, "Identificador de aplicativo inválido.")
+        @JavascriptInterface fun openApp(appName: String): String {
+            val requested = appName.trim()
+            if (requested.isBlank() || requested.length > 80) return result(false, "Nome de aplicativo inválido.")
             return try {
+                val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                val matches = packageManager.queryIntentActivities(launcher, 0).filter {
+                    it.loadLabel(packageManager).toString().equals(requested, ignoreCase = true)
+                }
+                if (matches.size != 1) return result(false, if (matches.isEmpty()) "Não encontrei um aplicativo instalado chamado $requested." else "Há mais de um aplicativo chamado $requested; não abri nenhum.")
+                val packageName = matches.first().activityInfo.packageName
                 val launch = packageManager.getLaunchIntentForPackage(packageName)
-                    ?: return result(false, "Aplicativo não encontrado ou sem tela de abertura: $packageName")
+                    ?: return result(false, "O aplicativo foi encontrado, mas não oferece uma ação de abertura.")
                 launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(launch)
-                result(true, "Aplicativo aberto.")
+                result(true, "$requested aberto.")
             } catch (e: Exception) { result(false, "Não foi possível abrir o aplicativo: ${e.message ?: "erro do Android"}") }
         }
 
