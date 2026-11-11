@@ -3,6 +3,7 @@ package com.james.assistant
 import android.Manifest
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -21,16 +22,25 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import org.json.JSONObject
 import java.util.UUID
+import java.util.Locale
 
 class MainActivity : android.app.Activity() {
     private lateinit var webView: WebView
     private val notificationRequest = 4102
     private val speechRequest = 4103
     private val origin = "https://systemjames01-ship-it.github.io"
+    private var textToSpeech: TextToSpeech? = null
+    @Volatile private var ttsReady = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         createNotificationChannel()
+        textToSpeech = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val languageStatus = textToSpeech?.setLanguage(Locale("pt", "BR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                ttsReady = languageStatus >= TextToSpeech.LANG_AVAILABLE
+            }
+        }
         webView = WebView(this)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
@@ -57,7 +67,7 @@ class MainActivity : android.app.Activity() {
         }
     }
 
-    override fun onBackPressed() {
+    override fun onDestroy() {\n        textToSpeech?.stop()\n        textToSpeech?.shutdown()\n        super.onDestroy()\n    }\n\n    override fun onBackPressed() {
         if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
@@ -89,6 +99,18 @@ class MainActivity : android.app.Activity() {
                 }
             }
             return JSONObject().put("success", true).put("message", "Reconhecimento de voz iniciado.").toString()
+        }
+
+        @JavascriptInterface fun speak(text: String): String {
+            if (text.length > 15000) return result(false, "Texto longo demais para leitura em voz alta.")
+            if (!ttsReady || textToSpeech == null) return result(false, "A voz em português ainda não está pronta ou não está instalada no Android.")
+            runOnUiThread { textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "james-reply") }
+            return result(true, "Leitura em voz alta iniciada.")
+        }
+
+        @JavascriptInterface fun stopSpeaking(): String {
+            runOnUiThread { textToSpeech?.stop() }
+            return result(true, "Leitura interrompida.")
         }
 
         @JavascriptInterface fun version(): String = "2.5.0"
