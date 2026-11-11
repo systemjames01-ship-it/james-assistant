@@ -721,6 +721,7 @@ class MainActivity : android.app.Activity() {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
                                     setStatus(message)
+                                    if (message.contains("JÂMES AO VIVO")) liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
                                     if (liveVisionPending && message.contains("JÂMES AO VIVO")) startLiveVision()
                                 }
                             }
@@ -750,7 +751,6 @@ class MainActivity : android.app.Activity() {
                             }
                         }
                     }).also { it.start() }
-                    liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
                 }
             } catch (error: Exception) {
                 runOnUiThread {
