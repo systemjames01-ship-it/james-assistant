@@ -28,6 +28,7 @@ class JamesLiveAudioSession(
         fun onStatus(message: String)
         fun onUserTranscript(text: String)
         fun onAssistantTranscript(text: String)
+        fun onToolCall(id: String, name: String, args: JSONObject)
         fun onFailure(message: String)
     }
 
@@ -77,6 +78,15 @@ class JamesLiveAudioSession(
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
                     val message = JSONObject(text)
+                    val toolCall = message.optJSONObject("toolCall")
+                    if (toolCall != null) {
+                        val calls = toolCall.optJSONArray("functionCalls") ?: org.json.JSONArray()
+                        for (index in 0 until calls.length()) {
+                            val call = calls.optJSONObject(index) ?: continue
+                            listener.onToolCall(call.optString("id"), call.optString("name"), call.optJSONObject("args") ?: JSONObject())
+                        }
+                        return
+                    }
                     if (message.has("setupComplete")) {
                         setupReady = true
                         initializeAudio()
@@ -131,6 +141,13 @@ class JamesLiveAudioSession(
                 close()
             }
         })
+    }
+
+    fun sendToolResponse(callId: String, name: String, response: JSONObject): Boolean {
+        if (!running.get() || !setupReady || callId.isBlank() || name.isBlank()) return false
+        val functionResponse = JSONObject().put("id", callId).put("name", name).put("response", response)
+        return socket?.send(JSONObject().put("toolResponse", JSONObject()
+            .put("functionResponses", org.json.JSONArray().put(functionResponse))).toString()) == true
     }
 
     fun sendVideoFrame(jpeg: ByteArray): Boolean {
