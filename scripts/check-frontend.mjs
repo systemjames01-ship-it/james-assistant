@@ -50,7 +50,7 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     !neuralCss.includes(".hero.head-view") ||
     !neuralCss.includes("#jamesNeuralCanvas") ||
     !neuralVoice.includes("litert-community/Kokoro-82M") ||
-    !neuralVoice.includes("synthesizeStream") ||
+    !neuralVoice.includes("falarEmFluxo") ||
     !neuralVoice.includes('"pm_alex"') ||
     !neuralVoice.includes('"pm_santa"') ||
     !neuralVoice.includes('delegate: "GPU"') ||
