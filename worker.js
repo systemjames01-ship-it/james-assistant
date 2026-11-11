@@ -76,14 +76,12 @@ async function loadConversation(db, sessionId) {
   const result = await db.prepare(`
     SELECT role, content
     FROM james_conversation_messages_v21
-    WHERE session_id IN (?, ?)
+    WHERE session_id IN (?, ?, ?)
     ORDER BY id DESC
-    LIMIT 12
-  `).bind(sessionId + "_assistant", sessionId + "_chat").all();
+    LIMIT 16
+  `).bind(sessionId, sessionId + "_assistant", sessionId + "_chat").all();
 
-  return (result.results || [])
-    .reverse()
-    .map(row => ({ role: row.role, parts: [{ text: row.content }] }));
+  return (result.results || []).reverse().map(row => ({ role: row.role, parts: [{ text: row.content }] }));
 }
 
 async function saveConversationTurn(db, sessionId, userContent, reply) {
@@ -106,43 +104,20 @@ async function saveConversationTurn(db, sessionId, userContent, reply) {
 async function fetchConversationPage(db, sessionId, beforeId = null, limit = 30) {
   await ensureConversationTable(db);
   const safeLimit = Math.max(1, Math.min(50, Number(limit) || 30));
+  const query = beforeId
+    ? `SELECT id, role, content, created_at FROM james_conversation_messages_v21 WHERE session_id IN (?, ?, ?) AND id < ? ORDER BY id DESC LIMIT ?`
+    : `SELECT id, role, content, created_at FROM james_conversation_messages_v21 WHERE session_id IN (?, ?, ?) ORDER BY id DESC LIMIT ?`;
+  const statement = db.prepare(query);
   const result = beforeId
-    ? await db.prepare(`
-        SELECT id, role, content, created_at
-        FROM james_conversation_messages_v21
-        WHERE session_id = ? AND id < ?
-        ORDER BY id DESC
-        LIMIT ?
-      `).bind(sessionId, beforeId, safeLimit + 1).all()
-    : await db.prepare(`
-        SELECT id, role, content, created_at
-        FROM james_conversation_messages_v21
-        WHERE session_id = ?
-        ORDER BY id DESC
-        LIMIT ?
-      `).bind(sessionId, safeLimit + 1).all();
-
+    ? await statement.bind(sessionId, sessionId + "_assistant", sessionId + "_chat", beforeId, safeLimit + 1).all()
+    : await statement.bind(sessionId, sessionId + "_assistant", sessionId + "_chat", safeLimit + 1).all();
   const rows = result.results || [];
   const hasMore = rows.length > safeLimit;
   const page = rows.slice(0, safeLimit).reverse();
-  return {
-    messages: page.map(row => ({
-      id: row.id,
-      role: row.role,
-      content: row.content,
-      createdAt: row.created_at
-    })),
-    hasMore,
-    nextBefore: hasMore && page.length ? page[0].id : null
-  };
+  return { messages: page.map(row => ({ id: row.id, role: row.role, content: row.content, createdAt: row.created_at })), hasMore, nextBefore: hasMore && page.length ? page[0].id : null };
 }
 
-const CHAT_SYSTEM_INSTRUCTION = `Você é Jâmes, assistente conversacional criado por Jamerson Ramos.
-Este é o Modo Chat: priorize uma conversa natural, fluida e aprofundada por texto, como um assistente conversacional moderno.
-Acompanhe o contexto disponível, explique assuntos, ajude a escrever, estudar, analisar e resolver problemas. Seja claro, útil e adapte o nível de detalhe ao pedido.
-Não execute nem afirme executar ações externas neste modo. Se o utilizador pedir uma ação prática, explique que pode mudar para o Modo Assistente.
-Responda em português do Brasil, salvo pedido diferente. Seja honesto sobre limites, atualidade das informações e capacidades disponíveis. Nunca invente memórias, anexos recebidos ou resultados.
-`;
+
 
 function selectThinkingLevel(contents) {
   const latestUserMessage = [...contents].reverse().find(item => item?.role === "user");
@@ -405,8 +380,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     model + ":generateContent";
 
-  const isAssistantMode = mode === "assistant";
-  const baseInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
+  const baseInstruction = SYSTEM_INSTRUCTION;
   const memoryContext = memories.length
     ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
       memories.map(item => "- " + item.key + ": " + item.value).join("\n")
@@ -548,10 +522,8 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
         parts: [{ text: activeInstruction }]
       },
       contents: transcript,
-      ...(isAssistantMode ? {
-        tools,
-        toolConfig: { functionCallingConfig: { mode: "AUTO" } }
-      } : {}),
+      tools,
+      toolConfig: { functionCallingConfig: { mode: "AUTO" } },
       generationConfig: {
         // Keep a balanced default; reserve HIGH reasoning and a larger output
         // budget for genuinely complex requests instead of rushing them.
@@ -674,7 +646,6 @@ export default {
         }
         if (!env.DB) return json({ error: "Armazenamento de tarefas indisponível.", tasks: [] }, 503, origin);
         const sessionId = url.searchParams.get("sessionId") || "";
-        const mode = url.searchParams.get("mode") === "chat" ? "chat" : "assistant";
         if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
           return json({ error: "Identificador de sessão inválido.", tasks: [] }, 400, origin);
         }
@@ -718,7 +689,7 @@ export default {
         try {
           const page = await fetchConversationPage(
             env.DB,
-            sessionId + "_" + mode,
+            sessionId,
             before && /^\d+$/.test(before) ? Number(before) : null,
             url.searchParams.get("limit") || 30
           );
@@ -765,7 +736,7 @@ export default {
     const sessionId = typeof payload?.sessionId === "string"
       ? payload.sessionId
       : "";
-    const mode = payload?.mode === "chat" ? "chat" : "assistant";
+    const mode = "assistant";
 
     if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
       return json({ error: "Identificador de sessão inválido. Recarregue a página e tente novamente." }, 400, origin);
@@ -825,7 +796,7 @@ export default {
     }
 
     try {
-      const storageSessionId = sessionId + "_" + mode;
+      const storageSessionId = sessionId;
       let history = [];
       let memories = [];
       let memoryAvailable = Boolean(env.DB);
