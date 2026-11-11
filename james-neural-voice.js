@@ -3,7 +3,8 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
 (() => {
   "use strict";
 
-  const MODEL_URL = "https://huggingface.co/litert-community/Kokoro-82M/resolve/main/kokoro_int8_gpu_fp16.litertlm";
+  const GPU_MODEL_URL = "https://huggingface.co/litert-community/Kokoro-82M/resolve/main/kokoro_int8_gpu_fp16.litertlm";
+  const CPU_MODEL_URL = "https://huggingface.co/litert-community/Kokoro-82M/resolve/main/kokoro_int8_fp16.litertlm";
   const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@1.2.2/wasm";
   const profiles = {
     jarvis: { label: "Jâmes · Clássica", voiceId: "pm_alex", rate: 1.0 },
@@ -57,12 +58,23 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
       try {
         if (!wasmFileset) wasmFileset = await FilesetResolver.forAudioTasks(WASM_URL);
         const profile = profiles[selectedProfile] || profiles.jarvis;
-        const instance = await TextToSpeech.createFromOptions(wasmFileset, {
-          baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
-          defaultVoiceId: profile.voiceId,
-          defaultLocale: "pt-BR",
-          speakingRate: 1.0
-        });
+        let instance;
+        try {
+          instance = await TextToSpeech.createFromOptions(wasmFileset, {
+            baseOptions: { modelAssetPath: GPU_MODEL_URL, delegate: "GPU" },
+            defaultVoiceId: profile.voiceId,
+            defaultLocale: "pt-BR",
+            speakingRate: 1.0
+          });
+        } catch (gpuError) {
+          status("A aceleração gráfica não está disponível. Tentando o motor local por CPU; esse modo pode consumir mais memória.", "loading");
+          instance = await TextToSpeech.createFromOptions(wasmFileset, {
+            baseOptions: { modelAssetPath: CPU_MODEL_URL, delegate: "CPU" },
+            defaultVoiceId: profile.voiceId,
+            defaultLocale: "pt-BR",
+            speakingRate: 1.0
+          });
+        }
         const voices = await instance.listVoices();
         const required = ["pm_alex", "pm_santa"];
         const available = new Set((voices || []).map(item => item.voiceId));
@@ -90,7 +102,9 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
     buffer.copyToChannel(samples, 0);
     const source = context.createBufferSource();
     source.buffer = buffer;
-    source.playbackRate.value = rate;
+    const userRate = Number(document.getElementById("voiceRate")?.value || 1);
+    const userPitch = Number(document.getElementById("voicePitch")?.value || 1);
+    source.playbackRate.value = rate * userRate * userPitch;
     source.connect(context.destination);
     const start = Math.max(context.currentTime + 0.025, nextStartAt);
     source.start(start);
@@ -131,6 +145,8 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
       button.classList.toggle("active", button.dataset.voiceStyle === profileId);
       button.setAttribute("aria-pressed", String(button.dataset.voiceStyle === profileId));
     });
+    const voiceSelect = document.getElementById("jamesVoiceSelect");
+    if (voiceSelect) voiceSelect.value = profileId === "demon" ? "pm_santa" : "pm_alex";
     const label = document.getElementById("holoVoiceName");
     if (label) label.textContent = profileId === "jarvis" ? "JÂMES / CLÁSSICA" : profileId === "patrick" ? "JÂMES / ANALÍTICA" : "JÂMES / INTENSA";
     status(engine ? "Perfil alterado. A próxima fala usará a voz neural selecionada." : "Perfil salvo. Carregue o motor neural para ouvir a voz.", engine ? "ready" : "idle");
@@ -162,25 +178,6 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
     setProfile(selectedProfile);
     const button = document.getElementById("downloadNeuralVoice");
     if (button) button.addEventListener("click", loadAndTest);
-    const test = document.getElementById("testJamesVoice");
-    if (test) test.addEventListener("click", async () => {
-      if (!engine) return loadAndTest();
-      await speak("Esta é uma amostra da voz neural do Jâmes, processada localmente no seu aparelho.");
-    });
-    const save = document.getElementById("saveJamesVoice");
-    if (save) save.addEventListener("click", () => {
-      localStorage.setItem("james_voice_style", selectedProfile);
-      status("Perfil vocal salvo neste navegador.", engine ? "ready" : "idle");
-    });
-    document.querySelectorAll("[data-voice-style]").forEach(button => {
-      button.addEventListener("click", () => setProfile(button.dataset.voiceStyle));
-    });
-    const select = document.getElementById("jamesVoiceSelect");
-    if (select) {
-      select.innerHTML = '<option value="pm_alex">Alex · Masculina, clara e equilibrada</option><option value="pm_santa">Santa · Masculina, mais encorpada</option>';
-      select.value = selectedProfile === "demon" ? "pm_santa" : "pm_alex";
-      select.addEventListener("change", () => setProfile(select.value === "pm_santa" ? "demon" : "jarvis"));
-    }
     status("Voz neural ainda não carregada. Toque em “Carregar voz neural” para baixar o modelo local (aprox. 295 MB).", "idle");
-  });
+  });;
 })();
