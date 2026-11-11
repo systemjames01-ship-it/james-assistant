@@ -133,6 +133,14 @@ class JamesLiveAudioSession(
         })
     }
 
+    fun sendVideoFrame(jpeg: ByteArray): Boolean {
+        if (!running.get() || !setupReady || jpeg.isEmpty()) return false
+        val payload = JSONObject().put("realtimeInput", JSONObject().put("video", JSONObject()
+            .put("mimeType", "image/jpeg")
+            .put("data", Base64.encodeToString(jpeg, Base64.NO_WRAP))))
+        return socket?.send(payload.toString()) == true
+    }
+
     fun sendText(text: String): Boolean {
         if (!running.get() || !setupReady || text.isBlank()) return false
         return socket?.send(JSONObject().put("realtimeInput", JSONObject().put("text", text)).toString()) == true

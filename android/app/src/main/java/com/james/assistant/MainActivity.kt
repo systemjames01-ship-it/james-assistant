@@ -1,6 +1,7 @@
 package com.james.assistant
 
 import android.Manifest
+import android.hardware.camera2.CameraAccessException
 import android.app.AlarmManager
 import android.app.AlertDialog
 import android.app.NotificationChannel
@@ -60,6 +61,7 @@ class MainActivity : android.app.Activity() {
         private const val REQ_FILE = 4105
         private const val REQ_NOTIFICATIONS = 4102
         private const val REQ_MICROPHONE = 4106
+        private const val REQ_CAMERA_PERMISSION = 4107
         private const val COLOR_BG = 0xFF050A12.toInt()
         private const val COLOR_PANEL = 0xFF0B1A29.toInt()
         private const val COLOR_CYAN = 0xFF68E4F2.toInt()
@@ -91,6 +93,9 @@ class MainActivity : android.app.Activity() {
     private var liveConversationEnabled = false
     private var liveVoiceSession: JamesLiveAudioSession? = null
     private var liveButton: Button? = null
+    private var visionButton: Button? = null
+    private var liveCamera: JamesLiveCamera? = null
+    private var liveVisionPending = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -252,6 +257,8 @@ class MainActivity : android.app.Activity() {
         })
         liveButton = makeButton("INICIAR CONVERSA AO VIVO", true) { toggleLiveConversation() }
         page.addView(liveButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply { topMargin = dp(8); bottomMargin = dp(6) })
+        visionButton = makeButton("ATIVAR VISÃO AO VIVO", true) { toggleLiveVision() }
+        page.addView(visionButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { bottomMargin = dp(6) })
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         controls.addView(makeButton("ESCOLHER VOZ", true) { showVoicePicker() },
             LinearLayout.LayoutParams(0, dp(44), 1f).apply { rightMargin = dp(5) })
@@ -651,7 +658,14 @@ class MainActivity : android.app.Activity() {
                     if (!liveConversationEnabled) return@runOnUiThread
                     val voice = if (selectedVoiceProfile == 0) "Puck" else "Charon"
                     liveVoiceSession = JamesLiveAudioSession(this, token, voice, object : JamesLiveAudioSession.Listener {
-                        override fun onStatus(message: String) { runOnUiThread { if (liveConversationEnabled) setStatus(message) } }
+                        override fun onStatus(message: String) {
+                            runOnUiThread {
+                                if (liveConversationEnabled) {
+                                    setStatus(message)
+                                    if (liveVisionPending && message.contains("JÂMES AO VIVO")) startLiveVision()
+                                }
+                            }
+                        }
                         override fun onUserTranscript(text: String) {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
@@ -689,7 +703,59 @@ class MainActivity : android.app.Activity() {
         startLiveConversation()
     }
 
+    private fun stopLiveVision() {
+        liveCamera?.close()
+        liveCamera = null
+        liveVisionPending = false
+        visionButton?.text = "ATIVAR VISÃO AO VIVO"
+        setStatus("VISÃO AO VIVO DESATIVADA")
+    }
+
+    private fun toggleLiveVision() {
+        if (liveCamera != null || liveVisionPending) {
+            stopLiveVision()
+            return
+        }
+        liveVisionPending = true
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA_PERMISSION)
+            return
+        }
+        if (liveVoiceSession == null) {
+            if (!liveConversationEnabled) startLiveConversation()
+            else setStatus("AGUARDANDO A SESSÃO DE VOZ...")
+            return
+        }
+        startLiveVision()
+    }
+
+    private fun startLiveVision() {
+        if (!liveVisionPending || liveVoiceSession == null || liveCamera != null) return
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA_PERMISSION)
+            return
+        }
+        try {
+            visionButton?.text = "DESATIVAR VISÃO AO VIVO"
+            liveCamera = JamesLiveCamera(
+                this,
+                onFrame = { bytes -> liveVoiceSession?.sendVideoFrame(bytes) },
+                onReady = { runOnUiThread { if (liveVisionPending) setStatus("VISÃO E VOZ AO VIVO ATIVAS") } },
+                onFailure = { message ->
+                    runOnUiThread {
+                        addChatMessage(message, true, true)
+                        stopLiveVision()
+                    }
+                }
+            ).also { it.start() }
+        } catch (error: Exception) {
+            stopLiveVision()
+            addChatMessage(error.message ?: "Não foi possível ativar a câmera.", true, true)
+        }
+    }
+
     private fun stopLiveConversation() {
+        stopLiveVision()
         liveConversationEnabled = false
         liveVoiceSession?.close()
         liveVoiceSession = null
@@ -729,6 +795,8 @@ class MainActivity : android.app.Activity() {
     private fun handleVoiceCommand(text: String): Boolean {
         val normalized = java.text.Normalizer.normalize(text.lowercase(Locale("pt", "BR")), java.text.Normalizer.Form.NFD)
             .replace(Regex("\\p{Mn}+"), "")
+        val asksForVision = normalized.contains("ligar visao") || normalized.contains("ativar visao") || normalized.contains("desligar visao") || normalized.contains("desativar visao") || normalized.contains("abra os olhos")
+        if (asksForVision) { toggleLiveVision(); return true }
         val asksForVoice = normalized.contains("mudar voz") || normalized.contains("trocar voz") || normalized.contains("escolher voz") || normalized.contains("voz do james")
         if (!asksForVoice) return false
         val second = normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") || normalized.contains("voz alternativa")
@@ -1031,7 +1099,16 @@ class MainActivity : android.app.Activity() {
             } else {
                 liveConversationEnabled = false
                 liveButton?.text = "INICIAR CONVERSA AO VIVO"
+                liveVisionPending = false
                 setStatus("MICROFONE NÃO AUTORIZADO")
+            }
+        } else if (requestCode == REQ_CAMERA_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (liveVoiceSession != null) startLiveVision() else startLiveConversation()
+            } else {
+                liveVisionPending = false
+                visionButton?.text = "ATIVAR VISÃO AO VIVO"
+                setStatus("CÂMERA NÃO AUTORIZADA")
             }
         }
     }
