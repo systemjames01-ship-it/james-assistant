@@ -535,3 +535,49 @@ test("explicit Android UI action is handed to the native accessibility bridge", 
     assert.equal(count, 2);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test("live token endpoint returns a one-use token without exposing the API key", async () => {
+  const originalFetch = globalThis.fetch;
+  let provisionBody;
+  let lastIssuedAt = null;
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          return {
+            first: async () => lastIssuedAt === null ? null : { last_issued_at: lastIssuedAt },
+            run: async () => {
+              if (sql.startsWith("INSERT INTO james_live_rate_limits")) lastIssuedAt = values[1];
+              return { success: true };
+            }
+          };
+        },
+        run: async () => ({ success: true })
+      };
+    }
+  };
+  globalThis.fetch = async (url, options) => {
+    assert.equal(String(url), "https://generativelanguage.googleapis.com/v1beta/auth_tokens");
+    assert.equal(options.headers["x-goog-api-key"], "secret-test-key");
+    provisionBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({ name: "auth_tokens/short-lived" }), { status: 200 });
+  };
+  try {
+    const request = new Request("https://worker.test/?action=live-token", {
+      method: "POST",
+      headers: { Origin: origin, "CF-Connecting-IP": "192.0.2.20", "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: "session_test_12345" })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "secret-test-key", DB: db });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.token, "auth_tokens/short-lived");
+    assert.equal(body.model, "gemini-3.8-live");
+    assert.equal(JSON.stringify(body).includes("secret-test-key"), false);
+    assert.equal(provisionBody.uses, 1);
+    assert.equal(provisionBody.liveConnectConstraints.model, "models/gemini-3.8-live");
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.responseModalities, ["AUDIO"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

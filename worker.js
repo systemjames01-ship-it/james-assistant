@@ -862,7 +862,7 @@ export default {
                 outputAudioTranscription: {},
                 sessionResumption: {},
                 systemInstruction: {
-                  parts: [{ text: SYSTEM_INSTRUCTION + "\\n\\nMODO DE VOZ AO VIVO: converse em português brasileiro com naturalidade, em respostas concisas e úteis. Não alegue executar ações no aparelho: peça que o usuário use o console para ações que exijam ferramentas." }]
+                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ AO VIVO: converse em português brasileiro com naturalidade, em respostas concisas e úteis. Não alegue executar ações no aparelho: peça que o usuário use o console para ações que exijam ferramentas." }]
                 }
               }
             }
