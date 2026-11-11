@@ -673,7 +673,7 @@ class MainActivity : android.app.Activity() {
         setStatus("SOLICITANDO SESSÃO SEGURA DE VOZ")
         executor.execute {
             try {
-                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId))
+                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId).put("voiceProfile", selectedVoiceProfile))
                 val token = tokenData.optString("token")
                 if (token.isBlank()) throw IOException("O núcleo não forneceu um token de sessão.")
                 runOnUiThread {
@@ -686,7 +686,7 @@ class MainActivity : android.app.Activity() {
                         "Fale sempre em português brasileiro. Voz adulta masculina, muito firme, encorpada e ressonante; dicção clara, ritmo controlado e presença marcante sem gritar. Não imite nenhuma pessoa real.",
                         "Fale sempre em português brasileiro. Voz adulta masculina, clara, articulada, inteligente e levemente descontraída; ritmo conversacional ágil, com ironia sutil apenas quando apropriado. Não imite nenhuma pessoa real."
                     )
-                    liveVoiceSession = JamesLiveAudioSession(this, token, voice, voiceInstructions[selectedVoiceProfile.coerceIn(0, 3)], object : JamesLiveAudioSession.Listener {
+                    liveVoiceSession = JamesLiveAudioSession(this, token, voice, object : JamesLiveAudioSession.Listener {
                         override fun onStatus(message: String) {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
