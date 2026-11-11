@@ -29,7 +29,7 @@ class MainActivity : android.app.Activity() {
     private lateinit var webView: WebView
     private val notificationRequest = 4102
     private val speechRequest = 4103
-    private val origin = "https://systemjames01-ship-it.github.io"
+    private val appUrl = "https://systemjames01-ship-it.github.io/james-assistant/"
     private var textToSpeech: TextToSpeech? = null
     @Volatile private var ttsReady = false
 
@@ -51,13 +51,13 @@ class MainActivity : android.app.Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest): Boolean {
                 val target = request.url
-                return target.scheme != "https" || target.host != "systemjames01-ship-it.github.io"
+                return target.scheme != "https" || target.host != "systemjames01-ship-it.github.io" || !target.path.startsWith("/james-assistant/")
             }
         }
         webView.webChromeClient = WebChromeClient()
         webView.addJavascriptInterface(DeviceBridge(this), "JamesAndroid")
         setContentView(webView)
-        webView.loadUrl(origin + "/")
+        webView.loadUrl(appUrl)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
