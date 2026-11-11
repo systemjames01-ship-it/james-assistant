@@ -58,6 +58,7 @@ class MainActivity : android.app.Activity() {
         private const val REQ_NOTIFICATIONS = 4102
         private const val REQ_MICROPHONE = 4106
         private const val REQ_CAMERA_PERMISSION = 4107
+        private const val REQ_EXPORT_TEXT = 4108
         private const val COLOR_BG = 0xFF050A12.toInt()
         private const val COLOR_PANEL = 0xFF0B1A29.toInt()
         private const val COLOR_CYAN = 0xFF68E4F2.toInt()
@@ -78,6 +79,7 @@ class MainActivity : android.app.Activity() {
     private lateinit var prompt: EditText
     private lateinit var attachmentStatus: TextView
     private val pendingAttachments = mutableListOf<JSONObject>()
+    private var pendingExportText: String? = null
     private var currentPage = "overview"
     private var sending = false
     private var backendSummary = "Verificando o núcleo..."
@@ -279,9 +281,9 @@ class MainActivity : android.app.Activity() {
             val panel = card()
             addText(panel, name, 13f, if (selectedVoiceProfile == index) COLOR_GREEN else COLOR_CYAN, true)
             val detail = when (index) {
-                0 -> "JARVIS · formal, grave, sereno e preciso. Referência: JARVIS, Homem de Ferro."
-                1 -> "PATRICK JANE · suave, inteligente, persuasivo e conversacional. Referência: O Mentalista."
-                else -> "DAMON SALVATORE · grave, aveludado, confiante e irônico. Referência: The Vampire Diaries."
+                0 -> "JARVIS · formal, grave, sereno e preciso. Referência de dublagem: Eduardo Borgerth / Clécio Souto."
+                1 -> "PATRICK JANE · suave, inteligente, persuasivo e conversacional. Referência de dublagem: Márcio Simões."
+                else -> "DAMON SALVATORE · grave, aveludado, confiante e irônico. Referência de dublagem: Clécio Souto."
             }
             addText(panel, detail, 11f, COLOR_MUTED, top = 5)
             addText(panel, "Timbre do perfil: " + voiceProfileModels[index], 9f, COLOR_MUTED, top = 5)
@@ -897,6 +899,17 @@ class MainActivity : android.app.Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != RESULT_OK) return
         when (requestCode) {
+            REQ_EXPORT_TEXT -> {
+                val content = pendingExportText ?: return
+                pendingExportText = null
+                val uri = data?.data ?: return
+                try {
+                    contentResolver.openOutputStream(uri)?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+                    Toast.makeText(this, "Anexo de texto criado.", Toast.LENGTH_LONG).show()
+                } catch (error: Exception) {
+                    Toast.makeText(this, "Falha ao salvar o anexo: " + (error.message ?: "erro"), Toast.LENGTH_LONG).show()
+                }
+            }
             REQ_CAMERA -> {
                 val bitmap = data?.extras?.get("data") as? Bitmap ?: return
                 val output = ByteArrayOutputStream()
@@ -1126,8 +1139,26 @@ class MainActivity : android.app.Activity() {
         }
         val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         params.bottomMargin = dp(9)
+        if (fromJames && !isError) {
+            bubble.setOnLongClickListener {
+                exportChatText(text)
+                true
+            }
+        }
         chatMessages.addView(bubble, params)
         chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
+    private fun exportChatText(text: String) {
+        if (text.isBlank()) return
+        pendingExportText = text
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TITLE, "james-resposta.txt")
+        }
+        try { startActivityForResult(intent, REQ_EXPORT_TEXT) }
+        catch (_: Exception) { pendingExportText = null; Toast.makeText(this, "Não foi possível criar o anexo.", Toast.LENGTH_LONG).show() }
     }
 
     private fun setStatus(message: String) {
