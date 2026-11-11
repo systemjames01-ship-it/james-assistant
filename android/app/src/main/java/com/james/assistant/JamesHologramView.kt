@@ -14,6 +14,7 @@ import kotlin.math.sin
 /** Layered, low-cost holographic HUD designed for the Galaxy A13. */
 class JamesHologramView(context: Context) : View(context) {
     @Volatile private var mode = 0 // 0 idle, 1 listening, 2 speaking, 3 vision
+    @Volatile private var audioLevel = 0f
     private val density = resources.displayMetrics.density
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
@@ -24,6 +25,8 @@ class JamesHologramView(context: Context) : View(context) {
     private val pale = 0xFFB7F7FF.toInt()
     private val violet = 0xFFB99AFF.toInt()
     private val green = 0xFF73F0C2.toInt()
+
+    fun setAudioLevel(level: Float) { audioLevel = level.coerceIn(0f, 1f) }
 
     fun setMode(nextMode: Int) {
         val next = nextMode.coerceIn(0, 3)
@@ -196,7 +199,8 @@ class JamesHologramView(context: Context) : View(context) {
         val gap = width/bars
         for (i in 0 until bars) {
             val envelope = if (mode == 0) .18 else if (mode == 1) .48 else .78
-            val wave = (.15 + .85*kotlin.math.abs(sin(t*(if (mode == 2) 8.0 else 3.2)+i*.52)))*envelope
+            val liveBoost = if (mode == 1 || mode == 2) (0.35f + audioLevel * 1.65f) else 1f
+            val wave = (.15 + .85*kotlin.math.abs(sin(t*(if (mode == 2) 8.0 else 3.2)+i*.52)))*envelope*liveBoost
             val bh = (3f+wave.toFloat()*17f)*density
             val x = cx-width/2+i*gap
             c.drawLine(x, y-bh, x, y+bh, line)
