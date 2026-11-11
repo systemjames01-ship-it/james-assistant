@@ -901,7 +901,10 @@ class MainActivity : android.app.Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK) {
+            if (requestCode == REQ_EXPORT_TEXT) { pendingExportText = null; pendingExportPdf = false }
+            return
+        }
         when (requestCode) {
             REQ_EXPORT_TEXT -> {
                 val content = pendingExportText ?: return
