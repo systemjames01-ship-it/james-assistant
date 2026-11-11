@@ -17,6 +17,7 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
 import android.graphics.drawable.GradientDrawable
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -80,6 +81,7 @@ class MainActivity : android.app.Activity() {
     private lateinit var attachmentStatus: TextView
     private val pendingAttachments = mutableListOf<JSONObject>()
     private var pendingExportText: String? = null
+    private var pendingExportPdf = false
     private var currentPage = "overview"
     private var sending = false
     private var backendSummary = "Verificando o núcleo..."
@@ -906,10 +908,15 @@ class MainActivity : android.app.Activity() {
                 pendingExportText = null
                 val uri = data?.data ?: return
                 try {
-                    contentResolver.openOutputStream(uri)?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
-                    Toast.makeText(this, "Anexo de texto criado.", Toast.LENGTH_LONG).show()
+                    contentResolver.openOutputStream(uri)?.use { output ->
+                        if (pendingExportPdf) writeTextPdf(content, output)
+                        else output.write(content.toByteArray(Charsets.UTF_8))
+                    }
+                    Toast.makeText(this, if (pendingExportPdf) "PDF criado." else "Arquivo TXT criado.", Toast.LENGTH_LONG).show()
                 } catch (error: Exception) {
                     Toast.makeText(this, "Falha ao salvar o anexo: " + (error.message ?: "erro"), Toast.LENGTH_LONG).show()
+                } finally {
+                    pendingExportPdf = false
                 }
             }
             REQ_CAMERA -> {
@@ -1153,14 +1160,63 @@ class MainActivity : android.app.Activity() {
 
     private fun exportChatText(text: String) {
         if (text.isBlank()) return
-        pendingExportText = text
-        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TITLE, "james-resposta.txt")
+        AlertDialog.Builder(this)
+            .setTitle("CRIAR ANEXO")
+            .setItems(arrayOf("Documento PDF", "Arquivo TXT")) { _, choice ->
+                pendingExportText = text
+                pendingExportPdf = choice == 0
+                val pdf = pendingExportPdf
+                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = if (pdf) "application/pdf" else "text/plain"
+                    putExtra(Intent.EXTRA_TITLE, if (pdf) "james-resposta.pdf" else "james-resposta.txt")
+                }
+                try { startActivityForResult(intent, REQ_EXPORT_TEXT) }
+                catch (_: Exception) {
+                    pendingExportText = null
+                    pendingExportPdf = false
+                    Toast.makeText(this, "Não foi possível criar o anexo.", Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton("CANCELAR", null)
+            .show()
+    }
+
+    private fun writeTextPdf(text: String, output: java.io.OutputStream) {
+        val document = PdfDocument()
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; textSize = 12f }
+        val pageWidth = 595
+        val pageHeight = 842
+        val maxWidth = 511f
+        val lines = mutableListOf<String>()
+        text.split('\n').forEach { paragraph ->
+            var current = ""
+            paragraph.split(Regex("\\s+")).forEach { word ->
+                val candidate = if (current.isEmpty()) word else current + " " + word
+                if (current.isNotEmpty() && paint.measureText(candidate) > maxWidth) {
+                    lines.add(current)
+                    current = word
+                } else current = candidate
+            }
+            lines.add(current)
+            lines.add("")
         }
-        try { startActivityForResult(intent, REQ_EXPORT_TEXT) }
-        catch (_: Exception) { pendingExportText = null; Toast.makeText(this, "Não foi possível criar o anexo.", Toast.LENGTH_LONG).show() }
+        var lineIndex = 0
+        var pageNumber = 1
+        do {
+            val info = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+            val page = document.startPage(info)
+            page.canvas.drawColor(Color.WHITE)
+            var y = 52f
+            while (lineIndex < lines.size && y < pageHeight - 42f) {
+                page.canvas.drawText(lines[lineIndex].take(220), 42f, y, paint)
+                y += 18f
+                lineIndex++
+            }
+            document.finishPage(page)
+            pageNumber++
+        } while (lineIndex < lines.size)
+        try { document.writeTo(output) } finally { document.close() }
     }
 
     private fun setStatus(message: String) {
