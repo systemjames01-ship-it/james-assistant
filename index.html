@@ -654,10 +654,6 @@ $("stopVoice").addEventListener("click",()=>{
 updateVoiceOutputButton();
 $("refreshTasks").addEventListener("click",loadTasks);
 $("refreshMemories").addEventListener("click",loadMemories);
-loadHistory(false);
-loadTasks();
-loadMemories();
-
 $("form").addEventListener("submit",event=>{
  event.preventDefault();
  sendMessage($("prompt").value);
