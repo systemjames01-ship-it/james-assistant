@@ -10,6 +10,12 @@
   const draw=()=>{if(!ctx)return;ctx.clearRect(0,0,width,height);angle+=.0018;const radius=Math.min(width,height)*.48,cx=width/2,cy=height/2;ctx.fillStyle="#8befff";for(const p of points){const x=p.x*Math.cos(angle)-p.z*Math.sin(angle),z=p.x*Math.sin(angle)+p.z*Math.cos(angle);if(z<-.12)continue;const depth=(z+1)/2,px=cx+x*radius,py=cy+p.y*radius;ctx.globalAlpha=.18+depth*.7;ctx.beginPath();ctx.arc(px,py,.55+depth*1.1,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;raf=requestAnimationFrame(draw);};
   resize();draw();window.addEventListener("resize",resize,{passive:true});document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelAnimationFrame(raf);else draw();});
  }
+ const visual=document.getElementById("jamesVisualCanvas");
+ if(visual){
+  const vctx=visual.getContext("2d");let phase=0,visualRaf=0;
+  const paint=()=>{const w=visual.width,h=visual.height;vctx.clearRect(0,0,w,h);phase+=.035;vctx.strokeStyle="rgba(86,225,255,.7)";vctx.lineWidth=1.5;vctx.beginPath();for(let x=0;x<=w;x+=4){const envelope=.2+Math.sin(x/w*Math.PI)*.8;const y=h/2+Math.sin(x*.035+phase)*17*envelope+Math.sin(x*.012-phase*.7)*8;if(x===0)vctx.moveTo(x,y);else vctx.lineTo(x,y);}vctx.stroke();vctx.strokeStyle="rgba(86,160,255,.2)";vctx.beginPath();vctx.moveTo(0,h/2);vctx.lineTo(w,h/2);vctx.stroke();visualRaf=requestAnimationFrame(paint);};
+  paint();document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelAnimationFrame(visualRaf);else paint();});
+ }
  const mic=document.getElementById("headMic");
  const transcript=document.getElementById("headTranscript");
  const micState=document.getElementById("headMicState");
