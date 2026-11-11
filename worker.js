@@ -375,7 +375,7 @@ async function loadPersistentMemories(db, sessionId) {
   return (result.results || []).map(row => ({ key: row.memory_key, value: row.memory_value }));
 }
 
-async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "", memories = [], deviceContext = {}) {
+async function callGemini(env, contents, model = MODEL, sessionId = "", memories = [], deviceContext = {}) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     model + ":generateContent";
@@ -754,7 +754,6 @@ export default {
     const sessionId = typeof payload?.sessionId === "string"
       ? payload.sessionId
       : "";
-    const mode = "assistant";
 
     if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
       return json({ error: "Identificador de sessão inválido. Recarregue a página e tente novamente." }, 400, origin);
@@ -839,7 +838,7 @@ export default {
       let clientActions = [];
       let usedModel = MODEL;
       try {
-        const result = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories, payload?.deviceContext);
+        const result = await callGemini(env, [...history, currentTurn], MODEL, sessionId, memories, payload?.deviceContext);
         reply = result.text;
         clientActions = result.clientActions || [];
       } catch (primaryError) {
@@ -848,7 +847,7 @@ export default {
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        const result = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories, payload?.deviceContext);
+        const result = await callGemini(env, [...history, currentTurn], FALLBACK_MODEL, sessionId, memories, payload?.deviceContext);
         reply = result.text;
         clientActions = result.clientActions || [];
       }
