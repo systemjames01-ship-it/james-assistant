@@ -225,9 +225,12 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
   </div>
   <div class="head-actions"><button type="button" id="headOpenChat">INICIAR CONVERSA</button><button type="button" class="secondary" id="headOpenControl">PAINEL DE CONTROLE</button></div>
   <div class="head-mic">
-   <button type="button" id="headMic" aria-label="Ativar microfone" aria-pressed="false">🎙</button>
-   <div class="head-mic-copy"><strong>Conversa por voz natural</strong><span id="headMicState">Toque para falar com o Jâmes. A escuta só começa com sua autorização e termina após a fala.</span></div>
+   <button type="button" id="headMic" aria-label="Iniciar conversa ao vivo" aria-pressed="false">🎙</button>
+   <button type="button" id="headVision" class="secondary" aria-label="Ativar visão ao vivo" aria-pressed="false" disabled>◎</button>
+   <div class="head-mic-copy"><strong>Conversa ao vivo · voz e visão</strong><span id="headMicState">Inicie a conversa para falar naturalmente. A câmera só será ativada se você tocar no botão de visão.</span></div>
   </div>
+  <video id="headVisionVideo" playsinline muted hidden></video>
+  <canvas id="headVisionCanvas" hidden></canvas>
   <div class="head-transcript" id="headTranscript" aria-live="polite">Aguardando conversa por voz…</div>
   <div class="visual-output"><div class="visual-output-head"><span>VISUALIZAÇÃO DO NÚCLEO</span><span>ANIMAÇÃO LOCAL</span></div><canvas id="jamesVisualCanvas" width="720" height="100" aria-label="Visualização animada do estado do núcleo"></canvas></div>
  </div>
