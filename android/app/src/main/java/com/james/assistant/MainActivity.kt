@@ -120,6 +120,7 @@ class MainActivity : android.app.Activity() {
                 putExtra("id", id)
             }
             val pending = PendingIntent.getBroadcast(context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            context.getSharedPreferences("james_reminders", Context.MODE_PRIVATE).edit().putString(id.toString(), title + "|" + epochMillis).apply()
             val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             return try {
                 if (Build.VERSION.SDK_INT >= 31 && !alarm.canScheduleExactAlarms()) {
