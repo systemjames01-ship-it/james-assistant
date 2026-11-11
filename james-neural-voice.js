@@ -27,7 +27,7 @@
       node.dataset.state = state;
     }
     const badge = document.getElementById("neuralVoiceState");
-    if (badge) badge.textContent = state === "ready" ? "MOTOR NEURAL ATIVO" : state === "loading" ? "CARREGANDO VOZ" : state === "error" ? "VOZ INDISPONÍVEL" : "VOZ NÃO INSTALADA";
+    if (badge) badge.textContent = state === "ready" ? "MOTOR DE VOZ ATIVO" : state === "loading" ? "CARREGANDO VOZ" : state === "error" ? "VOZ INDISPONÍVEL" : "VOZ LOCAL PRONTA";
   };
 
   function ensureAudioContext() {
