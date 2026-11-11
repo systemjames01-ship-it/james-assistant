@@ -717,7 +717,10 @@ export default {
       return json({
         status: "online",
         service: "Jâmes AI Worker",
-        model: MODEL
+        model: MODEL,
+        aiConfigured: Boolean(env.GEMINI_API_KEY),
+        databaseConfigured: Boolean(env.DB),
+        capabilities: ["unified_context", "tool_execution", "image_analysis", "pdf_analysis", "device_action_handoff"]
       }, 200, origin);
     }
 
