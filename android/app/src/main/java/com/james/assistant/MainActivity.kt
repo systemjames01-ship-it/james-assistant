@@ -1,6 +1,9 @@
 package com.james.assistant
 
 import android.Manifest
+import android.os.BatteryManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
@@ -17,6 +20,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.PermissionRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -29,6 +33,8 @@ class MainActivity : android.app.Activity() {
     private lateinit var webView: WebView
     private val notificationRequest = 4102
     private val speechRequest = 4103
+    private val cameraRequest = 4104
+    private var pendingCameraPermission: PermissionRequest? = null
     private val appUrl = "https://systemjames01-ship-it.github.io/james-assistant/"
     private var textToSpeech: TextToSpeech? = null
     @Volatile private var ttsReady = false
@@ -54,10 +60,48 @@ class MainActivity : android.app.Activity() {
                 return target.scheme != "https" || target.host != "systemjames01-ship-it.github.io" || !target.path.startsWith("/james-assistant/")
             }
         }
-        webView.webChromeClient = WebChromeClient()
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest) {
+                runOnUiThread {
+                    val trusted = request.origin.scheme == "https" &&
+                        request.origin.host == "systemjames01-ship-it.github.io" &&
+                        request.origin.path.startsWith("/james-assistant/")
+                    val videoOnly = request.resources.size == 1 &&
+                        request.resources[0] == PermissionRequest.RESOURCE_VIDEO_CAPTURE
+                    if (!trusted || !videoOnly) {
+                        request.deny()
+                    } else if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+                    } else {
+                        pendingCameraPermission?.deny()
+                        pendingCameraPermission = request
+                        requestPermissions(arrayOf(Manifest.permission.CAMERA), cameraRequest)
+                    }
+                }
+            }
+
+            override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                if (pendingCameraPermission == request) pendingCameraPermission = null
+            }
+        }
         webView.addJavascriptInterface(DeviceBridge(this), "JamesAndroid")
         setContentView(webView)
         webView.loadUrl(appUrl)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == cameraRequest) {
+            val request = pendingCameraPermission
+            pendingCameraPermission = null
+            if (request != null) {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+                } else {
+                    request.deny()
+                }
+            }
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -120,7 +164,35 @@ class MainActivity : android.app.Activity() {
             return result(true, "Leitura interrompida.")
         }
 
-        @JavascriptInterface fun version(): String = "2.5.0"
+        @JavascriptInterface fun version(): String = "3.0.0"
+
+        @JavascriptInterface fun getDeviceInfo(): String {
+            return try {
+                val battery = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                val batteryPercent = battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                val batteryIntent = context.registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                val batteryStatus = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+                val charging = batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
+                    batteryStatus == BatteryManager.BATTERY_STATUS_FULL
+                val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val network = connectivity.activeNetwork
+                val capabilities = network?.let { connectivity.getNetworkCapabilities(it) }
+                val connected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                JSONObject()
+                    .put("platform", "Android")
+                    .put("manufacturer", Build.MANUFACTURER)
+                    .put("model", Build.MODEL)
+                    .put("androidVersion", Build.VERSION.RELEASE)
+                    .put("apiLevel", Build.VERSION.SDK_INT)
+                    .put("batteryPercent", if (batteryPercent in 0..100) batteryPercent else JSONObject.NULL)
+                    .put("charging", charging)
+                    .put("networkConnected", connected)
+                    .toString()
+            } catch (e: Exception) {
+                JSONObject().put("error", "Não foi possível ler o estado do dispositivo.").toString()
+            }
+        }
         @JavascriptInterface fun platform(): String = "android"
 
         @JavascriptInterface fun openApp(appName: String): String {
