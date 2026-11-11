@@ -1,6 +1,9 @@
-name: Deploy Jâmes v2.2 to Cloudflare
+name: Deploy Jâmes to Cloudflare
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       confirm_production:
@@ -17,7 +20,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ inputs.confirm_production == 'DEPLOY_JAMES_AI_V22' }}
+    if: ${{ github.event_name == 'push' || inputs.confirm_production == 'DEPLOY_JAMES_AI_V22' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -62,7 +65,7 @@ jobs:
         run: |
           npx --yes wrangler@4 d1 execute james-memory --remote --command "SELECT name, type FROM sqlite_master WHERE name IN ('james_tasks_v21','idx_james_tasks_v21_session_status','james_memories_v21','idx_james_memories_v21_session') ORDER BY type, name;"
 
-      - name: Publicar Worker v2.2 validado por testes
+      - name: Publicar Worker validado por testes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
@@ -111,5 +114,5 @@ jobs:
         run: |
           echo "Commit publicado: ${{ github.sha }}"
           echo "Migrações: migrations/0002_james_tasks_v21.sql e migrations/0003_james_memories_v21.sql"
-          echo "Worker: james-ai v2.2"
+          echo "Worker: james-ai (commit validado em main)"
           echo "Nenhum segredo é exibido por este workflow."
