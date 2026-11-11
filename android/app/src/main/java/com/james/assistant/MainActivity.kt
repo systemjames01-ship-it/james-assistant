@@ -19,7 +19,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
-import androidx.core.app.NotificationCompat
 import org.json.JSONObject
 import java.util.UUID
 
@@ -71,7 +70,7 @@ class MainActivity : android.app.Activity() {
     inner class DeviceBridge(private val context: Context) {
         @JavascriptInterface fun startVoiceRecognition(): String {
             if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), speechRequest)
+                runOnUiThread { requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), speechRequest) }
                 return JSONObject().put("success", false).put("message", "Permissão de microfone solicitada. Autorize e toque em falar novamente.").toString()
             }
             if (!SpeechRecognizer.isRecognitionAvailable(context)) return JSONObject().put("success", false).put("message", "Reconhecimento de voz indisponível neste aparelho.").toString()
@@ -111,7 +110,7 @@ class MainActivity : android.app.Activity() {
                 return result(false, "O horário do lembrete precisa estar no futuro e dentro de um ano.")
             }
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), notificationRequest)
+                runOnUiThread { requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), notificationRequest) }
                 return result(false, "Permissão de notificações solicitada. Autorize e peça para agendar novamente.")
             }
             val id = UUID.randomUUID().hashCode()
