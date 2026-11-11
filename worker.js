@@ -397,7 +397,7 @@ async function loadPersistentMemories(db, sessionId) {
   return (result.results || []).map(row => ({ key: row.memory_key, value: row.memory_value }));
 }
 
-async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "", memories = []) {
+async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "", memories = [], deviceContext = {}) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     model + ":generateContent";
@@ -408,7 +408,13 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
     ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
       memories.map(item => "- " + item.key + ": " + item.value).join("\n")
     : "";
-  const activeInstruction = baseInstruction + memoryContext;
+  const deviceInfo = deviceContext && typeof deviceContext === "object"
+    ? "\n\nCONTEXTO LOCAL DO DISPOSITIVO (fornecido pelo navegador/aplicativo; use para datas, fuso e capacidades):\n" +
+      "Plataforma: " + String(deviceContext.platform || "web").slice(0, 30) + "\n" +
+      "Fuso horário: " + String(deviceContext.timezone || "desconhecido").slice(0, 80) + "\n" +
+      "Data/hora local ISO: " + String(deviceContext.localNow || "não fornecida").slice(0, 50)
+    : "";
+  const activeInstruction = baseInstruction + memoryContext + deviceInfo;
   const tools = [{
     functionDeclarations: [
       {
@@ -827,7 +833,7 @@ export default {
       let clientActions = [];
       let usedModel = MODEL;
       try {
-        const result = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories);
+        const result = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories, payload?.deviceContext);
         reply = result.text;
         clientActions = result.clientActions || [];
       } catch (primaryError) {
@@ -836,7 +842,7 @@ export default {
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        const result = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories);
+        const result = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories, payload?.deviceContext);
         reply = result.text;
         clientActions = result.clientActions || [];
       }
