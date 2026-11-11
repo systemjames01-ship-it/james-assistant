@@ -14,7 +14,6 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
 import android.view.Surface
-import androidx.core.content.ContextCompat
 
 class JamesLiveCamera(
     context: Context,
@@ -33,7 +32,7 @@ class JamesLiveCamera(
     @Volatile private var lastFrameAt = 0L
 
     fun start() {
-        if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+        if (appContext.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             throw SecurityException("A permissão da câmera é necessária.")
         }
         val cameraId = manager.cameraIdList.firstOrNull { id ->

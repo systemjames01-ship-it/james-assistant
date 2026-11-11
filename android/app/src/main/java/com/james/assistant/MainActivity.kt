@@ -795,8 +795,10 @@ class MainActivity : android.app.Activity() {
     private fun handleVoiceCommand(text: String): Boolean {
         val normalized = java.text.Normalizer.normalize(text.lowercase(Locale("pt", "BR")), java.text.Normalizer.Form.NFD)
             .replace(Regex("\\p{Mn}+"), "")
-        val asksForVision = normalized.contains("ligar visao") || normalized.contains("ativar visao") || normalized.contains("desligar visao") || normalized.contains("desativar visao") || normalized.contains("abra os olhos")
-        if (asksForVision) { toggleLiveVision(); return true }
+        val asksToStopVision = normalized.contains("desligar visao") || normalized.contains("desativar visao") || normalized.contains("fechar os olhos")
+        val asksToStartVision = normalized.contains("ligar visao") || normalized.contains("ativar visao") || normalized.contains("abra os olhos")
+        if (asksToStopVision) { stopLiveVision(); return true }
+        if (asksToStartVision) { if (liveCamera == null && !liveVisionPending) toggleLiveVision(); return true }
         val asksForVoice = normalized.contains("mudar voz") || normalized.contains("trocar voz") || normalized.contains("escolher voz") || normalized.contains("voz do james")
         if (!asksForVoice) return false
         val second = normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") || normalized.contains("voz alternativa")
