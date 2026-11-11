@@ -277,12 +277,19 @@ async function refreshBackendStatus(){
   const response=await fetch(WORKER_URL,{method:"GET",cache:"no-store"});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||data.status!=="online")throw new Error(data.error||"Serviço indisponível");
-  indicator.textContent="NÚCLEO ONLINE";
-  indicator.dataset.state="online";
+  if(data.aiConfigured!==true){
+   indicator.textContent="IA NÃO VALIDADA";indicator.dataset.state="offline";
+   $("overviewCoreState").textContent="WORKER ONLINE · IA NÃO VALIDADA";
+   $("overviewCoreDetail").textContent="O Worker respondeu, mas não confirmou a configuração da chave Gemini. A conversa com IA não deve ser considerada operacional.";
+   $("deviceBackendState").textContent="PARCIAL";
+   $("deviceBackendDetail").textContent="Worker acessível; configuração de IA ainda não confirmada.";
+   return;
+  }
+  indicator.textContent="NÚCLEO ONLINE";indicator.dataset.state="online";
   $("overviewCoreState").textContent="ONLINE";
-  $("overviewCoreDetail").textContent="Serviço de inteligência conectado · modelo "+(data.model||"não informado")+". Ferramentas autorizadas disponíveis no núcleo.";
+  $("overviewCoreDetail").textContent="Worker e chave de IA confirmados · modelo "+(data.model||"não informado")+". Banco D1: "+(data.databaseConfigured?"conectado":"não conectado")+".";
   $("deviceBackendState").textContent="ONLINE";
-  $("deviceBackendDetail").textContent="Worker respondeu corretamente. Modelo: "+(data.model||"não informado")+".";
+  $("deviceBackendDetail").textContent="Worker e IA confirmados. Modelo: "+(data.model||"não informado")+". D1: "+(data.databaseConfigured?"conectado":"indisponível")+".";
  }catch(error){
   indicator.textContent="NÚCLEO OFFLINE";
   indicator.dataset.state="offline";
