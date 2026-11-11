@@ -19,10 +19,10 @@ readFileSync(new URL("../icons/james-icon.svg", import.meta.url), "utf8");
 const hologramCss = readFileSync(new URL("../hologram-v24.css", import.meta.url), "utf8");
 const hologramJs = readFileSync(new URL("../hologram-v24.js", import.meta.url), "utf8");
 new vm.Script(hologramJs, { filename: "hologram-v24.js" });
-if (!html.includes('id="jamesGlobeCanvas"') || !html.includes('id="headMic"') ||
+if (!html.includes('id="holoProjection"') || !html.includes('id="headMic"') ||
     !html.includes('href="./hologram-v24.css"') || !html.includes('src="./hologram-v24.js"') ||
-    !hologramCss.includes(".globe-stage") || !hologramJs.includes("BidiGenerateContentConstrained") || !hologramJs.includes("action=live-token") || !hologramJs.includes("realtimeInput") || !html.includes('id="headVision"') || !html.includes('id="jamesPower"') || !html.includes('id="headCameraFlip"') || !html.includes("Núcleo neural holográfico") || html.includes(">◉ CABEÇA</button>")) {
-  throw new Error("Neural hologram, master power, camera switching, real-time voice, or script integration is missing.");
+    !hologramCss.includes(".projection-frame") || !hologramJs.includes("BidiGenerateContentConstrained") || !hologramJs.includes("action=live-token") || !hologramJs.includes("realtimeInput") || !html.includes('id="headVision"') || !html.includes('id="jamesPower"') || !html.includes('id="worldView"') || !html.includes("james://world/open") || !html.includes('id="headCameraFlip"') || !html.includes("Central holográfica de comando") || html.includes(">◉ CABEÇA</button>")) {
+  throw new Error("Holographic command deck, Windows world integration, master power, camera switching, real-time voice, or script integration is missing.");
 }
 
 const serviceWorker = readFileSync(new URL("../service-worker.js", import.meta.url), "utf8");
