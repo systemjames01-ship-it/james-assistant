@@ -10,6 +10,7 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val title = intent.getStringExtra("title") ?: "Lembrete do Jâmes"
         val id = intent.getIntExtra("id", 1)
+        context.getSharedPreferences("james_reminders", Context.MODE_PRIVATE).edit().remove(id.toString()).apply()
         val notification = Notification.Builder(context, "james_reminders")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Jâmes")
