@@ -680,12 +680,6 @@ class MainActivity : android.app.Activity() {
                     if (!liveConversationEnabled) return@runOnUiThread
                     val voiceProfiles = arrayOf("Charon", "Algieba", "Kore", "Zephyr")
                     val voice = voiceProfiles[selectedVoiceProfile.coerceIn(0, 3)]
-                    val voiceInstructions = arrayOf(
-                        "Fale sempre em português brasileiro. Voz adulta masculina, grave, elegante, serena e precisa; ritmo moderado, articulação nítida, calor discreto e autoridade tranquila. Não imite nenhuma pessoa real.",
-                        "Fale sempre em português brasileiro. Voz adulta masculina, grave, aveludada, suave e intimista; ritmo natural, pausas expressivas e timbre encorpado. Não imite nenhuma pessoa real.",
-                        "Fale sempre em português brasileiro. Voz adulta masculina, muito firme, encorpada e ressonante; dicção clara, ritmo controlado e presença marcante sem gritar. Não imite nenhuma pessoa real.",
-                        "Fale sempre em português brasileiro. Voz adulta masculina, clara, articulada, inteligente e levemente descontraída; ritmo conversacional ágil, com ironia sutil apenas quando apropriado. Não imite nenhuma pessoa real."
-                    )
                     liveVoiceSession = JamesLiveAudioSession(this, token, voice, object : JamesLiveAudioSession.Listener {
                         override fun onStatus(message: String) {
                             runOnUiThread {
