@@ -37,4 +37,28 @@ new vm.Script(serviceWorker, { filename: "service-worker.js" });
 if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)speak(data.reply)")) {
   throw new Error("Voice output must remain user-controllable and connected to AI replies.");
 }
-console.log("Validated inline scripts, holographic projection assets, voice interaction, PWA manifest, icon, service worker, and voice controls.");
+
+const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
+const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta.url), "utf8");
+const liveVoice = hologramJs;
+if (!html.includes('id="jamesNeuralCanvas"') ||
+    !html.includes('id="downloadNeuralVoice"') ||
+    !html.includes('type="module" src="./james-neural-voice.js"') ||
+    !html.includes('href="./james-v3.css"') ||
+    !neuralCss.includes(".hero.head-view") ||
+    !neuralCss.includes("#jamesNeuralCanvas") ||
+    !neuralVoice.includes("litert-community/Kokoro-82M") ||
+    !neuralVoice.includes("synthesizeStream") ||
+    !neuralVoice.includes('"pm_alex"') ||
+    !neuralVoice.includes('"pm_santa"') ||
+    !neuralVoice.includes('delegate: "GPU"') ||
+    !neuralVoice.includes('delegate: "CPU"') ||
+    html.includes("speechSynthesis") ||
+    html.includes("SpeechSynthesisUtterance") ||
+    html.includes("JamesAndroid.speak") ||
+    !liveVoice.includes('responseModalities:["TEXT"]') ||
+    !liveVoice.includes("window.JamesNeuralVoice?.speak")) {
+  throw new Error("Local Kokoro voice, male Brazilian Portuguese profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
+}
+
+console.log("Validated Jâmes v3 command interface, local Kokoro TTS, male pt-BR profiles, live text-to-neural-speech, PWA, and legacy integrations.");
