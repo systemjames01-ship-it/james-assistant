@@ -200,7 +200,7 @@ class JamesHologramView(context: Context) : View(context) {
         for (i in 0 until bars) {
             val envelope = if (mode == 0) .18 else if (mode == 1) .48 else .78
             val liveBoost = if (mode == 1 || mode == 2) (0.35f + audioLevel * 1.65f) else 1f
-            val wave = (.15 + .85*kotlin.math.abs(sin(t*(if (mode == 2) 8.0 else 3.2)+i*.52)))*envelope*liveBoost
+            val wave = (.15 + .85*kotlin.math.abs(sin(t*(if (mode == 2) 8.0 else 3.2)+i*.52)))*envelope*liveBoost.toDouble()
             val bh = (3f+wave.toFloat()*17f)*density
             val x = cx-width/2+i*gap
             c.drawLine(x, y-bh, x, y+bh, line)
