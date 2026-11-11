@@ -406,3 +406,69 @@ test("assistant saves a memory only through the explicit save-memory tool", asyn
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("assistant hands an explicitly requested app launch to the native Android client", async () => {
+  const originalFetch = globalThis.fetch;
+  let requestCount = 0;
+  globalThis.fetch = async (_url, options) => {
+    requestCount++;
+    const sent = JSON.parse(options.body);
+    if (requestCount === 1) {
+      assert.ok(sent.tools[0].functionDeclarations.some(tool => tool.name === "android_open_app"));
+      return new Response(JSON.stringify({
+        candidates: [{ content: { role: "model", parts: [{
+          functionCall: { name: "android_open_app", args: { app_name: "WhatsApp" } }
+        }] } }]
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Solicitei a abertura do WhatsApp no Android." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Abra o WhatsApp", sessionId: "session_test_12345", mode: "assistant" })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.deepEqual(body.clientActions, [{ type: "open_app", appName: "WhatsApp" }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("assistant receives device timezone context for local scheduling", async () => {
+  const originalFetch = globalThis.fetch;
+  let sentBody;
+  globalThis.fetch = async (_url, options) => {
+    sentBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "Entendi o horário local." }] } }]
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Que horas são?",
+        sessionId: "session_test_12345",
+        mode: "assistant",
+        deviceContext: { platform: "android", timezone: "America/Bahia", localNow: "2026-11-10T20:30:00-03:00" }
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.match(sentBody.systemInstruction.parts[0].text, /America\/Bahia/);
+    assert.match(sentBody.systemInstruction.parts[0].text, /2026-11-10T20:30:00-03:00/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
