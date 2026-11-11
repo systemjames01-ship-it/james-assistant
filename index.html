@@ -34,7 +34,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .creator{color:#7792a7;font-size:10px;text-align:right;letter-spacing:.08em}
 .system-indicator{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid rgba(113,226,177,.2);border-radius:30px;background:rgba(37,106,83,.1);color:var(--green);font:9px 'DM Mono',monospace;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
 .system-indicator:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
-#status{display:none}
+#status{display:inline-flex;align-items:center;gap:8px;max-width:260px;color:var(--green);font:9px 'DM Mono',monospace;letter-spacing:.08em;text-transform:uppercase}#status:before{content:'';flex:0 0 6px;width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
 .hero{position:relative;display:grid;grid-template-columns:minmax(260px,.86fr) minmax(0,1.5fr);gap:clamp(20px,5vw,76px);align-items:center;min-height:330px;margin:20px 0;padding:28px clamp(18px,4vw,58px);overflow:hidden;border:1px solid rgba(104,228,242,.18);border-radius:18px;background:linear-gradient(115deg,rgba(10,27,43,.95),rgba(5,14,24,.94) 68%,rgba(8,27,43,.95));box-shadow:0 25px 70px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.035)}
 .hero:before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent 49.8%,rgba(104,228,242,.07) 50%,transparent 50.2%),linear-gradient(0deg,transparent 49.8%,rgba(104,228,242,.05) 50%,transparent 50.2%);background-size:90px 90px;mask-image:radial-gradient(ellipse at 27% 50%,#000,transparent 60%)}
 .reactor-wrap{position:relative;display:grid;place-items:center;min-height:260px}
@@ -69,7 +69,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 #chat{height:440px;min-height:300px;overflow:auto;padding:18px clamp(12px,2vw,24px);background:radial-gradient(ellipse at 50% 0%,rgba(18,66,88,.13),transparent 55%),rgba(2,9,16,.24);scrollbar-color:#28516a transparent;scrollbar-width:thin}
 .msg{max-width:min(88%,720px);padding:13px 16px;margin:11px 0;border:1px solid rgba(135,181,210,.11);border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75;font-size:13px;box-shadow:0 8px 22px rgba(0,0,0,.13)}
 .user{margin-left:auto;background:linear-gradient(135deg,rgba(17,72,98,.92),rgba(12,43,66,.96));border-color:rgba(104,228,242,.22);border-bottom-right-radius:3px;color:#e8fbff}
-.bot{margin-right:auto;background:linear-gradient(135deg,rgba(15,37,55,.97),rgba(9,25,40,.97));border-bottom-left-radius:3px;color:#d9eaf3}
+.bot{margin-right:auto;background:linear-gradient(135deg,rgba(15,37,55,.97),rgba(9,25,40,.97));border-bottom-left-radius:3px;color:#d9eaf3}.error{margin-right:auto;border-color:rgba(255,125,134,.3);background:rgba(74,24,34,.48);color:#ffd8dc}
 #loadOlder{width:100%;margin:10px 0 0;border-radius:0;border-width:0 0 1px;background:rgba(9,24,37,.7);color:#8bb7c8}
 #form{padding:15px 17px 17px;border-top:1px solid rgba(104,228,242,.12);background:rgba(6,16,27,.72)}
 #prompt{display:block;width:100%;min-height:76px;max-height:180px;resize:vertical;padding:14px 15px;border:1px solid rgba(121,171,201,.22);border-radius:9px;outline:none;background:rgba(2,9,16,.78);color:var(--text);font:13px/1.6 'Manrope',sans-serif}
@@ -454,12 +454,9 @@ async function sendMessage(message,attachments=null){
   loadMemories();
 
  }catch(error){
-  const detail=error.message||"Erro desconhecido.";
-  addMessage(
-   "Não consegui falar com a IA. Verifique a conexão e o Worker do Cloudflare. Detalhe: "+detail,
-   "bot"
-  );
-  statusBox.textContent="Falha na conexão com a IA.";
+  const detail=error.message||"O serviço não forneceu detalhes adicionais.";
+  addMessage("Não foi possível concluir este comando.\\nMotivo informado pelo serviço: "+detail,"error");
+  statusBox.textContent="Solicitação não concluída: "+detail;
  }finally{
   $("send").disabled=false;
   $("sendImage").disabled=false;
