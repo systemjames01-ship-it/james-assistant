@@ -546,7 +546,22 @@ try{
  $("notes").value=localStorage.getItem("james_notes")||"";
 }catch(error){}
 
+window.jamesNativeSpeechResult=function(text){
+ if(!text)return;
+ $("prompt").value=text;
+ sendMessage(text);
+};
+
 $("voice").addEventListener("click",()=>{
+ if(window.JamesAndroid){
+  try{
+   const result=JSON.parse(window.JamesAndroid.startVoiceRecognition()||"{}");
+   statusBox.textContent=result.message||"Solicitação de voz enviada ao Android.";
+  }catch(error){
+   statusBox.textContent="Não foi possível iniciar a voz nativa do Android.";
+  }
+  return;
+ }
  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 
  if(!Recognition){
