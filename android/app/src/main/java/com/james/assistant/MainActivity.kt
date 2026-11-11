@@ -1,6 +1,8 @@
 package com.james.assistant
 
 import android.Manifest
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -24,6 +26,7 @@ import java.util.UUID
 class MainActivity : android.app.Activity() {
     private lateinit var webView: WebView
     private val notificationRequest = 4102
+    private val speechRequest = 4103
     private val origin = "https://systemjames01-ship-it.github.io"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,6 +49,14 @@ class MainActivity : android.app.Activity() {
         webView.loadUrl(origin + "/")
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == speechRequest && resultCode == RESULT_OK) {
+            val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
+            webView.evaluateJavascript("window.jamesNativeSpeechResult && window.jamesNativeSpeechResult(" + JSONObject.quote(spoken) + ");", null)
+        }
+    }
+
     override fun onBackPressed() {
         if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
@@ -58,6 +69,28 @@ class MainActivity : android.app.Activity() {
     }
 
     inner class DeviceBridge(private val context: Context) {
+        @JavascriptInterface fun startVoiceRecognition(): String {
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), speechRequest)
+                return JSONObject().put("success", false).put("message", "Permissão de microfone solicitada. Autorize e toque em falar novamente.").toString()
+            }
+            if (!SpeechRecognizer.isRecognitionAvailable(context)) return JSONObject().put("success", false).put("message", "Reconhecimento de voz indisponível neste aparelho.").toString()
+            runOnUiThread {
+                try {
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "Fale com o Jâmes")
+                    }
+                    startActivityForResult(intent, speechRequest)
+                } catch (e: Exception) {
+                    webView.evaluateJavascript("window.jamesNativeSpeechResult && window.jamesNativeSpeechResult('');", null)
+                    Toast.makeText(context, "Não foi possível iniciar o reconhecimento de voz.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            return JSONObject().put("success", true).put("message", "Reconhecimento de voz iniciado.").toString()
+        }
+
         @JavascriptInterface fun version(): String = "2.5.0"
         @JavascriptInterface fun platform(): String = "android"
 
