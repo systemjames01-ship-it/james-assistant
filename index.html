@@ -405,6 +405,33 @@ function getSessionId(){
  return id;
 }
 
+function executeAndroidActions(actions){
+ if(!Array.isArray(actions)||!actions.length)return;
+ for(const action of actions){
+  if(!window.JamesAndroid){
+   addMessage("Ação preparada, mas não executada: esta sessão está no navegador. Instale e abra o aplicativo Android do Jâmes para habilitar operações no aparelho.","error");
+   continue;
+  }
+  try{
+   let raw;
+   if(action.type==="open_app"){
+    raw=window.JamesAndroid.openApp(action.packageName);
+   }else if(action.type==="schedule_reminder"){
+    raw=window.JamesAndroid.scheduleReminder(action.title,Date.parse(action.at));
+   }else if(action.type==="open_settings"){
+    raw=window.JamesAndroid.openSystemSettings(action.section);
+   }else{
+    addMessage("O Android recebeu uma ação não reconhecida. Nenhuma operação foi executada.","error");
+    continue;
+   }
+   const result=JSON.parse(raw||"{}");
+   addMessage((result.success?"Android confirmou: ":"Android não concluiu: ")+(result.message||"sem detalhes"),result.success?"bot":"error");
+  }catch(error){
+   addMessage("Falha ao executar ação no Android: "+(error.message||"erro nativo"),"error");
+  }
+ }
+}
+
 async function sendMessage(message,attachments=null){
  const text=message.trim();
  const files=Array.isArray(attachments)?attachments:[];
@@ -446,6 +473,7 @@ async function sendMessage(message,attachments=null){
   }
 
   addMessage(data.reply,"bot");
+  executeAndroidActions(data.clientActions);
   statusBox.textContent=data.reasoningLevel==="high"
    ?"Resposta concluída após análise aprofundada."
    :"Resposta recebida.";
