@@ -187,6 +187,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 @media(prefers-reduced-motion:reduce){.eye-aura,.irisPulse,.scanOrbit{animation:none!important}}
 
 </style>
+ <link rel="stylesheet" href="./hologram-v24.css">
 </head>
 <body>
 <div class="app-shell">
@@ -203,13 +204,15 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 </header>
 
 <section class="hero view head-view" id="overviewView" aria-label="Cabeça holográfica do Jâmes">
- <div class="reactor-wrap" aria-hidden="true">
-  <div class="reactor holographic-eye" id="jamesEye" data-state="idle" role="img" aria-label="Olho holográfico do Jâmes em repouso">
-   <div class="eye-aura"></div><div class="orbit"></div><div class="orbit two"></div><div class="orbit three"></div>
-   <div class="eye-shell"><div class="eye-iris"><div class="eye-pupil"><i></i></div><div class="eye-glint"></div></div></div>
-   <div class="eye-scan"></div>
+ <div class="reactor-wrap" aria-label="Globo holográfico animado do Jâmes">
+  <div class="globe-stage" role="img" aria-label="Globo holográfico tridimensional com linhas de varredura e pontos de dados">
+   <div class="globe-readout">JÂMES / HOLO-CORE<br>REDE: ATIVA<br>VISUAL: 3D SIMULADO</div>
+   <div class="globe-readout right">LATÊNCIA: DINÂMICA<br>PERCEPÇÃO: SOB PERMISSÃO<br>ESTADO: <span id="globeState">STANDBY</span></div>
+   <div class="globe-ring"></div><div class="globe-ring ring-b"></div><div class="globe-ring ring-c"></div>
+   <div class="globe-sphere"><canvas class="globe-canvas" id="jamesGlobeCanvas" aria-hidden="true"></canvas></div>
+   <i class="globe-node n1"></i><i class="globe-node n2"></i><i class="globe-node n3"></i>
+   <div class="globe-label">MATRIZ HOLOGRÁFICA // NÚCLEO VISUAL</div>
   </div>
-  <div class="reactor-label" id="eyeState">NÚCLEO ÓPTICO // EM REPOUSO</div>
  </div>
  <div class="hero-copy">
   <div class="eyebrow">CENTRAL DE COMANDO PESSOAL</div>
@@ -221,6 +224,12 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <span class="meta-chip"><b>03</b> · EXECUÇÃO AUTORIZADA</span>
   </div>
   <div class="head-actions"><button type="button" id="headOpenChat">INICIAR CONVERSA</button><button type="button" class="secondary" id="headOpenControl">PAINEL DE CONTROLE</button></div>
+  <div class="head-mic">
+   <button type="button" id="headMic" aria-label="Ativar microfone" aria-pressed="false">🎙</button>
+   <div class="head-mic-copy"><strong>Conversa por voz natural</strong><span id="headMicState">Toque para falar com o Jâmes. A escuta só começa com sua autorização e termina após a fala.</span></div>
+  </div>
+  <div class="head-transcript" id="headTranscript" aria-live="polite">Aguardando conversa por voz…</div>
+  <div class="visual-output"><div class="visual-output-head"><span>VISUALIZAÇÃO DO NÚCLEO</span><span>ANIMAÇÃO LOCAL</span></div><canvas id="jamesVisualCanvas" width="720" height="100" aria-label="Visualização animada do estado do núcleo"></canvas></div>
  </div>
 </section>
 
@@ -976,5 +985,6 @@ if("serviceWorker" in navigator && location.protocol==="https:"){
   .catch(()=>{});
 }
 </script>
+ <script src="./hologram-v24.js" defer></script>
 </body>
 </html>
