@@ -511,13 +511,7 @@ function speak(text){
   }
   return;
  }
- if("speechSynthesis" in window){
-  window.speechSynthesis.cancel();
-  const utterance=new SpeechSynthesisUtterance(String(text));
-  utterance.lang="pt-BR";
-  utterance.rate=1;
-  window.speechSynthesis.speak(utterance);
- }
+ statusBox.textContent="A síntese de voz própria está disponível na sessão de voz do aplicativo Android Jâmes.";
 }
 
 function executeAndroidActions(actions){
@@ -696,54 +690,7 @@ $("voice").addEventListener("click",()=>{
   }
   return;
  }
- const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-
- if(!Recognition){
-  statusBox.textContent="O reconhecimento de voz não está disponível neste navegador.";
-  return;
- }
-
- if(isListening&&recognition){
-  recognition.stop();
-  return;
- }
-
- recognition=new Recognition();
- recognition.lang="pt-BR";
- recognition.continuous=false;
- recognition.interimResults=false;
- isListening=true;
-
- recognition.onstart=()=>{
-  statusBox.textContent="Estou ouvindo...";
-  $("voice").textContent="Parar escuta";
- };
-
- recognition.onerror=()=>{
-  statusBox.textContent="Não consegui reconhecer a voz. Tente novamente.";
- };
-
- recognition.onresult=event=>{
-  const text=event.results[0][0].transcript;
-  $("prompt").value=text;
-  sendMessage(text);
- };
-
- recognition.onend=()=>{
-  isListening=false;
-  $("voice").textContent="Falar";
-  if(statusBox.textContent==="Estou ouvindo..."){
-   statusBox.textContent="Pronto para conversar.";
-  }
- };
-
- try{
-  recognition.start();
- }catch(error){
-  isListening=false;
-  $("voice").textContent="Falar";
-  statusBox.textContent="Não foi possível iniciar o microfone.";
- }
+ statusBox.textContent="O reconhecimento de voz do navegador foi desativado para não abrir a interface externa do Google. Use a sessão de voz nativa do aplicativo Jâmes.";
 });
 
 $("openCamera").addEventListener("click",async()=>{
