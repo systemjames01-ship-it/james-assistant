@@ -65,7 +65,7 @@ class MainActivity : android.app.Activity() {
                 runOnUiThread {
                     val trusted = request.origin.scheme == "https" &&
                         request.origin.host == "systemjames01-ship-it.github.io" &&
-                        request.origin.path.startsWith("/james-assistant/")
+                        request.origin.host == "systemjames01-ship-it.github.io"
                     val videoOnly = request.resources.size == 1 &&
                         request.resources[0] == PermissionRequest.RESOURCE_VIDEO_CAPTURE
                     if (!trusted || !videoOnly) {
