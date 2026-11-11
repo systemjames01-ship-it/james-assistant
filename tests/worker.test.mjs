@@ -4,12 +4,13 @@ import worker from "../worker.js";
 
 const origin = "https://systemjames01-ship-it.github.io";
 
-test("health endpoint reports the configured primary model", async () => {
+test("health endpoint reports Jâmes status without exposing the underlying model", async () => {
   const response = await worker.fetch(new Request("https://worker.test/"), {});
   const body = await response.json();
   assert.equal(response.status, 200);
   assert.equal(body.status, "online");
-  assert.equal(body.model, "gemini-3.8-flash");
+  assert.equal(body.model, undefined);
+  assert.equal(JSON.stringify(body).toLowerCase().includes("gemini"), false);
   assert.equal(body.aiConfigured, false);
   assert.equal(body.databaseConfigured, false);
   assert.ok(body.capabilities.includes("unified_context"));
