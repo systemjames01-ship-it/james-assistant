@@ -329,7 +329,7 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
     if (!["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"].includes(section)) return { error: "Seção de configurações do Android inválida." };
     return { queuedForDevice: true, clientAction: { type: "open_settings", section }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android." };
   }
-  if (name === "fetch_public_page") {
+  if (name === "search_public_web") {\n    return await searchPublicWeb(args.query, args.limit);\n  }\n  if (name === "fetch_public_page") {
     return await fetchPublicPage(args.url);
   }
   if (name === "get_current_time") {
