@@ -3,13 +3,16 @@
 
   const VOZZ_MODULE = "https://cdn.jsdelivr.net/gh/Pedro21062014/vozz@v0.2.7/src/piper.js";
   const VOZZ_ASSETS = "https://cdn.jsdelivr.net/gh/Pedro21062014/vozz@v0.2.7";
+  const VOZZ_SYNTH = "https://cdn.jsdelivr.net/gh/Pedro21062014/vozz@v0.2.7/src/sintetizador.js";
   const profiles = {
-    jarvis: { label: "Jâmes · Clássica", speed: 1.0, pitch: 1.0, bass: 0.2, clarity: 1.8, lowpass: 10800, highpass: 75 },
-    patrick: { label: "Jâmes · Analítica", speed: 1.035, pitch: 1.0, bass: 1.4, clarity: 0.7, lowpass: 8200, highpass: 65 },
-    demon: { label: "Jâmes · Intensa", speed: 0.96, pitch: 0.965, bass: 3.0, clarity: -0.8, lowpass: 6100, highpass: 55 }
+    jarvis: { label: "Jâmes · Clássica", engine: "formant", voice: "bruno", speed: 1.0, pitch: 1.0, bass: 0.2, clarity: 1.8, lowpass: 9000, highpass: 75 },
+    patrick: { label: "Jâmes · Analítica", engine: "piper", speed: 1.035, pitch: 1.0, bass: 1.4, clarity: 0.7, lowpass: 8200, highpass: 65 },
+    demon: { label: "Jâmes · Intensa", engine: "piper", speed: 0.96, pitch: 0.965, bass: 3.0, clarity: -0.8, lowpass: 6100, highpass: 55 }
   };
 
   let engine = null;
+  let syntheticEngine = null;
+  let syntheticLoading = null;
   let loading = null;
   let audioContext = null;
   let activeSources = new Set();
@@ -41,6 +44,18 @@
       try { source.disconnect(); } catch (_) {}
     }
     activeSources.clear();
+  }
+
+  async function initializeSynthetic() {
+    if (syntheticEngine) return syntheticEngine;
+    if (syntheticLoading) return syntheticLoading;
+    syntheticLoading = (async () => {
+      const { Sintetizador } = await import(VOZZ_SYNTH);
+      syntheticEngine = new Sintetizador({ voz: "bruno" });
+      return syntheticEngine;
+    })();
+    try { return await syntheticLoading; }
+    finally { syntheticLoading = null; }
   }
 
   async function initialize() {
@@ -138,7 +153,7 @@
 
   async function speak(text) {
     const content = String(text || "").trim().slice(0, 12000);
-    if (!content || !engine || localStorage.getItem("james_voice_enabled") === "false") return false;
+    if (!content || localStorage.getItem("james_voice_enabled") === "false") return false;
     stop();
     const activeRun = runId;
     const context = ensureAudioContext();
@@ -147,8 +162,26 @@
     const userRate = Number(document.getElementById("voiceRate")?.value || 1);
     const userPitch = Number(document.getElementById("voicePitch")?.value || 1);
     const profile = { ...baseProfile, speed: baseProfile.speed * userRate, pitch: baseProfile.pitch * userPitch };
-    status("Sintetizando resposta em português brasileiro…", "ready");
+
     try {
+      if (profile.engine === "formant") {
+        const synthesizer = await initializeSynthetic();
+        const sentences = content.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [content];
+        status("Voz masculina sintética Jâmes ativa · Bruno · processamento local.", "ready");
+        for (const sentence of sentences) {
+          if (activeRun !== runId) return false;
+          const audio = synthesizer.falar(sentence.trim(), { voz: profile.voice, velocidade: profile.speed, entonacao: 1 });
+          await playChunk(audio, profile, activeRun);
+        }
+        return activeRun === runId;
+      }
+
+      if (!engine) {
+        status("Este perfil usa a voz neural natural Faber. Abra VOZES e carregue o motor neural (~30 MB). O perfil Jâmes Clássico já funciona sem download.", "idle");
+        return false;
+      }
+
+      status("Sintetizando resposta neural em português brasileiro…", "ready");
       for await (const part of engine.falarEmFluxo(content, { velocidade: profile.speed, normalizar: true })) {
         if (activeRun !== runId) return false;
         await playChunk(part.audio, profile, activeRun);
@@ -156,7 +189,7 @@
       return activeRun === runId;
     } catch (error) {
       lastError = error?.message || "Falha durante a síntese.";
-      status("A síntese neural falhou: " + lastError + ". Nenhuma voz do Google será usada como substituta.", "error");
+      status("A síntese local falhou: " + lastError + ". Nenhuma voz do Google será usada como substituta.", "error");
       return false;
     }
   }
@@ -171,7 +204,7 @@
     });
     const label = document.getElementById("holoVoiceName");
     if (label) label.textContent = profileId === "jarvis" ? "JÂMES / CLÁSSICA" : profileId === "patrick" ? "JÂMES / ANALÍTICA" : "JÂMES / INTENSA";
-    status(engine ? "Perfil de interpretação atualizado." : "Perfil salvo. Carregue a voz neural para ouvir.", engine ? "ready" : "idle");
+    status(profileId === "jarvis" ? "Perfil Jâmes Clássico pronto: voz masculina sintética local, sem download." : engine ? "Perfil neural natural atualizado." : "Este perfil usa a voz Faber. Carregue o motor neural (~30 MB) para ouvir.", profileId === "jarvis" || engine ? "ready" : "idle");
   }
 
   async function loadAndTest() {
@@ -181,7 +214,14 @@
       const context = ensureAudioContext();
       if (context.state === "suspended") await context.resume();
       await initialize();
-      await speak("Olá. Eu sou Jâmes. Meu sistema de voz neural em português brasileiro está ativo e pronto para conversar com você.");
+      const previousProfile = selectedProfile;
+      selectedProfile = "patrick";
+      try {
+        await speak("Olá. Eu sou Jâmes. Minha voz neural natural em português brasileiro está ativa e pronta para conversar com você.");
+      } finally {
+        selectedProfile = previousProfile;
+        setProfile(previousProfile);
+      }
     } catch (_) {
       // The status panel already contains the actionable error.
     } finally {
@@ -263,6 +303,6 @@
     startNeuralCanvas();
     const button = document.getElementById("downloadNeuralVoice");
     if (button) button.addEventListener("click", loadAndTest);
-    status("Voz neural ainda não carregada. Toque em “Carregar voz neural” para baixar o modelo Faber pt-BR (18,7 MB) e o runtime de áudio (~11 MB). Os arquivos ficam no cache do navegador.", "idle");
+    status("Jâmes Clássico (Bruno sintético) já funciona localmente. Para os perfis naturais Patrick e Damon, carregue o modelo neural Faber (~18,7 MB + runtime WASM ~11 MB).", "idle");
   });
 })();
