@@ -110,6 +110,7 @@ class JamesLiveAudioSession(
                             val inline = parts.optJSONObject(index)?.optJSONObject("inlineData") ?: continue
                             val encoded = inline.optString("data")
                             if (encoded.isBlank()) continue
+                            listener.onStatus("JÂMES FALANDO")
                             val pcm = Base64.decode(encoded, Base64.DEFAULT)
                             val track = audioTrack ?: continue
                             if (!audioTrackStarted) {
