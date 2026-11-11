@@ -2,6 +2,7 @@ package com.james.assistant
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.AlertDialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -9,6 +10,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RadialGradient
+import android.graphics.Shader
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -79,6 +84,8 @@ class MainActivity : android.app.Activity() {
     private var textToSpeech: TextToSpeech? = null
     private var ttsReady = false
     private var backendSummary = "Verificando o núcleo..."
+    private var selectedVoiceProfile = 0
+    private var availablePortugueseVoices = emptyList<android.speech.tts.Voice>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,10 +97,17 @@ class MainActivity : android.app.Activity() {
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", it).apply()
             }
         createNotificationChannel()
+        selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 1)
         textToSpeech = TextToSpeech(this) { result ->
             if (result == TextToSpeech.SUCCESS) {
-                val language = textToSpeech?.setLanguage(Locale("pt", "BR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                val engine = textToSpeech
+                val language = engine?.setLanguage(Locale("pt", "BR")) ?: TextToSpeech.LANG_NOT_SUPPORTED
                 ttsReady = language >= TextToSpeech.LANG_AVAILABLE
+                availablePortugueseVoices = engine?.voices
+                    ?.filter { it.locale.language == "pt" }
+                    ?.sortedWith(compareBy<android.speech.tts.Voice>({ it.locale.country != "BR" }, { it.isNetworkConnectionRequired }, { it.name }))
+                    ?: emptyList()
+                applyVoiceProfile(selectedVoiceProfile)
             }
         }
         buildShell()
@@ -195,37 +209,55 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun renderOverview() {
-        val page = verticalPage()
-        val hero = card()
-        addText(hero, "NÚCLEO JÂMES", 11f, COLOR_CYAN, true)
-        addText(hero, "À sua disposição.", 29f, COLOR_TEXT, true, top = 10)
-        addText(hero, "Inteligência, percepção, memória e execução reunidas em uma central de controle. Não são modos separados: um único núcleo acompanha o contexto e utiliza ferramentas autorizadas.", 13f, COLOR_MUTED, top = 8)
-        addText(hero, backendSummary, 10f, COLOR_GREEN, true, top = 16)
-        addButton(hero, "ABRIR CONSOLE DE COMANDO") { showPage("intelligence") }
-        page.addView(hero)
-
-        val device = deviceInfo()
-        val battery = device.optInt("batteryPercent", -1)
-        val deviceCard = card()
-        addText(deviceCard, "ESTADO DO DISPOSITIVO", 10f, COLOR_CYAN, true)
-        addText(deviceCard, if (battery in 0..100) "$battery% DE BATERIA" else "BATERIA INDISPONÍVEL", 21f, COLOR_TEXT, true, top = 8)
-        addText(deviceCard, Build.MANUFACTURER + " " + Build.MODEL + " · ANDROID " + Build.VERSION.RELEASE, 10f, COLOR_MUTED, top = 4)
-        addButton(deviceCard, "DIAGNÓSTICO COMPLETO", secondary = true) { showPage("device") }
-        page.addView(deviceCard)
-
-        val modules = card()
-        addText(modules, "SUBSISTEMAS", 10f, COLOR_CYAN, true)
-        addModule(modules, "NÚCLEO COGNITIVO", "Raciocínio, contexto compartilhado e ferramentas autorizadas.") { showPage("intelligence") }
-        addModule(modules, "PERCEPÇÃO", "Câmera sob solicitação, imagens e documentos para análise.") { showPage("perception") }
-        addModule(modules, "AUTOMAÇÕES", "Tarefas e lembretes locais no Android.") { showPage("automation") }
-        addModule(modules, "MEMÓRIA", "Informações guardadas explicitamente, com controle do usuário.") { showPage("memory") }
-        page.addView(modules)
-
-        val privacy = card()
-        addText(privacy, "PRIVACIDADE E CONTROLE", 10f, COLOR_CYAN, true)
-        addText(privacy, "O Jâmes não escuta continuamente nem observa a câmera em segundo plano. O acesso à câmera e ao microfone começa somente quando você solicita. Ações no aparelho dependem das permissões do Android.", 11f, COLOR_MUTED, top = 8)
-        page.addView(privacy)
-        mountScrollable(page)
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(8), dp(12), dp(12))
+        }
+        val heading = TextView(this).apply {
+            text = "JÂMES"
+            textSize = 13f
+            letterSpacing = 0.34f
+            gravity = Gravity.CENTER
+            setTextColor(COLOR_CYAN)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        }
+        page.addView(heading, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)))
+        val orb = JamesOrbView(this)
+        page.addView(orb, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val subtitle = TextView(this).apply {
+            text = "ASSISTENTE PESSOAL"
+            textSize = 10f
+            letterSpacing = 0.18f
+            gravity = Gravity.CENTER
+            setTextColor(COLOR_MUTED)
+        }
+        page.addView(subtitle, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
+        val state = TextView(this).apply {
+            text = backendSummary
+            textSize = 10f
+            gravity = Gravity.CENTER
+            setTextColor(COLOR_GREEN)
+            maxLines = 2
+        }
+        page.addView(state, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38)))
+        val talk = makeButton("FALAR COM O JÂMES") { startVoiceInput() }
+        page.addView(talk, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply {
+            topMargin = dp(8); bottomMargin = dp(6)
+        })
+        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        controls.addView(makeButton("ESCOLHER VOZ", true) { showVoicePicker() },
+            LinearLayout.LayoutParams(0, dp(44), 1f).apply { rightMargin = dp(5) })
+        controls.addView(makeButton("ABRIR CONSOLE", true) { showPage("intelligence") },
+            LinearLayout.LayoutParams(0, dp(44), 1f).apply { leftMargin = dp(5) })
+        page.addView(controls)
+        val modules = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        listOf("PERCEPÇÃO" to "perception", "AÇÕES" to "automation", "MEMÓRIA" to "memory", "APARELHO" to "device").forEach { (label, target) ->
+            val b = makeButton(label, true).apply { textSize = 8f; setOnClickListener { showPage(target) } }
+            modules.addView(b, LinearLayout.LayoutParams(0, dp(38), 1f).apply { leftMargin = dp(2); rightMargin = dp(2) })
+        }
+        page.addView(modules, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)).apply { topMargin = dp(8) })
+        content.addView(page)
     }
 
     private fun renderIntelligence() {
@@ -387,6 +419,7 @@ class MainActivity : android.app.Activity() {
     private fun sendMessage() {
         if (sending) return
         val text = prompt.text?.toString()?.trim().orEmpty()
+        if (text.isNotEmpty() && handleVoiceCommand(text)) { prompt.setText(""); return }
         if (text.isEmpty() && pendingAttachments.isEmpty()) return
         val outgoingAttachments = JSONArray()
         pendingAttachments.forEach { outgoingAttachments.put(it) }
@@ -581,6 +614,66 @@ class MainActivity : android.app.Activity() {
 
     private fun speak(text: String) {
         if (ttsReady) textToSpeech?.speak(text.take(15000), TextToSpeech.QUEUE_FLUSH, null, "james-reply")
+    }
+
+    private fun applyVoiceProfile(profile: Int) {
+        selectedVoiceProfile = profile.coerceIn(0, 1)
+        val voices = availablePortugueseVoices
+        if (voices.isEmpty()) return
+        val voice = voices.getOrNull(selectedVoiceProfile) ?: voices.first()
+        try { textToSpeech?.voice = voice } catch (_: Exception) { }
+    }
+
+    private fun showVoicePicker() {
+        val voices = availablePortugueseVoices
+        if (voices.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle("Vozes em português")
+                .setMessage("O mecanismo de voz do Android não informou vozes em português instaladas. Instale dados de voz em Configurações > Texto para fala e tente novamente.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+        val labels = arrayOf("Voz 1 — perfil principal", "Voz 2 — perfil alternativo")
+        val options = labels.mapIndexed { index, label ->
+            val voice = voices.getOrNull(index)
+            if (voice == null) "$label — indisponível neste aparelho" else "$label — ${voice.name}"
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Escolher voz do Jâmes")
+            .setSingleChoiceItems(options, selectedVoiceProfile.coerceAtMost(voices.lastIndex)) { dialog, which ->
+                if (which < voices.size) {
+                    applyVoiceProfile(which)
+                    getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", which).apply()
+                    setStatus("VOZ ${which + 1} SELECIONADA")
+                    speak("Voz ${which + 1} selecionada. Como posso ajudar?")
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun handleVoiceCommand(text: String): Boolean {
+        val normalized = java.text.Normalizer.normalize(text.lowercase(Locale("pt", "BR")), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\\\p{Mn}+"), "")
+        val asksForVoice = normalized.contains("mudar voz") || normalized.contains("trocar voz") || normalized.contains("escolher voz") || normalized.contains("voz do james")
+        if (!asksForVoice) return false
+        val second = normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") || normalized.contains("voz alternativa")
+        val first = normalized.contains("voz 1") || normalized.contains("voz um") || normalized.contains("primeira voz") || normalized.contains("voz principal")
+        if (first || second) {
+            val index = if (second) 1 else 0
+            if (availablePortugueseVoices.size <= index) {
+                setStatus("ESSA VOZ NÃO ESTÁ INSTALADA")
+                speak("Essa opção de voz não está disponível neste aparelho.")
+            } else {
+                applyVoiceProfile(index)
+                getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", index).apply()
+                setStatus("VOZ ${index + 1} SELECIONADA")
+                speak("Certo. Alterei para a voz ${index + 1}.")
+            }
+        } else showVoicePicker()
+        return true
     }
 
     private fun openCamera() {
@@ -875,5 +968,5 @@ class MainActivity : android.app.Activity() {
         super.onDestroy()
     }
 
-    private class FrameLayoutCompat(context: Context) : android.widget.FrameLayout(context)
+${orbClass}    private class FrameLayoutCompat(context: Context) : android.widget.FrameLayout(context)
 }
