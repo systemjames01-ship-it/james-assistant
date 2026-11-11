@@ -24,8 +24,11 @@ jobs:
           gradle-version: '8.9'
       - name: Install Android SDK platform
         run: |
-          yes | sdkmanager --licenses >/dev/null
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER" || { echo "sdkmanager não encontrado em $SDK_ROOT"; exit 1; }
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
         working-directory: android
