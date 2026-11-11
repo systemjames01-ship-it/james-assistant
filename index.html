@@ -203,41 +203,45 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  <div id="status" role="status" aria-live="polite">Pronto para conversar.</div>
 </header>
 
-<section class="hero view head-view" id="overviewView" aria-label="Cabeça holográfica do Jâmes">
- <div class="reactor-wrap" aria-label="Globo holográfico animado do Jâmes">
-  <div class="globe-stage" role="img" aria-label="Globo holográfico tridimensional com linhas de varredura e pontos de dados">
-   <div class="globe-readout">JÂMES / HOLO-CORE<br>REDE: ATIVA<br>VISUAL: 3D SIMULADO</div>
-   <div class="globe-readout right">LATÊNCIA: DINÂMICA<br>PERCEPÇÃO: SOB PERMISSÃO<br>ESTADO: <span id="globeState">STANDBY</span></div>
-   <div class="globe-ring"></div><div class="globe-ring ring-b"></div><div class="globe-ring ring-c"></div>
-   <div class="globe-sphere"><canvas class="globe-canvas" id="jamesGlobeCanvas" aria-hidden="true"></canvas></div>
-   <i class="globe-node n1"></i><i class="globe-node n2"></i><i class="globe-node n3"></i>
-   <div class="globe-label">MATRIZ HOLOGRÁFICA // NÚCLEO VISUAL</div>
+<section class="hero view head-view" id="overviewView" aria-label="Núcleo neural holográfico do Jâmes">
+ <div class="reactor-wrap" aria-label="Representação holográfica do cérebro tecnológico do Jâmes">
+  <div class="globe-stage neural-stage" role="img" aria-label="Cérebro tecnológico holográfico com conexões neurais animadas em tempo real">
+   <div class="globe-readout">JÂMES / NEURAL CORE<br>REDE: DINÂMICA<br>PROCESSAMENTO: VISUALIZADO</div>
+   <div class="globe-readout right">PERCEPÇÃO: SOB PERMISSÃO<br>ATIVIDADE: <span id="globeState">STANDBY</span><br>LINK: <span id="neuralLinkState">AGUARDANDO</span></div>
+   <div class="neural-aura"></div>
+   <canvas class="globe-canvas neural-canvas" id="jamesGlobeCanvas" aria-hidden="true"></canvas>
+   <div class="globe-label">MATRIZ NEURAL // NÚCLEO COGNITIVO</div>
   </div>
  </div>
  <div class="hero-copy">
-  <div class="eyebrow">CENTRAL DE COMANDO PESSOAL</div>
-  <h1>Estou à sua disposição.</h1>
-  <p>Uma interface de comando pessoal. Converse, configure os módulos e acompanhe os estados do sistema em um só lugar.</p>
+  <div class="eyebrow">INTERFACE PRINCIPAL · JÂMES</div>
+  <h1>À sua disposição.</h1>
+  <p>Um núcleo de inteligência conectado aos seus módulos de conversa, percepção e execução autorizada. A atividade visual acompanha o estado real da sessão.</p>
   <div class="hero-meta">
-   <span class="meta-chip"><b>01</b> · NÚCLEO COGNITIVO</span>
+   <span class="meta-chip"><b>01</b> · INTELIGÊNCIA</span>
    <span class="meta-chip"><b>02</b> · PERCEPÇÃO</span>
-   <span class="meta-chip"><b>03</b> · EXECUÇÃO AUTORIZADA</span>
+   <span class="meta-chip"><b>03</b> · AÇÕES AUTORIZADAS</span>
   </div>
-  <div class="head-actions"><button type="button" id="headOpenChat">INICIAR CONVERSA</button><button type="button" class="secondary" id="headOpenControl">PAINEL DE CONTROLE</button></div>
+  <div class="head-actions"><button type="button" id="headOpenChat">ABRIR CHAT</button><button type="button" class="secondary" id="headOpenControl">PAINEL DE CONTROLE</button></div>
+  <div class="power-console">
+   <button type="button" id="jamesPower" class="power-button" aria-pressed="false"><span class="power-symbol">⏻</span><span id="jamesPowerLabel">LIGAR JÂMES</span></button>
+   <div class="power-copy"><strong id="jamesPowerState">NÚCLEO AO VIVO DESLIGADO</strong><span id="jamesPowerHelp">Este botão inicia ou encerra a sessão ao vivo de voz e câmera. O Android/Chrome ainda exige sua autorização; chat e ferramentas de texto continuam disponíveis.</span></div>
+  </div>
   <div class="head-mic">
-   <button type="button" id="headMic" aria-label="Iniciar conversa ao vivo" aria-pressed="false">🎙</button>
-   <button type="button" id="headVision" class="secondary" aria-label="Ativar visão ao vivo" aria-pressed="false" disabled>◎</button>
-   <div class="head-mic-copy"><strong>Conversa ao vivo · voz e visão</strong><span id="headMicState">Inicie a conversa para falar naturalmente. A câmera só será ativada se você tocar no botão de visão.</span></div>
+   <button type="button" id="headMic" class="secondary" aria-label="Iniciar apenas conversa por voz" aria-pressed="false">🎙</button>
+   <button type="button" id="headVision" class="secondary" aria-label="Ativar ou desativar visão ao vivo" aria-pressed="false" disabled>◎</button>
+   <button type="button" id="headCameraFlip" class="secondary" aria-label="Alternar câmera frontal e traseira" disabled>↻</button>
+   <div class="head-mic-copy"><strong>Controles individuais</strong><span id="headMicState">O botão principal liga/desliga a sessão ao vivo. Os controles individuais permitem iniciar só a voz ou alternar as câmeras frontal e traseira.</span></div>
   </div>
   <video id="headVisionVideo" playsinline muted hidden></video>
   <canvas id="headVisionCanvas" hidden></canvas>
-  <div class="head-transcript" id="headTranscript" aria-live="polite">Aguardando conversa por voz…</div>
-  <div class="visual-output"><div class="visual-output-head"><span>VISUALIZAÇÃO DO NÚCLEO</span><span>ANIMAÇÃO LOCAL</span></div><canvas id="jamesVisualCanvas" width="720" height="100" aria-label="Visualização animada do estado do núcleo"></canvas></div>
+  <div class="head-transcript" id="headTranscript" aria-live="polite">Aguardando ativação do núcleo…</div>
+  <div class="visual-output"><div class="visual-output-head"><span>ATIVIDADE DO NÚCLEO</span><span id="neuralActivityLabel">EM ESPERA</span></div><canvas id="jamesVisualCanvas" width="720" height="100" aria-label="Visualização animada do processamento da sessão"></canvas></div>
  </div>
 </section>
 
 <nav class="view-nav module-nav" aria-label="Módulos do Jâmes">
- <button type="button" data-view-target="overview" aria-pressed="true">◉ CABEÇA</button>
+ <button type="button" data-view-target="overview" aria-pressed="true">◉ NÚCLEO</button>
  <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
  <button type="button" data-view-target="intelligence" aria-pressed="false">▤ CHAT</button>
  <button type="button" data-view-target="voices" aria-pressed="false">♫ VOZES</button>

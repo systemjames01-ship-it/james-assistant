@@ -37,3 +37,27 @@
 @media(max-width:760px){.hero.head-view{grid-template-columns:1fr;min-height:0;padding:18px 14px 24px}.reactor-wrap{min-height:340px}.globe-stage{width:min(350px,84vw)}.hero-copy{text-align:center}.head-mic{text-align:left}.head-actions button{flex:1 1 100%}}
 @media(max-width:520px){.reactor-wrap{min-height:285px}.globe-stage{width:min(290px,82vw)}.globe-readout{font-size:7px}.globe-label{font-size:7px}.head-mic-copy span{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.globe-stage:before,.globe-sphere:before,.globe-sphere:after,.globe-ring{animation:none!important}}
+
+/* JÂMES v2.6 — holographic neural brain and master power control */
+.hero.head-view{grid-template-columns:minmax(300px,1.05fr) minmax(280px,.95fr);min-height:640px}
+.neural-stage{width:min(560px,94vw);aspect-ratio:1.08;filter:drop-shadow(0 0 38px rgba(37,198,255,.32))}
+.neural-stage:before{content:"";position:absolute;inset:10%;border-radius:50%;background:radial-gradient(ellipse,rgba(0,177,255,.19),rgba(28,100,180,.08) 48%,transparent 72%);filter:blur(20px);animation:neuralAura 3.8s ease-in-out infinite}
+.neural-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible}
+.neural-stage .globe-label{bottom:3%;z-index:4;text-shadow:0 0 12px #00cfff}
+.neural-stage .globe-readout{z-index:5;top:12%;left:1%;font-size:8px;line-height:1.9;color:rgba(151,236,255,.78)}
+.neural-stage .globe-readout.right{left:auto;right:1%;text-align:right}
+.neural-aura{position:absolute;inset:20%;border-radius:50%;background:radial-gradient(ellipse,rgba(49,187,255,.16),transparent 68%);filter:blur(18px);z-index:0}
+.power-console{display:flex;align-items:center;gap:15px;margin-top:24px;padding:14px;border:1px solid rgba(93,222,255,.25);border-radius:16px;background:linear-gradient(110deg,rgba(4,29,47,.88),rgba(5,15,27,.92));box-shadow:inset 0 0 25px rgba(41,181,238,.06)}
+.power-button{display:flex;align-items:center;justify-content:center;gap:9px;min-width:154px;min-height:58px;padding:12px 18px;border:1px solid rgba(98,232,255,.55);border-radius:13px;background:linear-gradient(135deg,#83f3ff,#28a8d2);color:#03121b;font:800 11px 'DM Mono',monospace;letter-spacing:.1em;box-shadow:0 0 22px rgba(44,197,244,.22)}
+.power-symbol{font-size:24px;line-height:1}
+.power-button[aria-pressed="true"]{border-color:rgba(255,125,134,.65);background:linear-gradient(135deg,#ffb2b7,#e76a7b);color:#23070b;box-shadow:0 0 24px rgba(245,93,119,.24)}
+.power-copy{display:grid;gap:5px;min-width:0}
+.power-copy strong{color:#dffaff;font:10px 'DM Mono',monospace;letter-spacing:.12em}
+.power-copy span{color:#8aa9bb;font-size:10px;line-height:1.55}
+.head-mic{margin-top:12px}
+@keyframes neuralAura{0%,100%{opacity:.55;transform:scale(.96)}50%{opacity:1;transform:scale(1.06)}}
+@media(max-width:760px){.hero.head-view{grid-template-columns:1fr;min-height:0}.neural-stage{width:min(460px,96vw);margin:auto}.power-console{align-items:stretch}.power-button{min-width:130px}}
+@media(max-width:420px){.power-console{flex-direction:column}.power-button{width:100%}.neural-stage .globe-readout{font-size:7px}}
+
+/* v2.6 responsive neural-core power states */
+.power-button:disabled{opacity:.55;filter:saturate(.65);cursor:progress}.power-button.is-on{animation:powerPulse 2.8s ease-in-out infinite}.neural-stage .globe-label{font-weight:700;text-shadow:0 0 16px rgba(0,207,255,.8)}@keyframes powerPulse{0%,100%{box-shadow:0 0 18px rgba(44,197,244,.18)}50%{box-shadow:0 0 34px rgba(44,197,244,.42)}}
