@@ -27,6 +27,7 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - android_open_app: abre um aplicativo instalado pelo nome exato, somente quando o usuário pedir.
 - android_schedule_reminder: agenda uma notificação local no Android, somente quando o usuário pedir explicitamente e fornecer horário claro.
 - android_open_settings: abre uma tela permitida das Configurações do Android, somente quando o usuário pedir.
+- android_ui_action: atua pontualmente na interface VISÍVEL do Android (tocar em texto, digitar no campo focado, rolar, voltar ou ir à tela inicial). Somente quando o usuário pedir explicitamente. Exige ativação manual do Serviço de Acessibilidade do Jâmes. Nunca afirme execução sem confirmação do aparelho.
 Memórias ficam vinculadas à sessão deste navegador; não prometa sincronização entre dispositivos.
 Integração Android: android_open_app, android_schedule_reminder e android_open_settings enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
@@ -324,6 +325,27 @@ async function searchPublicWeb(rawQueries) {
 }
 
 async function executeAssistantTool(env, sessionId, name, args = {}) {
+  if (name === "android_ui_action") {
+    const action = typeof args.action === "string" ? args.action : "";
+    if (!["tap_text", "type_text", "scroll", "back", "home"].includes(action)) return { error: "Ação de interface não permitida." };
+    const clientAction = { type: "ui_action", action };
+    if (action === "tap_text") {
+      const targetText = typeof args.target_text === "string" ? args.target_text.trim().slice(0, 120) : "";
+      if (!targetText) return { error: "Informe o texto visível que deve ser acionado." };
+      clientAction.targetText = targetText;
+    }
+    if (action === "type_text") {
+      const text = typeof args.text === "string" ? args.text.slice(0, 1500) : "";
+      if (!text) return { error: "Informe o texto para o campo atualmente focado." };
+      clientAction.text = text;
+    }
+    if (action === "scroll") {
+      const direction = typeof args.direction === "string" ? args.direction : "";
+      if (!["up", "down"].includes(direction)) return { error: "Direção deve ser up ou down." };
+      clientAction.direction = direction;
+    }
+    return { queuedForDevice: true, clientAction, instruction: "A ação foi encaminhada, mas ainda não foi executada. Aguarde a confirmação do Android; se o serviço estiver desativado, informe isso ao usuário." };
+  }
   if (name === "android_open_app") {
     const appName = typeof args.app_name === "string" ? args.app_name.trim().slice(0, 80) : "";
     if (!appName) return { error: "Informe o nome do aplicativo que o usuário pediu para abrir." };
@@ -475,6 +497,16 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
   const activeInstruction = baseInstruction + memoryContext + deviceInfo;
   const tools = [{
     functionDeclarations: [
+      {
+        name: "android_ui_action",
+        description: "Ação pontual na interface visível do Android. Use apenas após pedido explícito: tap_text toca em texto visível; type_text digita no campo já focado; scroll rola; back volta; home abre a tela inicial. Não envie mensagens, confirme compras, apague dados ou execute ações sensíveis sem confirmação explícita do usuário.",
+        parameters: { type: "OBJECT", properties: {
+          action: { type: "STRING", enum: ["tap_text", "type_text", "scroll", "back", "home"] },
+          target_text: { type: "STRING" },
+          text: { type: "STRING" },
+          direction: { type: "STRING", enum: ["up", "down"] }
+        }, required: ["action"] }
+      },
       {
         name: "android_open_app",
         description: "Abre um aplicativo instalado no Android do usuário. Use SOMENTE quando ele pedir explicitamente para abrir/iniciar um aplicativo. Informe o nome visível do aplicativo, sem adivinhar package names.",

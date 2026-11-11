@@ -511,3 +511,27 @@ test("assistant receives device timezone context for local scheduling", async ()
     globalThis.fetch = originalFetch;
   }
 });
+
+test("explicit Android UI action is handed to the native accessibility bridge", async () => {
+  const originalFetch = globalThis.fetch;
+  let count = 0;
+  globalThis.fetch = async (_url, options) => {
+    count++;
+    if (count === 1) return new Response(JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ functionCall: { name: "android_ui_action", args: { action: "tap_text", target_text: "Configurações" } } }] } }] }), { status: 200 });
+    const body = JSON.parse(options.body);
+    const result = body.contents.at(-1).parts[0].functionResponse.response;
+    assert.equal(result.queuedForDevice, true);
+    assert.equal(result.clientAction.type, "ui_action");
+    assert.equal(result.clientAction.action, "tap_text");
+    assert.equal(result.clientAction.targetText, "Configurações");
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "Ação encaminhada ao Android." }] } }] }), { status: 200 });
+  };
+  try {
+    const request = new Request("https://worker.test/", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ message: "Toque em Configurações", sessionId: "session_test_12345" }) });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Ação encaminhada ao Android.");
+    assert.equal(count, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});
