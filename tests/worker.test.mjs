@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import worker from "../worker.js";
 
 const origin = "https://systemjames01-ship-it.github.io";
+// Public status intentionally omits internal model-provider identifiers.
 
 test("health endpoint reports Jâmes status without exposing the underlying model", async () => {
   const response = await worker.fetch(new Request("https://worker.test/"), {});
