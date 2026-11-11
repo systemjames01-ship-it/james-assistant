@@ -78,9 +78,9 @@ function json(data, status, origin) {
 
 function errorMessage(payload, status) {
   const message = payload?.error?.message;
-  if (typeof message === "string" && message.trim()) {
-    return message.slice(0, 700);
-  }
+  if (status === 429) return "O núcleo atingiu temporariamente o limite de solicitações. Tente novamente em instantes.";
+  if (status >= 500) return "O núcleo de inteligência está temporariamente indisponível. Tente novamente em instantes.";
+  if (typeof message === "string" && message.trim()) return "O núcleo recusou a solicitação. Revise o pedido e tente novamente.";
   return "O núcleo de inteligência respondeu com HTTP " + status + ".";
 }
 
@@ -915,7 +915,7 @@ export default {
           console.error("Gemini Live token provisioning failed:", tokenData?.error?.message || tokenResponse.status);
           return json({ error: "O núcleo de voz não disponibilizou uma sessão ao vivo (HTTP " + tokenResponse.status + ")." }, 502, origin);
         }
-        return json({ token: tokenData.name, model: "gemini-3.8-live", expiresAt: expireTime }, 200, origin);
+        return json({ token: tokenData.name, expiresAt: expireTime }, 200, origin);
       } catch (error) {
         console.error("Gemini Live token request failed:", error);
         return json({ error: "Falha ao solicitar a sessão de voz ao vivo." }, 502, origin);
@@ -1056,15 +1056,14 @@ export default {
       return json({
         reply,
         clientActions,
-        model: usedModel,
         reasoningLevel: selectThinkingLevel([...history, currentTurn]),
         savedMemories: memories.length,
         memory: memoryAvailable ? "available" : "temporarily_unavailable"
       }, 200, origin);
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 502;
-      const safeMessage = error?.kind === "gemini" && status === 503
-        ? "O núcleo está temporariamente indisponível ou atingiu seu limite de solicitações. Tente novamente em instantes."
+      const safeMessage = error?.kind === "gemini"
+        ? (status === 429 ? "O núcleo atingiu temporariamente o limite de solicitações. Tente novamente em instantes." : "O núcleo de inteligência está temporariamente indisponível. Tente novamente em instantes.")
         : error?.message || "Falha ao processar a solicitação.";
       return json({ error: safeMessage }, status, origin);
     }
