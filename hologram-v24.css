@@ -58,3 +58,6 @@
 @keyframes neuralAura{0%,100%{opacity:.55;transform:scale(.96)}50%{opacity:1;transform:scale(1.06)}}
 @media(max-width:760px){.hero.head-view{grid-template-columns:1fr;min-height:0}.neural-stage{width:min(460px,96vw);margin:auto}.power-console{align-items:stretch}.power-button{min-width:130px}}
 @media(max-width:420px){.power-console{flex-direction:column}.power-button{width:100%}.neural-stage .globe-readout{font-size:7px}}
+
+/* v2.6 responsive neural-core power states */
+.power-button:disabled{opacity:.55;filter:saturate(.65);cursor:progress}.power-button.is-on{animation:powerPulse 2.8s ease-in-out infinite}.neural-stage .globe-label{font-weight:700;text-shadow:0 0 16px rgba(0,207,255,.8)}@keyframes powerPulse{0%,100%{box-shadow:0 0 18px rgba(44,197,244,.18)}50%{box-shadow:0 0 34px rgba(44,197,244,.42)}}
