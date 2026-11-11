@@ -94,7 +94,7 @@ class MainActivity : android.app.Activity() {
     private var liveVoiceSession: JamesLiveAudioSession? = null
     private var liveButton: Button? = null
     private var visionButton: Button? = null
-    private var orbView: JamesOrbView? = null
+    private var orbView: JamesHologramView? = null
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
 
@@ -108,7 +108,7 @@ class MainActivity : android.app.Activity() {
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", it).apply()
             }
         createNotificationChannel()
-        selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 1)
+        selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 3)
         textToSpeech = TextToSpeech(this) { result ->
             if (result == TextToSpeech.SUCCESS) {
                 val engine = textToSpeech
@@ -234,11 +234,11 @@ class MainActivity : android.app.Activity() {
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         }
         page.addView(heading, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)))
-        val orb = JamesOrbView(this)
+        val orb = JamesHologramView(this)
         orbView = orb
         page.addView(orb, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         val subtitle = TextView(this).apply {
-            text = "ASSISTENTE PESSOAL"
+            text = "NÚCLEO HOLOGRÁFICO  //  INTERFACE JÂMES"
             textSize = 10f
             letterSpacing = 0.18f
             gravity = Gravity.CENTER
@@ -253,13 +253,13 @@ class MainActivity : android.app.Activity() {
             maxLines = 2
         }
         page.addView(state, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38)))
-        val talk = makeButton("FALAR COM O JÂMES") { startVoiceInput() }
+        val talk = makeButton("ATIVAR COMANDO DE VOZ") { startVoiceInput() }
         page.addView(talk, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply {
             topMargin = dp(8); bottomMargin = dp(6)
         })
-        liveButton = makeButton("INICIAR CONVERSA AO VIVO", true) { toggleLiveConversation() }
+        liveButton = makeButton("INICIAR LINK NEURAL AO VIVO", true) { toggleLiveConversation() }
         page.addView(liveButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply { topMargin = dp(8); bottomMargin = dp(6) })
-        visionButton = makeButton("ATIVAR VISÃO AO VIVO", true) { toggleLiveVision() }
+        visionButton = makeButton("ATIVAR SENSOR VISUAL", true) { toggleLiveVision() }
         page.addView(visionButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { bottomMargin = dp(6) })
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         controls.addView(makeButton("ESCOLHER VOZ", true) { showVoicePicker() },
@@ -684,8 +684,15 @@ class MainActivity : android.app.Activity() {
                 if (token.isBlank()) throw IOException("O núcleo não forneceu um token de sessão.")
                 runOnUiThread {
                     if (!liveConversationEnabled) return@runOnUiThread
-                    val voice = if (selectedVoiceProfile == 0) "Puck" else "Charon"
-                    liveVoiceSession = JamesLiveAudioSession(this, token, voice, object : JamesLiveAudioSession.Listener {
+                    val voiceProfiles = arrayOf("Charon", "Algieba", "Kore", "Zephyr")
+                    val voice = voiceProfiles[selectedVoiceProfile.coerceIn(0, 3)]
+                    val voiceInstructions = arrayOf(
+                        "Fale sempre em português brasileiro. Voz adulta masculina, grave, elegante, serena e precisa; ritmo moderado, articulação nítida, calor discreto e autoridade tranquila. Não imite nenhuma pessoa real.",
+                        "Fale sempre em português brasileiro. Voz adulta masculina, grave, aveludada, suave e intimista; ritmo natural, pausas expressivas e timbre encorpado. Não imite nenhuma pessoa real.",
+                        "Fale sempre em português brasileiro. Voz adulta masculina, muito firme, encorpada e ressonante; dicção clara, ritmo controlado e presença marcante sem gritar. Não imite nenhuma pessoa real.",
+                        "Fale sempre em português brasileiro. Voz adulta masculina, clara, articulada, inteligente e levemente descontraída; ritmo conversacional ágil, com ironia sutil apenas quando apropriado. Não imite nenhuma pessoa real."
+                    )
+                    liveVoiceSession = JamesLiveAudioSession(this, token, voice, voiceInstructions[selectedVoiceProfile.coerceIn(0, 3)], object : JamesLiveAudioSession.Listener {
                         override fun onStatus(message: String) {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
@@ -703,6 +710,9 @@ class MainActivity : android.app.Activity() {
                             }
                         }
                         override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
+                        override fun onAudioLevel(level: Float, speaking: Boolean) {
+                            runOnUiThread { orbView?.setAudioLevel(level) }
+                        }
                         override fun onToolCall(id: String, name: String, args: JSONObject) {
                             handleLiveToolCall(id, name, args)
                         }
@@ -797,33 +807,41 @@ class MainActivity : android.app.Activity() {
         liveConversationEnabled = false
         liveVoiceSession?.close()
         liveVoiceSession = null
+        orbView?.setAudioLevel(0f)
         liveButton?.text = "INICIAR CONVERSA AO VIVO"
         setStatus("CONVERSA AO VIVO ENCERRADA")
     }
 
     private fun applyVoiceProfile(profile: Int) {
-        selectedVoiceProfile = profile.coerceIn(0, 1)
+        selectedVoiceProfile = profile.coerceIn(0, 3)
         val voices = availablePortugueseVoices
-        if (voices.isEmpty()) return
-        val voice = voices.getOrNull(selectedVoiceProfile) ?: voices.first()
-        try { textToSpeech?.voice = voice } catch (_: Exception) { }
+        if (voices.isNotEmpty()) {
+            val deviceIndex = if (voices.size == 1) 0 else
+                kotlin.math.round(selectedVoiceProfile * (voices.size - 1) / 3.0).toInt()
+            try { textToSpeech?.voice = voices[deviceIndex] } catch (_: Exception) { }
+        }
+        // Device TTS remains a fallback; Live mode uses four different neural voice presets.
+        val pitch = arrayOf(.88f, .80f, .70f, .98f)[selectedVoiceProfile]
+        val rate = arrayOf(.92f, .96f, .90f, 1.05f)[selectedVoiceProfile]
+        try { textToSpeech?.setPitch(pitch); textToSpeech?.setSpeechRate(rate) } catch (_: Exception) { }
     }
 
     private fun showVoicePicker() {
-        val firstDeviceVoice = availablePortugueseVoices.getOrNull(0)?.name
-        val secondDeviceVoice = availablePortugueseVoices.getOrNull(1)?.name
         val options = arrayOf(
-            "Voz 1 — Puck" + (firstDeviceVoice?.let { " · aparelho: $it" } ?: " · voz Live"),
-            "Voz 2 — Charon" + (secondDeviceVoice?.let { " · aparelho: $it" } ?: " · voz Live")
+            "JARVIS · grave, elegante · referência Eduardo Borgerth",
+            "DAMON · grave, aveludada · referência Clécio Souto",
+            "OPTIMUS · firme, encorpada · referência Guilherme Briggs",
+            "JANE · clara, articulada · referência Márcio Simões"
         )
         AlertDialog.Builder(this)
-            .setTitle("Escolher voz do Jâmes")
+            .setTitle("PERFIS VOCAIS NEURAIS")
+            .setMessage("Quatro perfis com timbres distintos. As referências identificam a direção vocal; não são clonagens nem imitações dos dubladores.")
             .setItems(options) { dialog, which ->
                 applyVoiceProfile(which)
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", which).apply()
-                setStatus("VOZ ${which + 1} SELECIONADA")
+                setStatus("PERFIL VOCAL " + (which + 1) + " ATIVADO")
                 if (liveConversationEnabled) restartLiveConversation()
-                else speak("Voz ${which + 1} selecionada. Como posso ajudar?")
+                else speak("Perfil vocal " + (which + 1) + " selecionado. Inicie o link neural ao vivo para ouvir a voz neural correspondente.")
                 dialog.dismiss()
             }
             .setNegativeButton("Cancelar", null)
@@ -837,21 +855,28 @@ class MainActivity : android.app.Activity() {
         val asksToStartVision = normalized.contains("ligar visao") || normalized.contains("ativar visao") || normalized.contains("abra os olhos")
         if (asksToStopVision) { stopLiveVision(); return true }
         if (asksToStartVision) { if (liveCamera == null && !liveVisionPending) toggleLiveVision(); return true }
-        val asksForVoice = normalized.contains("mudar voz") || normalized.contains("mudar para voz") || normalized.contains("trocar voz") || normalized.contains("trocar a voz") || normalized.contains("alterar voz") || normalized.contains("escolher voz") || normalized.contains("voz do james")
+        val asksForVoice = normalized.contains("mudar voz") || normalized.contains("mudar para voz") || normalized.contains("mudar a voz") ||
+            normalized.contains("trocar voz") || normalized.contains("trocar a voz") || normalized.contains("alterar voz") ||
+            normalized.contains("escolher voz") || normalized.contains("voz do james") || normalized.contains("jarvis") ||
+            normalized.contains("damon") || normalized.contains("optimus") || normalized.contains("jane")
         if (!asksForVoice) return false
-        val second = normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") || normalized.contains("voz alternativa")
-        val first = normalized.contains("voz 1") || normalized.contains("voz um") || normalized.contains("primeira voz") || normalized.contains("voz principal")
-        if (first || second) {
-            val index = if (second) 1 else 0
-            if (availablePortugueseVoices.size <= index) {
-                setStatus("ESSA VOZ NÃO ESTÁ INSTALADA")
-                speak("Essa opção de voz não está disponível neste aparelho.")
-            } else {
-                applyVoiceProfile(index)
-                getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", index).apply()
-                setStatus("VOZ ${index + 1} SELECIONADA")
-                if (liveConversationEnabled) restartLiveConversation() else speak("Certo. Alterei para a voz ${index + 1}.")
-            }
+        val index = when {
+            normalized.contains("voz 4") || normalized.contains("voz quatro") || normalized.contains("quarta voz") ||
+                normalized.contains("márcio") || normalized.contains("marcio") || normalized.contains("jane") -> 3
+            normalized.contains("voz 3") || normalized.contains("voz tres") || normalized.contains("terceira voz") ||
+                normalized.contains("guilherme") || normalized.contains("optimus") -> 2
+            normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") ||
+                normalized.contains("clecio") || normalized.contains("damon") -> 1
+            normalized.contains("voz 1") || normalized.contains("voz um") || normalized.contains("primeira voz") ||
+                normalized.contains("eduardo") || normalized.contains("jarvis") -> 0
+            else -> -1
+        }
+        if (index >= 0) {
+            applyVoiceProfile(index)
+            getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", index).apply()
+            setStatus("PERFIL VOCAL " + (index + 1) + " SELECIONADO")
+            if (liveConversationEnabled) restartLiveConversation()
+            else speak("Perfil vocal " + (index + 1) + " selecionado. Inicie o link neural ao vivo para ouvir a voz correspondente.")
         } else showVoicePicker()
         return true
     }
@@ -1176,61 +1201,6 @@ class MainActivity : android.app.Activity() {
         textToSpeech?.shutdown()
         executor.shutdownNow()
         super.onDestroy()
-    }
-
-    private class JamesOrbView(context: Context) : View(context) {
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeWidth = 2.2f * resources.displayMetrics.density
-        }
-        private val density = resources.displayMetrics.density
-        @Volatile private var mode = 0
-
-        fun setMode(nextMode: Int) {
-            if (mode != nextMode) {
-                mode = nextMode.coerceIn(0, 3)
-                invalidate()
-            }
-        }
-
-        override fun onDraw(canvas: Canvas) {
-            super.onDraw(canvas)
-            val cx = width / 2f
-            val cy = height / 2f
-            val radius = (minOf(width, height) * 0.31f).coerceAtLeast(42f * density)
-            val phase = (System.currentTimeMillis() % 2200L) / 2200f
-            val accent = when (mode) {
-                1 -> 0xFF45C8FF.toInt()
-                2 -> 0xFFB18CFF.toInt()
-                3 -> 0xFF73E6A8.toInt()
-                else -> COLOR_CYAN
-            }
-            val pulseStrength = if (mode == 2) 0.10f else if (mode == 1 || mode == 3) 0.065f else 0.035f
-            val pulse = 1f + pulseStrength * kotlin.math.sin(phase * Math.PI * 2).toFloat()
-            val r = radius * pulse
-            paint.shader = RadialGradient(cx, cy, r * 1.8f,
-                intArrayOf((accent and 0x00FFFFFF) or 0x66000000, (accent and 0x00FFFFFF) or 0x33000000, 0x00000000),
-                floatArrayOf(0f, 0.58f, 1f), Shader.TileMode.CLAMP)
-            canvas.drawCircle(cx, cy, r * 1.8f, paint)
-            paint.shader = RadialGradient(cx - r * 0.28f, cy - r * 0.34f, r * 1.5f,
-                intArrayOf(0xFFF5FFFF.toInt(), accent, 0xFF0A3450.toInt(), 0xFF020A14.toInt()),
-                floatArrayOf(0f, 0.22f, 0.7f, 1f), Shader.TileMode.CLAMP)
-            canvas.drawCircle(cx, cy, r, paint)
-            paint.shader = null
-            ringPaint.color = accent
-            ringPaint.alpha = (145 + 95 * kotlin.math.sin(phase * Math.PI * 2).toFloat()).toInt()
-            ringPaint.strokeWidth = (if (mode == 2) 3f else 2.2f) * density
-            canvas.drawCircle(cx, cy, r * 1.12f, ringPaint)
-            ringPaint.alpha = 75
-            ringPaint.strokeWidth = 1.2f * density
-            canvas.drawCircle(cx, cy, r * (1.27f + 0.025f * kotlin.math.sin(phase * Math.PI * 2).toFloat()), ringPaint)
-            if (mode == 1 || mode == 2 || mode == 3) {
-                ringPaint.alpha = 45
-                canvas.drawCircle(cx, cy, r * (1.43f + 0.04f * kotlin.math.cos(phase * Math.PI * 2).toFloat()), ringPaint)
-            }
-            postInvalidateDelayed(48L)
-        }
     }
 
     private class FrameLayoutCompat(context: Context) : android.widget.FrameLayout(context)

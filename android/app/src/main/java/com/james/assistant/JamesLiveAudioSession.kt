@@ -22,12 +22,14 @@ class JamesLiveAudioSession(
     context: Context,
     private val token: String,
     private val voiceName: String,
+    private val voiceInstruction: String,
     private val listener: Listener
 ) {
     interface Listener {
         fun onStatus(message: String)
         fun onUserTranscript(text: String)
         fun onAssistantTranscript(text: String)
+        fun onAudioLevel(level: Float, speaking: Boolean)
         fun onToolCall(id: String, name: String, args: JSONObject)
         fun onFailure(message: String)
     }
@@ -63,6 +65,7 @@ class JamesLiveAudioSession(
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 val setup = JSONObject()
                     .put("model", "models/gemini-3.8-live")
+                    .put("systemInstruction", JSONObject().put("parts", org.json.JSONArray().put(JSONObject().put("text", voiceInstruction))))
                     .put("generationConfig", JSONObject()
                         .put("responseModalities", org.json.JSONArray().put("AUDIO"))
                         .put("speechConfig", JSONObject().put("voiceConfig", JSONObject()
@@ -112,6 +115,7 @@ class JamesLiveAudioSession(
                             if (encoded.isBlank()) continue
                             listener.onStatus("JÂMES FALANDO")
                             val pcm = Base64.decode(encoded, Base64.DEFAULT)
+                            listener.onAudioLevel(levelOfPcm(pcm, pcm.size), true)
                             val track = audioTrack ?: continue
                             if (!audioTrackStarted) {
                                 track.play()
@@ -208,6 +212,19 @@ class JamesLiveAudioSession(
         audioTrack = track
     }
 
+    private fun levelOfPcm(bytes: ByteArray, size: Int): Float {
+        val samples = size / 2
+        if (samples <= 0) return 0f
+        var sum = 0.0
+        var index = 0
+        while (index + 1 < size) {
+            val sample = (((bytes[index + 1].toInt() shl 8) or (bytes[index].toInt() and 0xFF)).toShort()).toInt() / 32768.0
+            sum += sample * sample
+            index += 2
+        }
+        return (kotlin.math.sqrt(sum / samples) * 2.4).toFloat().coerceIn(0f, 1f)
+    }
+
     private fun startMicrophone() {
         val recorder = audioRecord ?: return
         recorder.startRecording()
@@ -217,6 +234,7 @@ class JamesLiveAudioSession(
                 val count = recorder.read(buffer, 0, buffer.size)
                 if (count > 0) {
                     val chunk = if (count == buffer.size) buffer.copyOf() else buffer.copyOf(count)
+                    listener.onAudioLevel(levelOfPcm(chunk, chunk.size), false)
                     val payload = JSONObject().put("realtimeInput", JSONObject().put("audio", JSONObject()
                         .put("mimeType", "audio/pcm;rate=16000")
                         .put("data", Base64.encodeToString(chunk, Base64.NO_WRAP))))
