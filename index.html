@@ -405,6 +405,52 @@ function getSessionId(){
  return id;
 }
 
+function speak(text){
+ if(window.JamesAndroid){
+  try{
+   const result=JSON.parse(window.JamesAndroid.speak(String(text).slice(0,15000))||"{}");
+   if(!result.success)statusBox.textContent=result.message||"A voz do Android não está disponível.";
+  }catch(error){
+   statusBox.textContent="Não foi possível iniciar a voz do Android.";
+  }
+  return;
+ }
+ if("speechSynthesis" in window){
+  window.speechSynthesis.cancel();
+  const utterance=new SpeechSynthesisUtterance(String(text));
+  utterance.lang="pt-BR";
+  utterance.rate=1;
+  window.speechSynthesis.speak(utterance);
+ }
+}
+
+function executeAndroidActions(actions){
+ if(!Array.isArray(actions)||!actions.length)return;
+ for(const action of actions){
+  if(!window.JamesAndroid){
+   addMessage("Ação preparada, mas não executada: esta sessão está no navegador. Instale e abra o aplicativo Android do Jâmes para habilitar operações no aparelho.","error");
+   continue;
+  }
+  try{
+   let raw;
+   if(action.type==="open_app"){
+    raw=window.JamesAndroid.openApp(action.appName);
+   }else if(action.type==="schedule_reminder"){
+    raw=window.JamesAndroid.scheduleReminder(action.title,Date.parse(action.at));
+   }else if(action.type==="open_settings"){
+    raw=window.JamesAndroid.openSystemSettings(action.section);
+   }else{
+    addMessage("O Android recebeu uma ação não reconhecida. Nenhuma operação foi executada.","error");
+    continue;
+   }
+   const result=JSON.parse(raw||"{}");
+   addMessage((result.success?"Android confirmou: ":"Android não concluiu: ")+(result.message||"sem detalhes"),result.success?"bot":"error");
+  }catch(error){
+   addMessage("Falha ao executar ação no Android: "+(error.message||"erro nativo"),"error");
+  }
+ }
+}
+
 async function sendMessage(message,attachments=null){
  const text=message.trim();
  const files=Array.isArray(attachments)?attachments:[];
@@ -419,10 +465,21 @@ async function sendMessage(message,attachments=null){
  statusBox.textContent="Jâmes está pensando...";
 
  try{
+  const now=new Date();
+  const offset=-now.getTimezoneOffset();
+  const sign=offset>=0?"+":"-";
+  const offsetHours=String(Math.floor(Math.abs(offset)/60)).padStart(2,"0");
+  const offsetMinutes=String(Math.abs(offset)%60).padStart(2,"0");
+  const localNow=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,19)+sign+offsetHours+":"+offsetMinutes;
   const payload={
    message:text||"Analise os anexos enviados.",
    sessionId:getSessionId(),
-   mode:conversationMode
+   mode:conversationMode,
+   deviceContext:{
+    platform:window.JamesAndroid?"android":"web",
+    timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"desconhecido",
+    localNow
+   }
   };
 
   if(files.length){
@@ -446,6 +503,7 @@ async function sendMessage(message,attachments=null){
   }
 
   addMessage(data.reply,"bot");
+  executeAndroidActions(data.clientActions);
   statusBox.textContent=data.reasoningLevel==="high"
    ?"Resposta concluída após análise aprofundada."
    :"Resposta recebida.";
@@ -478,10 +536,14 @@ $("loadOlder").addEventListener("click",()=>loadHistory(true));
 $("voiceOutput").addEventListener("click",()=>{
  voiceOutputEnabled=!voiceOutputEnabled;
  localStorage.setItem("james_voice_enabled",String(voiceOutputEnabled));
- if(!voiceOutputEnabled&&"speechSynthesis" in window)window.speechSynthesis.cancel();
+ if(!voiceOutputEnabled){
+  if(window.JamesAndroid)window.JamesAndroid.stopSpeaking();
+  if("speechSynthesis" in window)window.speechSynthesis.cancel();
+ }
  updateVoiceOutputButton();
 });
 $("stopVoice").addEventListener("click",()=>{
+ if(window.JamesAndroid)window.JamesAndroid.stopSpeaking();
  if("speechSynthesis" in window)window.speechSynthesis.cancel();
  statusBox.textContent="Voz interrompida.";
 });
@@ -518,7 +580,22 @@ try{
  $("notes").value=localStorage.getItem("james_notes")||"";
 }catch(error){}
 
+window.jamesNativeSpeechResult=function(text){
+ if(!text)return;
+ $("prompt").value=text;
+ sendMessage(text);
+};
+
 $("voice").addEventListener("click",()=>{
+ if(window.JamesAndroid){
+  try{
+   const result=JSON.parse(window.JamesAndroid.startVoiceRecognition()||"{}");
+   statusBox.textContent=result.message||"Solicitação de voz enviada ao Android.";
+  }catch(error){
+   statusBox.textContent="Não foi possível iniciar a voz nativa do Android.";
+  }
+  return;
+ }
  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 
  if(!Recognition){

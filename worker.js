@@ -23,7 +23,11 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - save_memory: guarda uma informação de longo prazo somente quando o usuário pedir explicitamente para lembrar/guardar.
 - list_memories: consulta as memórias explicitamente guardadas pelo usuário.
 - delete_memory: apaga uma memória identificada, somente quando o usuário pedir para esquecê-la/apagá-la.
+- android_open_app: abre um aplicativo instalado pelo nome exato, somente quando o usuário pedir.
+- android_schedule_reminder: agenda uma notificação local no Android, somente quando o usuário pedir explicitamente e fornecer horário claro.
+- android_open_settings: abre uma tela permitida das Configurações do Android, somente quando o usuário pedir.
 Memórias ficam vinculadas à sessão deste navegador; não prometa sincronização entre dispositivos.
+Integração Android: android_open_app, android_schedule_reminder e android_open_settings enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
 
 RACIOCÍNIO E EXECUÇÃO:
@@ -297,6 +301,23 @@ async function fetchPublicPage(rawUrl) {
 }
 
 async function executeAssistantTool(env, sessionId, name, args = {}) {
+  if (name === "android_open_app") {
+    const appName = typeof args.app_name === "string" ? args.app_name.trim().slice(0, 80) : "";
+    if (!appName) return { error: "Informe o nome do aplicativo que o usuário pediu para abrir." };
+    return { queuedForDevice: true, clientAction: { type: "open_app", appName }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android. Não afirme que o aplicativo já abriu." };
+  }
+  if (name === "android_schedule_reminder") {
+    const title = typeof args.title === "string" ? args.title.trim().slice(0, 180) : "";
+    const at = typeof args.at === "string" ? args.at.trim() : "";
+    const epochMillis = Date.parse(at);
+    if (!title || !/(Z|[+-][0-9]{2}:[0-9]{2})$/.test(at) || !Number.isFinite(epochMillis) || epochMillis <= Date.now() || epochMillis > Date.now() + 366 * 24 * 60 * 60 * 1000) return { error: "Informe o título e uma data/hora futura válida, com fuso explícito, dentro de um ano." };
+    return { queuedForDevice: true, clientAction: { type: "schedule_reminder", title, at }, instruction: "O lembrete ainda não foi agendado. Aguarde a confirmação do Android antes de afirmar que foi agendado." };
+  }
+  if (name === "android_open_settings") {
+    const section = typeof args.section === "string" ? args.section : "";
+    if (!["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"].includes(section)) return { error: "Seção de configurações do Android inválida." };
+    return { queuedForDevice: true, clientAction: { type: "open_settings", section }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android." };
+  }
   if (name === "fetch_public_page") {
     return await fetchPublicPage(args.url);
   }
@@ -379,7 +400,7 @@ async function loadPersistentMemories(db, sessionId) {
   return (result.results || []).map(row => ({ key: row.memory_key, value: row.memory_value }));
 }
 
-async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "", memories = []) {
+async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "", memories = [], deviceContext = {}) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     model + ":generateContent";
@@ -390,9 +411,51 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
     ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
       memories.map(item => "- " + item.key + ": " + item.value).join("\n")
     : "";
-  const activeInstruction = baseInstruction + memoryContext;
+  let deviceInfo = "";
+  if (deviceContext && typeof deviceContext === "object") {
+    const platform = deviceContext.platform === "android" ? "android" : "web";
+    let timezone = "desconhecido";
+    if (typeof deviceContext.timezone === "string" && deviceContext.timezone.length <= 80) {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: deviceContext.timezone });
+        timezone = deviceContext.timezone;
+      } catch {}
+    }
+    const localNow = typeof deviceContext.localNow === "string" &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/.test(deviceContext.localNow) &&
+      Number.isFinite(Date.parse(deviceContext.localNow))
+      ? deviceContext.localNow
+      : "não fornecida";
+    deviceInfo = "\n\nCONTEXTO LOCAL DO DISPOSITIVO (valores validados):\n" +
+      "Plataforma: " + platform + "\n" +
+      "Fuso horário: " + timezone + "\n" +
+      "Data/hora local ISO: " + localNow;
+  }
+  const activeInstruction = baseInstruction + memoryContext + deviceInfo;
   const tools = [{
     functionDeclarations: [
+      {
+        name: "android_open_app",
+        description: "Abre um aplicativo instalado no Android do usuário. Use SOMENTE quando ele pedir explicitamente para abrir/iniciar um aplicativo. Informe o nome visível do aplicativo, sem adivinhar package names.",
+        parameters: { type: "OBJECT", properties: {
+          app_name: { type: "STRING", description: "Nome visível do aplicativo solicitado, por exemplo WhatsApp." }
+        }, required: ["app_name"] }
+      },
+      {
+        name: "android_schedule_reminder",
+        description: "Solicita ao aplicativo Android nativo que agende uma notificação local. Use apenas quando o usuário pedir explicitamente um lembrete com data e hora. Data/hora ISO 8601 com fuso explícito.",
+        parameters: { type: "OBJECT", properties: {
+          title: { type: "STRING", description: "Texto curto do lembrete." },
+          at: { type: "STRING", description: "Data e hora ISO 8601 futura, com fuso horário explícito." }
+        }, required: ["title", "at"] }
+      },
+      {
+        name: "android_open_settings",
+        description: "Abre uma tela de configurações do Android quando o usuário pedir explicitamente.",
+        parameters: { type: "OBJECT", properties: {
+          section: { type: "STRING", enum: ["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"] }
+        }, required: ["section"] }
+      },
       {
         name: "fetch_public_page",
         description: "Lê uma página pública HTTPS indicada pelo usuário para analisar seu conteúdo. Não acessa endereços privados, arquivos binários nem segue redirecionamentos.",
@@ -477,6 +540,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
   const thinkingLevel = selectThinkingLevel(contents);
   const MAX_AGENT_STEPS = 5;
   let latestResponse = null;
+  const clientActions = [];
 
   for (let step = 0; step <= MAX_AGENT_STEPS; step++) {
     const body = {
@@ -546,11 +610,11 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
           status: 502
         });
       }
-      return reply.slice(0, 30000);
+      return { text: reply.slice(0, 30000), clientActions };
     }
 
     if (step === MAX_AGENT_STEPS) {
-      return "Analisei o pedido, mas atingi o limite de etapas de execução disponíveis nesta versão. Posso continuar assim que houver uma ferramenta ou etapa adicional disponível.";
+      return { text: "Analisei o pedido, mas atingi o limite de etapas de execução disponíveis nesta versão. Posso continuar assim que houver uma ferramenta ou etapa adicional disponível.", clientActions };
     }
 
     transcript.push(modelContent);
@@ -561,6 +625,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
       let toolResult;
       try {
         toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {});
+        if (toolResult?.clientAction) clientActions.push(toolResult.clientAction);
       } catch (toolError) {
         console.error("Assistant tool failed:", call.name, toolError);
         toolResult = { error: "A ferramenta falhou ao executar. Nenhuma conclusão deve ser presumida." };
@@ -586,7 +651,7 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
     .join("")
     .trim();
 
-  if (finalText) return finalText.slice(0, 30000);
+  if (finalText) return { text: finalText.slice(0, 30000), clientActions };
   throw Object.assign(new Error("O Jâmes atingiu o limite de etapas internas sem produzir uma resposta final."), {
     status: 502
   });
@@ -782,16 +847,21 @@ export default {
 
       const currentTurn = { role: "user", parts };
       let reply;
+      let clientActions = [];
       let usedModel = MODEL;
       try {
-        reply = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories);
+        const result = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories, payload?.deviceContext);
+        reply = result.text;
+        clientActions = result.clientActions || [];
       } catch (primaryError) {
         const retryable = primaryError?.kind === "gemini" &&
           [429, 503].includes(primaryError.status);
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        reply = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories);
+        const result = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories, payload?.deviceContext);
+        reply = result.text;
+        clientActions = result.clientActions || [];
       }
 
       if (env.DB) {
@@ -807,6 +877,7 @@ export default {
 
       return json({
         reply,
+        clientActions,
         model: usedModel,
         reasoningLevel: selectThinkingLevel([...history, currentTurn]),
         savedMemories: memories.length,
