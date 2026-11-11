@@ -224,8 +224,10 @@ function extractPageText(html) {
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<(script|style|noscript|svg|canvas|iframe|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<(header|footer|nav)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
-    .replace(/<(br|hr)\b[^>]*>/gi, "\n")
-    .replace(/<\/(p|div|section|article|li|h[1-6]|tr)\s*>/gi, "\n")
+    .replace(/<(br|hr)\b[^>]*>/gi, "
+")
+    .replace(/<\/(p|div|section|article|li|h[1-6]|tr)\s*>/gi, "
+")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -412,8 +414,12 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
   const isAssistantMode = mode === "assistant";
   const baseInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
   const memoryContext = memories.length
-    ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
-      memories.map(item => "- " + item.key + ": " + item.value).join("\n")
+    ? "
+
+MEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):
+" +
+      memories.map(item => "- " + item.key + ": " + item.value).join("
+")
     : "";
   const activeInstruction = baseInstruction + memoryContext;
   const tools = [{
@@ -609,7 +615,8 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
       const call = part.functionCall;
       let toolResult;
       try {
-        toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {});\n        if (toolResult?.clientAction) clientActions.push(toolResult.clientAction);
+        toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {});
+        if (toolResult?.clientAction) clientActions.push(toolResult.clientAction);
       } catch (toolError) {
         console.error("Assistant tool failed:", call.name, toolError);
         toolResult = { error: "A ferramenta falhou ao executar. Nenhuma conclusão deve ser presumida." };
@@ -834,14 +841,18 @@ export default {
       let clientActions = [];
       let usedModel = MODEL;
       try {
-        const result = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories);\n        reply = result.text;\n        clientActions = result.clientActions || [];
+        const result = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories);
+        reply = result.text;
+        clientActions = result.clientActions || [];
       } catch (primaryError) {
         const retryable = primaryError?.kind === "gemini" &&
           [429, 503].includes(primaryError.status);
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        const result = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories);\n        reply = result.text;\n        clientActions = result.clientActions || [];
+        const result = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories);
+        reply = result.text;
+        clientActions = result.clientActions || [];
       }
 
       if (env.DB) {
@@ -856,7 +867,9 @@ export default {
       }
 
       return json({
-        reply,\n        clientActions,\n        model: usedModel,
+        reply,
+        clientActions,
+        model: usedModel,
         reasoningLevel: selectThinkingLevel([...history, currentTurn]),
         savedMemories: memories.length,
         memory: memoryAvailable ? "available" : "temporarily_unavailable"
