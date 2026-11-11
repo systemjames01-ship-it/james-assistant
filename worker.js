@@ -23,6 +23,9 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - save_memory: guarda uma informação de longo prazo somente quando o usuário pedir explicitamente para lembrar/guardar.
 - list_memories: consulta as memórias explicitamente guardadas pelo usuário.
 - delete_memory: apaga uma memória identificada, somente quando o usuário pedir para esquecê-la/apagá-la.
+- android_open_app: abre um aplicativo instalado pelo nome exato, somente quando o usuário pedir.
+- android_schedule_reminder: agenda uma notificação local no Android, somente quando o usuário pedir explicitamente e fornecer horário claro.
+- android_open_settings: abre uma tela permitida das Configurações do Android, somente quando o usuário pedir.
 Memórias ficam vinculadas à sessão deste navegador; não prometa sincronização entre dispositivos.
 Integração Android: android_open_app, android_schedule_reminder e android_open_settings enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
