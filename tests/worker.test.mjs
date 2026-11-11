@@ -581,3 +581,23 @@ test("live token endpoint returns a one-use token without exposing the API key",
     globalThis.fetch = originalFetch;
   }
 });
+
+test("live tool endpoint executes allowlisted tools and rejects unknown tools", async () => {
+  const calculateRequest = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "session_test_12345", name: "calculate", args: { expression: "6 * 7" } })
+  });
+  const calculateResponse = await worker.fetch(calculateRequest, {});
+  const calculateBody = await calculateResponse.json();
+  assert.equal(calculateResponse.status, 200);
+  assert.equal(calculateBody.result.result, 42);
+
+  const deniedRequest = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "session_test_12345", name: "delete_everything", args: {} })
+  });
+  const deniedResponse = await worker.fetch(deniedRequest, {});
+  assert.equal(deniedResponse.status, 400);
+});
