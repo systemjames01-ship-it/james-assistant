@@ -21,8 +21,8 @@ const hologramJs = readFileSync(new URL("../hologram-v24.js", import.meta.url), 
 new vm.Script(hologramJs, { filename: "hologram-v24.js" });
 if (!html.includes('id="jamesGlobeCanvas"') || !html.includes('id="headMic"') ||
     !html.includes('href="./hologram-v24.css"') || !html.includes('src="./hologram-v24.js"') ||
-    !hologramCss.includes(".globe-stage") || !hologramJs.includes("SpeechRecognition")) {
-  throw new Error("Holographic globe, styles, voice interaction, or script integration is missing.");
+    !hologramCss.includes(".globe-stage") || !hologramJs.includes("BidiGenerateContentConstrained") || !hologramJs.includes("action=live-token") || !hologramJs.includes("realtimeInput") || !html.includes('id="headVision"')) {
+  throw new Error("Holographic globe, real-time voice, live vision, or script integration is missing.");
 }
 
 const serviceWorker = readFileSync(new URL("../service-worker.js", import.meta.url), "utf8");
