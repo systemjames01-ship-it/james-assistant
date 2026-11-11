@@ -22,12 +22,8 @@ import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
-import android.speech.RecognitionListener
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Base64
@@ -93,9 +89,8 @@ class MainActivity : android.app.Activity() {
     private var selectedVoiceProfile = 0
     private var availablePortugueseVoices = emptyList<android.speech.tts.Voice>()
     private var liveConversationEnabled = false
-    private var speechRecognizer: SpeechRecognizer? = null
+    private var liveVoiceSession: JamesLiveAudioSession? = null
     private var liveButton: Button? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -432,6 +427,12 @@ class MainActivity : android.app.Activity() {
         if (sending) return
         val text = prompt.text?.toString()?.trim().orEmpty()
         if (text.isNotEmpty() && handleVoiceCommand(text)) { prompt.setText(""); return }
+        if (liveConversationEnabled && text.isNotEmpty() && pendingAttachments.isEmpty()) {
+            addChatMessage(text, false)
+            prompt.setText("")
+            if (liveVoiceSession?.sendText(text) != true) setStatus("SESSÃO DE VOZ AINDA NÃO ESTÁ PRONTA")
+            return
+        }
         if (text.isEmpty() && pendingAttachments.isEmpty()) return
         val outgoingAttachments = JSONArray()
         pendingAttachments.forEach { outgoingAttachments.put(it) }
@@ -456,7 +457,7 @@ class MainActivity : android.app.Activity() {
                 val actions = response.optJSONArray("clientActions") ?: JSONArray()
                 runOnUiThread {
                     addChatMessage(reply, true)
-                    if (voiceOutputEnabled) speak(reply) else scheduleLiveListening(350)
+                    if (voiceOutputEnabled) speak(reply)
                     setStatus("RESPOSTA RECEBIDA · " + response.optString("model", "IA"))
                     executeClientActions(actions)
                 }
@@ -467,7 +468,6 @@ class MainActivity : android.app.Activity() {
                 runOnUiThread {
                     addChatMessage("Não consegui concluir a solicitação. " + (error.message ?: "Falha de conexão."), true, true)
                     setStatus("SOLICITAÇÃO NÃO CONCLUÍDA")
-                    scheduleLiveListening(700)
                 }
             } finally {
                 runOnUiThread { sending = false }
@@ -626,103 +626,76 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun speak(text: String) {
-        if (!ttsReady) { scheduleLiveListening(350); return }
-        textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) { }
-            override fun onDone(utteranceId: String?) { scheduleLiveListening(350) }
-            @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) { scheduleLiveListening(700) }
-            override fun onError(utteranceId: String?, errorCode: Int) { scheduleLiveListening(700) }
-        })
-        textToSpeech?.speak(text.take(15000), TextToSpeech.QUEUE_FLUSH, null, "james-reply")
+        if (ttsReady) textToSpeech?.speak(text.take(15000), TextToSpeech.QUEUE_FLUSH, null, "james-reply")
     }
 
     private fun toggleLiveConversation() {
-        if (liveConversationEnabled) {
-            stopLiveConversation()
-            setStatus("CONVERSA AO VIVO ENCERRADA")
-            return
-        }
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            setStatus("RECONHECIMENTO DE VOZ INDISPONÍVEL")
-            return
-        }
+        if (liveConversationEnabled) stopLiveConversation() else startLiveConversation()
+    }
+
+    private fun startLiveConversation() {
+        if (liveConversationEnabled) return
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MICROPHONE)
             return
         }
         liveConversationEnabled = true
-        liveButton?.text = "ENCERRAR CONVERSA AO VIVO"
-        createSpeechRecognizer()
-        startLiveListening()
-    }
-
-    private fun createSpeechRecognizer() {
-        speechRecognizer?.destroy()
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).apply {
-            setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) { setStatus("CONVERSA AO VIVO · OUVINDO") }
-                override fun onBeginningOfSpeech() { setStatus("ESTOU OUVINDO...") }
-                override fun onRmsChanged(rmsdB: Float) { }
-                override fun onBufferReceived(buffer: ByteArray?) { }
-                override fun onEndOfSpeech() { setStatus("PROCESSANDO SUA FALA...") }
-                override fun onError(error: Int) {
-                    if (liveConversationEnabled && !sending && textToSpeech?.isSpeaking != true) scheduleLiveListening(700)
-                }
-                override fun onResults(results: Bundle?) {
-                    val spoken = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim().orEmpty()
-                    if (spoken.isNotBlank()) {
-                        if (handleVoiceCommand(spoken)) scheduleLiveListening(500)
-                        else {
-                            if (currentPage != "intelligence") showPage("intelligence")
-                            prompt.setText(spoken)
-                            sendMessage()
+        liveButton?.text = "CONECTANDO AO NÚCLEO DE VOZ..."
+        setStatus("SOLICITANDO SESSÃO SEGURA DE VOZ")
+        executor.execute {
+            try {
+                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId))
+                val token = tokenData.optString("token")
+                if (token.isBlank()) throw IOException("O núcleo não forneceu um token de sessão.")
+                runOnUiThread {
+                    if (!liveConversationEnabled) return@runOnUiThread
+                    val voice = if (selectedVoiceProfile == 0) "Puck" else "Charon"
+                    liveVoiceSession = JamesLiveAudioSession(this, token, voice, object : JamesLiveAudioSession.Listener {
+                        override fun onStatus(message: String) { runOnUiThread { if (liveConversationEnabled) setStatus(message) } }
+                        override fun onUserTranscript(text: String) {
+                            runOnUiThread {
+                                if (liveConversationEnabled) {
+                                    addChatMessage(text, false)
+                                    handleVoiceCommand(text)
+                                }
+                            }
                         }
-                    } else scheduleLiveListening(350)
+                        override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
+                        override fun onFailure(message: String) {
+                            runOnUiThread {
+                                if (liveConversationEnabled) {
+                                    setStatus("VOZ AO VIVO INDISPONÍVEL")
+                                    addChatMessage(message, true, true)
+                                    stopLiveConversation()
+                                }
+                            }
+                        }
+                    }).also { it.start() }
+                    liveButton?.text = "ENCERRAR CONVERSA AO VIVO"
                 }
-                override fun onPartialResults(partialResults: Bundle?) { }
-                override fun onEvent(eventType: Int, params: Bundle?) { }
-            })
-        }
-    }
-
-    private fun startLiveListening() {
-        if (!liveConversationEnabled || sending || textToSpeech?.isSpeaking == true) return
-        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            liveConversationEnabled = false
-            liveButton?.text = "INICIAR CONVERSA AO VIVO"
-            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MICROPHONE)
-            return
-        }
-        try {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "pt-BR")
-                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            } catch (error: Exception) {
+                runOnUiThread {
+                    liveConversationEnabled = false
+                    liveButton?.text = "INICIAR CONVERSA AO VIVO"
+                    setStatus("NÃO FOI POSSÍVEL INICIAR A VOZ")
+                    addChatMessage(error.message ?: "Falha ao iniciar a sessão de voz.", true, true)
+                }
             }
-            speechRecognizer?.startListening(intent)
-        } catch (_: Exception) { scheduleLiveListening(1000) }
+        }
     }
 
-    private fun scheduleLiveListening(delayMillis: Long) {
-        if (!liveConversationEnabled) return
-        mainHandler.removeCallbacksAndMessages("live-listen")
-        mainHandler.postAtTime({
-            if (liveConversationEnabled && !sending && textToSpeech?.isSpeaking != true) startLiveListening()
-        }, "live-listen", android.os.SystemClock.uptimeMillis() + delayMillis)
+    private fun restartLiveConversation() {
+        stopLiveConversation()
+        startLiveConversation()
     }
 
     private fun stopLiveConversation() {
         liveConversationEnabled = false
-        mainHandler.removeCallbacksAndMessages("live-listen")
-        speechRecognizer?.cancel()
-        speechRecognizer?.destroy()
-        speechRecognizer = null
+        liveVoiceSession?.close()
+        liveVoiceSession = null
         liveButton?.text = "INICIAR CONVERSA AO VIVO"
+        setStatus("CONVERSA AO VIVO ENCERRADA")
     }
-
 
     private fun applyVoiceProfile(profile: Int) {
         selectedVoiceProfile = profile.coerceIn(0, 1)
@@ -733,29 +706,20 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun showVoicePicker() {
-        val voices = availablePortugueseVoices
-        if (voices.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle("Vozes em português")
-                .setMessage("O mecanismo de voz do Android não informou vozes em português instaladas. Instale dados de voz em Configurações > Texto para fala e tente novamente.")
-                .setPositiveButton("OK", null)
-                .show()
-            return
-        }
-        val labels = arrayOf("Voz 1 — perfil principal", "Voz 2 — perfil alternativo")
-        val options = labels.mapIndexed { index, label ->
-            val voice = voices.getOrNull(index)
-            if (voice == null) "$label — indisponível neste aparelho" else "$label — ${voice.name}"
-        }.toTypedArray()
+        val firstDeviceVoice = availablePortugueseVoices.getOrNull(0)?.name
+        val secondDeviceVoice = availablePortugueseVoices.getOrNull(1)?.name
+        val options = arrayOf(
+            "Voz 1 — Puck" + (firstDeviceVoice?.let { " · aparelho: $it" } ?: " · voz Live"),
+            "Voz 2 — Charon" + (secondDeviceVoice?.let { " · aparelho: $it" } ?: " · voz Live")
+        )
         AlertDialog.Builder(this)
             .setTitle("Escolher voz do Jâmes")
-            .setSingleChoiceItems(options, selectedVoiceProfile.coerceAtMost(voices.lastIndex)) { dialog, which ->
-                if (which < voices.size) {
-                    applyVoiceProfile(which)
-                    getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", which).apply()
-                    setStatus("VOZ ${which + 1} SELECIONADA")
-                    speak("Voz ${which + 1} selecionada. Como posso ajudar?")
-                }
+            .setItems(options) { dialog, which ->
+                applyVoiceProfile(which)
+                getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", which).apply()
+                setStatus("VOZ ${which + 1} SELECIONADA")
+                if (liveConversationEnabled) restartLiveConversation()
+                else speak("Voz ${which + 1} selecionada. Como posso ajudar?")
                 dialog.dismiss()
             }
             .setNegativeButton("Cancelar", null)
@@ -778,7 +742,7 @@ class MainActivity : android.app.Activity() {
                 applyVoiceProfile(index)
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", index).apply()
                 setStatus("VOZ ${index + 1} SELECIONADA")
-                speak("Certo. Alterei para a voz ${index + 1}.")
+                if (liveConversationEnabled) restartLiveConversation() else speak("Certo. Alterei para a voz ${index + 1}.")
             }
         } else showVoicePicker()
         return true
@@ -1063,10 +1027,7 @@ class MainActivity : android.app.Activity() {
             setStatus(if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) "NOTIFICAÇÕES AUTORIZADAS" else "NOTIFICAÇÕES NÃO AUTORIZADAS")
         } else if (requestCode == REQ_MICROPHONE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                liveConversationEnabled = true
-                liveButton?.text = "ENCERRAR CONVERSA AO VIVO"
-                createSpeechRecognizer()
-                startLiveListening()
+                startLiveConversation()
             } else {
                 liveConversationEnabled = false
                 liveButton?.text = "INICIAR CONVERSA AO VIVO"
@@ -1081,13 +1042,8 @@ class MainActivity : android.app.Activity() {
     }
 
     override fun onStop() {
-        if (liveConversationEnabled) speechRecognizer?.cancel()
+        if (liveConversationEnabled) stopLiveConversation()
         super.onStop()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        if (liveConversationEnabled) scheduleLiveListening(500)
     }
 
     override fun onDestroy() {

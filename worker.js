@@ -833,7 +833,7 @@ export default {
       try {
         await env.DB.prepare("CREATE TABLE IF NOT EXISTS james_live_rate_limits (ip TEXT PRIMARY KEY, last_issued_at INTEGER NOT NULL)").run();
         const previous = await env.DB.prepare("SELECT last_issued_at FROM james_live_rate_limits WHERE ip = ?").bind(ip).first();
-        if (previous && now - Number(previous.last_issued_at) < 20000) {
+        if (previous && now - Number(previous.last_issued_at) < 2000) {
           return json({ error: "Aguarde alguns segundos antes de iniciar outra sessão de voz." }, 429, origin);
         }
         await env.DB.prepare("INSERT INTO james_live_rate_limits (ip, last_issued_at) VALUES (?, ?) ON CONFLICT(ip) DO UPDATE SET last_issued_at = excluded.last_issued_at").bind(ip, now).run();

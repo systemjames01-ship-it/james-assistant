@@ -3,6 +3,10 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+dependencies {
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}
+
 android {
     namespace 'com.james.assistant'
     compileSdk 35
