@@ -16,12 +16,12 @@ if (manifest.name !== "Jâmes — Assistente Pessoal" || manifest.display !== "s
 }
 readFileSync(new URL("../icons/james-icon.svg", import.meta.url), "utf8");
 
-const hologramCss = readFileSync(new URL("../hologram-v24.css", import.meta.url), "utf8");
+const hologramCss = readFileSync(new URL("../interface-v27.css", import.meta.url), "utf8");
 const hologramJs = readFileSync(new URL("../hologram-v24.js", import.meta.url), "utf8");
 new vm.Script(hologramJs, { filename: "hologram-v24.js" });
 if (!html.includes('id="holoProjection"') || !html.includes('id="headMic"') ||
     !html.includes('href="./hologram-v24.css"') || !html.includes('src="./hologram-v24.js"') ||
-    !hologramCss.includes(".projection-frame") || !hologramJs.includes("BidiGenerateContentConstrained") || !hologramJs.includes("action=live-token") || !hologramJs.includes("realtimeInput") || !html.includes('id="headVision"') || !html.includes('id="jamesPower"') || !html.includes('id="worldView"') || !html.includes("james://world/") || !html.includes('id="headCameraFlip"') || !html.includes("Central holográfica de comando") || html.includes(">◉ CABEÇA</button>")) {
+    !hologramCss.includes(".projection-frame") || !hologramJs.includes("BidiGenerateContentConstrained") || !hologramJs.includes("action=live-token") || !hologramJs.includes("realtimeInput") || !html.includes('id="headVision"') || !html.includes('id="jamesPower"') || !html.includes('id="worldView"') || !html.includes("james://world/") || !html.includes('id="headCameraFlip"') || !html.includes("Central holográfica de comando") || !html.includes('href="./interface-v27.css"') || html.includes(">◉ CABEÇA</button>")) {
   throw new Error("Holographic command deck, Windows world integration, master power, camera switching, real-time voice, or script integration is missing.");
 }
 
