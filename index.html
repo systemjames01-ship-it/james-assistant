@@ -812,8 +812,7 @@ $("voiceOutput").addEventListener("click",()=>{
  updateVoiceOutputButton();
 });
 $("stopVoice").addEventListener("click",()=>{
- if(window.JamesAndroid)window.JamesAndroid.stopSpeaking();
- if("speechSynthesis" in window)window.speechSynthesis.cancel();
+ if(window.JamesNeuralVoice)window.JamesNeuralVoice.stop();
  statusBox.textContent="Voz interrompida.";
 });
 updateVoiceOutputButton();
