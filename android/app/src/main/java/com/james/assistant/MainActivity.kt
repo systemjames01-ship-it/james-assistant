@@ -764,7 +764,7 @@ class MainActivity : android.app.Activity() {
 
     private fun handleVoiceCommand(text: String): Boolean {
         val normalized = java.text.Normalizer.normalize(text.lowercase(Locale("pt", "BR")), java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\\\p{Mn}+"), "")
+            .replace(Regex("\\p{Mn}+"), "")
         val asksForVoice = normalized.contains("mudar voz") || normalized.contains("trocar voz") || normalized.contains("escolher voz") || normalized.contains("voz do james")
         if (!asksForVoice) return false
         val second = normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") || normalized.contains("voz alternativa")
@@ -1078,6 +1078,16 @@ class MainActivity : android.app.Activity() {
     @Deprecated("Deprecated in Android API")
     override fun onBackPressed() {
         if (currentPage != "overview") showPage("overview") else super.onBackPressed()
+    }
+
+    override fun onStop() {
+        if (liveConversationEnabled) speechRecognizer?.cancel()
+        super.onStop()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (liveConversationEnabled) scheduleLiveListening(500)
     }
 
     override fun onDestroy() {
