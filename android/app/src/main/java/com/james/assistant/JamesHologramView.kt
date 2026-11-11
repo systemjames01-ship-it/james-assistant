@@ -150,7 +150,7 @@ class JamesHologramView(context: Context) : View(context) {
     private fun drawBackgroundGrid(c: Canvas, w: Float, h: Float, t: Double, accent: Int) {
         line.color = accent; line.alpha = 16; line.strokeWidth = .6f*density
         val step = 28f*density
-        var x = (-(t*4 % step).toFloat())
+        var x = (-(t*4 % step.toDouble()).toFloat())
         while (x < w) { c.drawLine(x, 0f, x, h, line); x += step }
         var y = 0f
         while (y < h) { c.drawLine(0f, y, w, y, line); y += step }
@@ -184,7 +184,7 @@ class JamesHologramView(context: Context) : View(context) {
         text.textAlign = Paint.Align.LEFT
         for (i in 0 until 8) {
             val a = t*(.22+i*.012)+i*PI/4
-            val rr = r*(1.34+(i%2)*.12)
+            val rr = r*(1.34+(i%2)*.12).toFloat()
             fill.color = accent; fill.alpha = 125
             c.drawCircle(cx+cos(a).toFloat()*rr, cy+sin(a).toFloat()*rr*.56f, 1.5f*density, fill)
         }
