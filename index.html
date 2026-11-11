@@ -721,6 +721,20 @@ function speak(text){
 function executeAndroidActions(actions){
  if(!Array.isArray(actions)||!actions.length)return;
  for(const action of actions){
+  if(action?.type==="windows_protocol"){
+   const platform=navigator.userAgentData?.platform||navigator.platform||"";
+   if(!/windows/i.test(platform)){
+    addMessage("Essa ação precisa ser enviada pela versão do Jâmes aberta em um computador Windows. O celular não consegue iniciar programas do Windows.","error");
+    continue;
+   }
+   if(!/^james:\/\/world\/(open|update|stop)$/.test(action.uri||"")){
+    addMessage("Comando Windows recusado: endereço local não permitido.","error");
+    continue;
+   }
+   window.location.href=action.uri;
+   addMessage("Comando enviado ao Windows. Se o navegador pedir confirmação, permita a abertura do Jâmes Companion. Se nada abrir, execute uma vez o instalador na aba MUNDO.","bot");
+   continue;
+  }
   if(!window.JamesAndroid){
    addMessage("Ação preparada, mas não executada: esta sessão está no navegador. Instale e abra o aplicativo Android do Jâmes para habilitar operações no aparelho.","error");
    continue;
