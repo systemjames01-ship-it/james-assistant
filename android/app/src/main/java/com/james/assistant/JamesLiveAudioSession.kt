@@ -133,6 +133,11 @@ class JamesLiveAudioSession(
         })
     }
 
+    fun sendText(text: String): Boolean {
+        if (!running.get() || !setupReady || text.isBlank()) return false
+        return socket?.send(JSONObject().put("realtimeInput", JSONObject().put("text", text)).toString()) == true
+    }
+
     private fun initializeAudio() {
         val inputMin = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         if (inputMin <= 0) throw IllegalStateException("Formato de microfone de 16 kHz não suportado.")

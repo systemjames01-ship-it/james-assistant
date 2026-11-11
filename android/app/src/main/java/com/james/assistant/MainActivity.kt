@@ -427,6 +427,12 @@ class MainActivity : android.app.Activity() {
         if (sending) return
         val text = prompt.text?.toString()?.trim().orEmpty()
         if (text.isNotEmpty() && handleVoiceCommand(text)) { prompt.setText(""); return }
+        if (liveConversationEnabled && text.isNotEmpty() && pendingAttachments.isEmpty()) {
+            addChatMessage(text, false)
+            prompt.setText("")
+            if (liveVoiceSession?.sendText(text) != true) setStatus("SESSÃO DE VOZ AINDA NÃO ESTÁ PRONTA")
+            return
+        }
         if (text.isEmpty() && pendingAttachments.isEmpty()) return
         val outgoingAttachments = JSONArray()
         pendingAttachments.forEach { outgoingAttachments.put(it) }
@@ -451,7 +457,7 @@ class MainActivity : android.app.Activity() {
                 val actions = response.optJSONArray("clientActions") ?: JSONArray()
                 runOnUiThread {
                     addChatMessage(reply, true)
-                    if (voiceOutputEnabled) speak(reply) else scheduleLiveListening(350)
+                    if (voiceOutputEnabled) speak(reply)
                     setStatus("RESPOSTA RECEBIDA · " + response.optString("model", "IA"))
                     executeClientActions(actions)
                 }
@@ -462,7 +468,6 @@ class MainActivity : android.app.Activity() {
                 runOnUiThread {
                     addChatMessage("Não consegui concluir a solicitação. " + (error.message ?: "Falha de conexão."), true, true)
                     setStatus("SOLICITAÇÃO NÃO CONCLUÍDA")
-                    scheduleLiveListening(700)
                 }
             } finally {
                 runOnUiThread { sending = false }
