@@ -904,7 +904,7 @@ export default {
                 sessionResumption: {},
                 tools: [{ functionDeclarations: LIVE_FUNCTION_DECLARATIONS }],
                 systemInstruction: {
-                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ AO VIVO: converse em português brasileiro com naturalidade. Use ferramentas declaradas quando forem necessárias para cumprir um pedido explícito. Antes de ações externas, destrutivas, financeiras ou que exponham dados, peça confirmação. Para ações Android, aguarde a confirmação real do dispositivo antes de afirmar sucesso.\n\n" + voiceDirections[voiceProfile] }]
+                  parts: [{ text: SYSTEM_INSTRUCTION + "\n\nMODO DE VOZ E PERCEPÇÃO AO VIVO: converse em português brasileiro com naturalidade. Ao receber áudio, escute tanto a fala quanto sons do ambiente; transcreva, diferencie vozes de ruídos e identifique categorias de sons apenas quando houver evidência suficiente, declarando incerteza quando necessário. Ao receber quadros da câmera, observe o ambiente, objetos, textos legíveis, posições relativas e mudanças entre quadros; descreva o que realmente aparece e não invente detalhes fora do campo visual. Não alegue visão noturna infravermelha nem capacidades de mira. Use ferramentas declaradas quando necessárias para cumprir pedidos explícitos. Antes de ações externas, destrutivas, financeiras ou que exponham dados, peça confirmação. Para ações Android, aguarde a confirmação real do dispositivo antes de afirmar sucesso.\n\n" + voiceDirections[voiceProfile] }]
                 }
               }
             }
