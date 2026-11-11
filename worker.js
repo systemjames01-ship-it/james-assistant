@@ -24,7 +24,7 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - list_memories: consulta as memórias explicitamente guardadas pelo usuário.
 - delete_memory: apaga uma memória identificada, somente quando o usuário pedir para esquecê-la/apagá-la.
 Memórias ficam vinculadas à sessão deste navegador; não prometa sincronização entre dispositivos.
-Integração Android: android_open_app, android_schedule_reminder e android_open_settings apenas enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
+Integração Android: android_open_app, android_schedule_reminder e android_open_settings enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
 
 RACIOCÍNIO E EXECUÇÃO:
@@ -224,10 +224,8 @@ function extractPageText(html) {
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<(script|style|noscript|svg|canvas|iframe|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<(header|footer|nav)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
-    .replace(/<(br|hr)\b[^>]*>/gi, "
-")
-    .replace(/<\/(p|div|section|article|li|h[1-6]|tr)\s*>/gi, "
-")
+    .replace(/<(br|hr)\b[^>]*>/gi, "\n")
+    .replace(/<\/(p|div|section|article|li|h[1-6]|tr)\s*>/gi, "\n")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -303,25 +301,19 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
   if (name === "android_open_app") {
     const packageName = typeof args.package_name === "string" ? args.package_name.trim() : "";
     const appName = typeof args.app_name === "string" ? args.app_name.trim().slice(0, 80) : "";
-    if (!/^[A-Za-z0-9_.]{3,180}$/.test(packageName) || !appName) {
-      return { error: "Nome do aplicativo e identificador Android válido são necessários." };
-    }
+    if (!/^[A-Za-z0-9_.]{3,180}$/.test(packageName) || !appName) return { error: "Nome do aplicativo e identificador Android válido são necessários." };
     return { queuedForDevice: true, clientAction: { type: "open_app", packageName, appName }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android. Não afirme que o aplicativo já abriu." };
   }
   if (name === "android_schedule_reminder") {
     const title = typeof args.title === "string" ? args.title.trim().slice(0, 180) : "";
     const at = typeof args.at === "string" ? args.at.trim() : "";
     const epochMillis = Date.parse(at);
-    if (!title || !Number.isFinite(epochMillis) || epochMillis <= Date.now() || epochMillis > Date.now() + 366 * 24 * 60 * 60 * 1000) {
-      return { error: "Informe o título e uma data/hora futura válida, dentro de um ano." };
-    }
+    if (!title || !Number.isFinite(epochMillis) || epochMillis <= Date.now() || epochMillis > Date.now() + 366 * 24 * 60 * 60 * 1000) return { error: "Informe o título e uma data/hora futura válida, dentro de um ano." };
     return { queuedForDevice: true, clientAction: { type: "schedule_reminder", title, at }, instruction: "O lembrete ainda não foi agendado. Aguarde a confirmação do Android antes de afirmar que foi agendado." };
   }
   if (name === "android_open_settings") {
     const section = typeof args.section === "string" ? args.section : "";
-    if (!["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"].includes(section)) {
-      return { error: "Seção de configurações do Android inválida." };
-    }
+    if (!["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"].includes(section)) return { error: "Seção de configurações do Android inválida." };
     return { queuedForDevice: true, clientAction: { type: "open_settings", section }, instruction: "A ação ainda precisa ser executada pelo aplicativo Android." };
   }
   if (name === "fetch_public_page") {
@@ -414,12 +406,8 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
   const isAssistantMode = mode === "assistant";
   const baseInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
   const memoryContext = memories.length
-    ? "
-
-MEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):
-" +
-      memories.map(item => "- " + item.key + ": " + item.value).join("
-")
+    ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
+      memories.map(item => "- " + item.key + ": " + item.value).join("\n")
     : "";
   const activeInstruction = baseInstruction + memoryContext;
   const tools = [{
@@ -429,7 +417,7 @@ MEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevante
         description: "Abre um aplicativo no Android do usuário. Use SOMENTE quando ele pedir explicitamente para abrir/iniciar um aplicativo. Informe nome e package name correto; não adivinhe identificadores incertos.",
         parameters: { type: "OBJECT", properties: {
           app_name: { type: "STRING", description: "Nome do aplicativo solicitado." },
-          package_name: { type: "STRING", description: "Identificador de pacote Android confirmado, por exemplo com.whatsapp." }
+          package_name: { type: "STRING", description: "Identificador de pacote Android correto." }
         }, required: ["app_name", "package_name"] }
       },
       {
