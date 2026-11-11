@@ -714,8 +714,7 @@ class MainActivity : android.app.Activity() {
                 if (token.isBlank()) throw IOException("O núcleo não forneceu um token de sessão.")
                 runOnUiThread {
                     if (!liveConversationEnabled) return@runOnUiThread
-                    val voiceProfiles = arrayOf("Charon", "Algieba", "Kore", "Zephyr")
-                    val voice = voiceProfiles[selectedVoiceProfile.coerceIn(0, 3)]
+                    val voice = voiceProfileModels[selectedVoiceProfile.coerceIn(0, 2)]
                     liveVoiceSession = JamesLiveAudioSession(this, token, voice, object : JamesLiveAudioSession.Listener {
                         override fun onStatus(message: String) {
                             runOnUiThread {
@@ -735,7 +734,7 @@ class MainActivity : android.app.Activity() {
                         }
                         override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
                         override fun onAudioLevel(level: Float, speaking: Boolean) {
-                            runOnUiThread { orbView?.setAudioLevel(level) }
+                            runOnUiThread { orbView?.setAudioLevel(level); orbView?.setMode(if (speaking) 2 else if (liveConversationEnabled) 1 else 0) }
                         }
                         override fun onToolCall(id: String, name: String, args: JSONObject) {
                             handleLiveToolCall(id, name, args)
@@ -832,12 +831,13 @@ class MainActivity : android.app.Activity() {
         liveVoiceSession?.close()
         liveVoiceSession = null
         orbView?.setAudioLevel(0f)
-        liveButton?.text = "INICIAR CONVERSA AO VIVO"
+        liveButton?.text = "CONECTAR AO JÂMES"
         setStatus("CONVERSA AO VIVO ENCERRADA")
     }
 
     private fun applyVoiceProfile(profile: Int) {
-        selectedVoiceProfile = profile.coerceIn(0, 3)
+        selectedVoiceProfile = profile.coerceIn(0, 2)
+        voiceProfileLabel?.text = "PERFIL VOCAL  ·  " + voiceProfileNames[selectedVoiceProfile]
     }
 
     private fun handleVoiceCommand(text: String): Boolean {
@@ -850,15 +850,13 @@ class MainActivity : android.app.Activity() {
         val asksForVoice = normalized.contains("mudar voz") || normalized.contains("mudar para voz") || normalized.contains("mudar a voz") ||
             normalized.contains("trocar voz") || normalized.contains("trocar a voz") || normalized.contains("alterar voz") ||
             normalized.contains("escolher voz") || normalized.contains("voz do james") || normalized.contains("jarvis") ||
-            normalized.contains("damon") || normalized.contains("optimus") || normalized.contains("jane")
+            normalized.contains("damon") || normalized.contains("patrick") || normalized.contains("jane")
         if (!asksForVoice) return false
         val index = when {
-            normalized.contains("voz 4") || normalized.contains("voz quatro") || normalized.contains("quarta voz") ||
-                normalized.contains("márcio") || normalized.contains("marcio") || normalized.contains("jane") -> 3
             normalized.contains("voz 3") || normalized.contains("voz tres") || normalized.contains("terceira voz") ||
-                normalized.contains("guilherme") || normalized.contains("optimus") -> 2
+                normalized.contains("clecio") || normalized.contains("damon") || normalized.contains("salvatore") -> 2
             normalized.contains("voz 2") || normalized.contains("voz dois") || normalized.contains("segunda voz") ||
-                normalized.contains("clecio") || normalized.contains("damon") -> 1
+                normalized.contains("marcio") || normalized.contains("patrick") || normalized.contains("jane") -> 1
             normalized.contains("voz 1") || normalized.contains("voz um") || normalized.contains("primeira voz") ||
                 normalized.contains("eduardo") || normalized.contains("jarvis") -> 0
             else -> -1
@@ -869,7 +867,7 @@ class MainActivity : android.app.Activity() {
             setStatus("PERFIL VOCAL " + (index + 1) + " SELECIONADO")
             if (liveConversationEnabled) restartLiveConversation()
         } else {
-            val next = (selectedVoiceProfile + 1) % 4
+            val next = (selectedVoiceProfile + 1) % 3
             applyVoiceProfile(next)
             getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", next).apply()
             setStatus("PERFIL VOCAL " + (next + 1) + " SELECIONADO")
