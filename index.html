@@ -471,10 +471,6 @@ async function sendMessage(message,attachments=null){
   const offsetHours=String(Math.floor(Math.abs(offset)/60)).padStart(2,"0");
   const offsetMinutes=String(Math.abs(offset)%60).padStart(2,"0");
   const localNow=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,19)+sign+offsetHours+":"+offsetMinutes;
-  let installedApps=[];
-  if(window.JamesAndroid){
-   try{installedApps=JSON.parse(window.JamesAndroid.installedApps()||"[]").slice(0,80);}catch(error){}
-  }
   const payload={
    message:text||"Analise os anexos enviados.",
    sessionId:getSessionId(),
@@ -482,8 +478,7 @@ async function sendMessage(message,attachments=null){
    deviceContext:{
     platform:window.JamesAndroid?"android":"web",
     timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"desconhecido",
-    localNow,
-    installedApps
+    localNow
    }
   };
 
