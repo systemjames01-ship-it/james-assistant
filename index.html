@@ -415,7 +415,7 @@ function executeAndroidActions(actions){
   try{
    let raw;
    if(action.type==="open_app"){
-    raw=window.JamesAndroid.openApp(action.packageName);
+    raw=window.JamesAndroid.openApp(action.appName);
    }else if(action.type==="schedule_reminder"){
     raw=window.JamesAndroid.scheduleReminder(action.title,Date.parse(action.at));
    }else if(action.type==="open_settings"){
