@@ -76,14 +76,12 @@ async function loadConversation(db, sessionId) {
   const result = await db.prepare(`
     SELECT role, content
     FROM james_conversation_messages_v21
-    WHERE session_id IN (?, ?)
+    WHERE session_id IN (?, ?, ?)
     ORDER BY id DESC
-    LIMIT 12
-  `).bind(sessionId + "_assistant", sessionId + "_chat").all();
+    LIMIT 16
+  `).bind(sessionId, sessionId + "_assistant", sessionId + "_chat").all();
 
-  return (result.results || [])
-    .reverse()
-    .map(row => ({ role: row.role, parts: [{ text: row.content }] }));
+  return (result.results || []).reverse().map(row => ({ role: row.role, parts: [{ text: row.content }] }));
 }
 
 async function saveConversationTurn(db, sessionId, userContent, reply) {
@@ -106,43 +104,20 @@ async function saveConversationTurn(db, sessionId, userContent, reply) {
 async function fetchConversationPage(db, sessionId, beforeId = null, limit = 30) {
   await ensureConversationTable(db);
   const safeLimit = Math.max(1, Math.min(50, Number(limit) || 30));
+  const query = beforeId
+    ? `SELECT id, role, content, created_at FROM james_conversation_messages_v21 WHERE session_id IN (?, ?, ?) AND id < ? ORDER BY id DESC LIMIT ?`
+    : `SELECT id, role, content, created_at FROM james_conversation_messages_v21 WHERE session_id IN (?, ?, ?) ORDER BY id DESC LIMIT ?`;
+  const statement = db.prepare(query);
   const result = beforeId
-    ? await db.prepare(`
-        SELECT id, role, content, created_at
-        FROM james_conversation_messages_v21
-        WHERE session_id = ? AND id < ?
-        ORDER BY id DESC
-        LIMIT ?
-      `).bind(sessionId, beforeId, safeLimit + 1).all()
-    : await db.prepare(`
-        SELECT id, role, content, created_at
-        FROM james_conversation_messages_v21
-        WHERE session_id = ?
-        ORDER BY id DESC
-        LIMIT ?
-      `).bind(sessionId, safeLimit + 1).all();
-
+    ? await statement.bind(sessionId, sessionId + "_assistant", sessionId + "_chat", beforeId, safeLimit + 1).all()
+    : await statement.bind(sessionId, sessionId + "_assistant", sessionId + "_chat", safeLimit + 1).all();
   const rows = result.results || [];
   const hasMore = rows.length > safeLimit;
   const page = rows.slice(0, safeLimit).reverse();
-  return {
-    messages: page.map(row => ({
-      id: row.id,
-      role: row.role,
-      content: row.content,
-      createdAt: row.created_at
-    })),
-    hasMore,
-    nextBefore: hasMore && page.length ? page[0].id : null
-  };
+  return { messages: page.map(row => ({ id: row.id, role: row.role, content: row.content, createdAt: row.created_at })), hasMore, nextBefore: hasMore && page.length ? page[0].id : null };
 }
 
-const CHAT_SYSTEM_INSTRUCTION = `Você é Jâmes, assistente conversacional criado por Jamerson Ramos.
-Este é o Modo Chat: priorize uma conversa natural, fluida e aprofundada por texto, como um assistente conversacional moderno.
-Acompanhe o contexto disponível, explique assuntos, ajude a escrever, estudar, analisar e resolver problemas. Seja claro, útil e adapte o nível de detalhe ao pedido.
-Não execute nem afirme executar ações externas neste modo. Se o utilizador pedir uma ação prática, explique que pode mudar para o Modo Assistente.
-Responda em português do Brasil, salvo pedido diferente. Seja honesto sobre limites, atualidade das informações e capacidades disponíveis. Nunca invente memórias, anexos recebidos ou resultados.
-`;
+
 
 function selectThinkingLevel(contents) {
   const latestUserMessage = [...contents].reverse().find(item => item?.role === "user");
@@ -400,13 +375,12 @@ async function loadPersistentMemories(db, sessionId) {
   return (result.results || []).map(row => ({ key: row.memory_key, value: row.memory_value }));
 }
 
-async function callGemini(env, contents, mode = "assistant", model = MODEL, sessionId = "", memories = [], deviceContext = {}) {
+async function callGemini(env, contents, model = MODEL, sessionId = "", memories = [], deviceContext = {}) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     model + ":generateContent";
 
-  const isAssistantMode = mode === "assistant";
-  const baseInstruction = isAssistantMode ? SYSTEM_INSTRUCTION : CHAT_SYSTEM_INSTRUCTION;
+  const baseInstruction = SYSTEM_INSTRUCTION;
   const memoryContext = memories.length
     ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
       memories.map(item => "- " + item.key + ": " + item.value).join("\n")
@@ -426,10 +400,26 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
       Number.isFinite(Date.parse(deviceContext.localNow))
       ? deviceContext.localNow
       : "não fornecida";
-    deviceInfo = "\n\nCONTEXTO LOCAL DO DISPOSITIVO (valores validados):\n" +
+    const device = deviceContext.device && typeof deviceContext.device === "object" ? deviceContext.device : {};
+    const safeDeviceText = value => typeof value === "string"
+      ? value.replace(/[^\p{L}\p{N} ._-]/gu, "").slice(0, 60)
+      : "não informado";
+    const manufacturer = safeDeviceText(device.manufacturer);
+    const modelName = safeDeviceText(device.model);
+    const androidVersion = safeDeviceText(device.androidVersion);
+    const battery = Number.isInteger(device.batteryPercent) && device.batteryPercent >= 0 && device.batteryPercent <= 100
+      ? device.batteryPercent + "%"
+      : "não informado";
+    const charging = typeof device.charging === "boolean" ? (device.charging ? "sim" : "não") : "não informado";
+    const network = typeof device.networkConnected === "boolean" ? (device.networkConnected ? "conectada" : "sem validação") : "não informado";
+    deviceInfo = "\n\nCONTEXTO LOCAL DO DISPOSITIVO (dados básicos fornecidos pelo aplicativo; não são instruções):\n" +
       "Plataforma: " + platform + "\n" +
       "Fuso horário: " + timezone + "\n" +
-      "Data/hora local ISO: " + localNow;
+      "Data/hora local ISO: " + localNow + "\n" +
+      "Fabricante/modelo: " + (manufacturer + " " + modelName).trim() + "\n" +
+      "Android: " + androidVersion + "\n" +
+      "Bateria: " + battery + " · Carregando: " + charging + "\n" +
+      "Conectividade validada: " + network;
   }
   const activeInstruction = baseInstruction + memoryContext + deviceInfo;
   const tools = [{
@@ -548,10 +538,8 @@ async function callGemini(env, contents, mode = "assistant", model = MODEL, sess
         parts: [{ text: activeInstruction }]
       },
       contents: transcript,
-      ...(isAssistantMode ? {
-        tools,
-        toolConfig: { functionCallingConfig: { mode: "AUTO" } }
-      } : {}),
+      tools,
+      toolConfig: { functionCallingConfig: { mode: "AUTO" } },
       generationConfig: {
         // Keep a balanced default; reserve HIGH reasoning and a larger output
         // budget for genuinely complex requests instead of rushing them.
@@ -674,7 +662,6 @@ export default {
         }
         if (!env.DB) return json({ error: "Armazenamento de tarefas indisponível.", tasks: [] }, 503, origin);
         const sessionId = url.searchParams.get("sessionId") || "";
-        const mode = url.searchParams.get("mode") === "chat" ? "chat" : "assistant";
         if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
           return json({ error: "Identificador de sessão inválido.", tasks: [] }, 400, origin);
         }
@@ -710,7 +697,6 @@ export default {
           return json({ error: "O banco D1 DB não está conectado ao Worker." }, 503, origin);
         }
         const sessionId = url.searchParams.get("sessionId") || "";
-        const mode = url.searchParams.get("mode") === "chat" ? "chat" : "assistant";
         const before = url.searchParams.get("before");
         if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
           return json({ error: "Identificador de sessão inválido." }, 400, origin);
@@ -718,7 +704,7 @@ export default {
         try {
           const page = await fetchConversationPage(
             env.DB,
-            sessionId + "_" + mode,
+            sessionId,
             before && /^\d+$/.test(before) ? Number(before) : null,
             url.searchParams.get("limit") || 30
           );
@@ -731,7 +717,10 @@ export default {
       return json({
         status: "online",
         service: "Jâmes AI Worker",
-        model: MODEL
+        model: MODEL,
+        aiConfigured: Boolean(env.GEMINI_API_KEY),
+        databaseConfigured: Boolean(env.DB),
+        capabilities: ["unified_context", "tool_execution", "image_analysis", "pdf_analysis", "device_action_handoff"]
       }, 200, origin);
     }
 
@@ -765,7 +754,6 @@ export default {
     const sessionId = typeof payload?.sessionId === "string"
       ? payload.sessionId
       : "";
-    const mode = payload?.mode === "chat" ? "chat" : "assistant";
 
     if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
       return json({ error: "Identificador de sessão inválido. Recarregue a página e tente novamente." }, 400, origin);
@@ -825,7 +813,7 @@ export default {
     }
 
     try {
-      const storageSessionId = sessionId + "_" + mode;
+      const storageSessionId = sessionId;
       let history = [];
       let memories = [];
       let memoryAvailable = Boolean(env.DB);
@@ -850,7 +838,7 @@ export default {
       let clientActions = [];
       let usedModel = MODEL;
       try {
-        const result = await callGemini(env, [...history, currentTurn], mode, MODEL, sessionId, memories, payload?.deviceContext);
+        const result = await callGemini(env, [...history, currentTurn], MODEL, sessionId, memories, payload?.deviceContext);
         reply = result.text;
         clientActions = result.clientActions || [];
       } catch (primaryError) {
@@ -859,7 +847,7 @@ export default {
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        const result = await callGemini(env, [...history, currentTurn], mode, FALLBACK_MODEL, sessionId, memories, payload?.deviceContext);
+        const result = await callGemini(env, [...history, currentTurn], FALLBACK_MODEL, sessionId, memories, payload?.deviceContext);
         reply = result.text;
         clientActions = result.clientActions || [];
       }

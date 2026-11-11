@@ -1,0 +1,35 @@
+name: Validate Jâmes core
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'worker.js'
+      - 'index.html'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'package.json'
+      - '.github/workflows/validate-james.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'worker.js'
+      - 'index.html'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'package.json'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run worker and frontend tests
+        run: |
+          npm test

@@ -10,6 +10,9 @@ test("health endpoint reports the configured primary model", async () => {
   assert.equal(response.status, 200);
   assert.equal(body.status, "online");
   assert.equal(body.model, "gemini-3.8-flash");
+  assert.equal(body.aiConfigured, false);
+  assert.equal(body.databaseConfigured, false);
+  assert.ok(body.capabilities.includes("unified_context"));
 });
 
 test("POST works without D1 and accepts image and PDF attachments", async () => {
@@ -189,7 +192,7 @@ test("assistant creates a persistent task through the D1 tool", async () => {
   }
 });
 
-test("chat and assistant modes share recent conversational context", async () => {
+test("the unified Jâmes core keeps one context and tools available in every conversation", async () => {
   const originalFetch = globalThis.fetch;
   let sentBody;
   let historyBindings;
@@ -231,8 +234,10 @@ test("chat and assistant modes share recent conversational context", async () =>
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.reply, "Contexto compartilhado recebido.");
-    assert.deepEqual(historyBindings, ["session_test_12345_assistant", "session_test_12345_chat"]);
+    assert.deepEqual(historyBindings, ["session_test_12345", "session_test_12345_assistant", "session_test_12345_chat"]);
     assert.ok(sentBody.contents.some(item => item.parts?.some(part => part.text === "Lembre que meu projeto se chama Jâmes.")));
+    assert.ok(sentBody.tools[0].functionDeclarations.some(tool => tool.name === "android_open_app"));
+    assert.equal(sentBody.systemInstruction.parts[0].text.includes("Você não é apenas um chatbot."), true);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -460,7 +465,12 @@ test("assistant receives device timezone context for local scheduling", async ()
         message: "Que horas são?",
         sessionId: "session_test_12345",
         mode: "assistant",
-        deviceContext: { platform: "android", timezone: "America/Bahia", localNow: "2026-11-10T20:30:00-03:00" }
+        deviceContext: {
+          platform: "android",
+          timezone: "America/Bahia",
+          localNow: "2026-11-10T20:30:00-03:00",
+          device: { manufacturer: "Samsung", model: "SM-A135M", androidVersion: "14", batteryPercent: 72, charging: false, networkConnected: true }
+        }
       })
     });
     const response = await worker.fetch(request, { GEMINI_API_KEY: "test-key" });
@@ -468,6 +478,9 @@ test("assistant receives device timezone context for local scheduling", async ()
     assert.equal(response.status, 200);
     assert.match(sentBody.systemInstruction.parts[0].text, /America\/Bahia/);
     assert.match(sentBody.systemInstruction.parts[0].text, /2026-11-10T20:30:00-03:00/);
+    assert.match(sentBody.systemInstruction.parts[0].text, /Samsung SM-A135M/);
+    assert.match(sentBody.systemInstruction.parts[0].text, /Bateria: 72%/);
+    assert.match(sentBody.systemInstruction.parts[0].text, /Conectividade validada: conectada/);
   } finally {
     globalThis.fetch = originalFetch;
   }
