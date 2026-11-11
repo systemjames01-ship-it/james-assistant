@@ -922,7 +922,7 @@ export default {
       const expireTime = new Date(now + 30 * 60 * 1000).toISOString();
       const newSessionExpireTime = new Date(now + 60 * 1000).toISOString();
       try {
-        const tokenResponse = await fetch("https://generativelanguage.googleapis.com/v1alpha/auth_tokens", {
+        const tokenResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {
           method: "POST",
           headers: {
             "x-goog-api-key": env.GEMINI_API_KEY,
