@@ -311,22 +311,22 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  <div class="voice-layout">
   <section class="panel voice-main">
    <div class="panel-head"><div><div class="panel-title">Identidade vocal</div><div class="panel-kicker">SÍNTESE DE VOZ · CONFIGURAÇÃO LOCAL</div></div></div>
-   <p class="panel-description">A base vocal neural é Faber, masculina e treinada para português brasileiro. Os três perfis são interpretações originais sobre essa mesma voz-base, com ritmos e processamento acústico diferentes — não são clones nem três locutores independentes. A voz padrão do Google não será usada como substituta.</p>
+   <p class="panel-description">O Jâmes oferece uma voz masculina sintética própria para o perfil clássico e uma voz neural natural Faber em português brasileiro para os perfis Patrick e Damon. Ritmo e timbre são ajustados localmente; são interpretações originais, não clonagens de atores ou dubladores. A voz padrão do Google não será usada como substituta.</p>
    <label class="field-label">BASE VOCAL NEURAL</label>
-   <div class="voice-select voice-base-label">Faber · masculina · português brasileiro</div>
+   <div class="voice-select voice-base-label">Bruno sintética (Jâmes clássico) + Faber neural (Patrick/Damon)</div>
    <div class="voice-style-grid">
-    <button type="button" class="voice-style active" data-voice-style="jarvis"><strong>JARVIS · CLÁSSICA</strong><span>Faber · masculina, clara, precisa e equilibrada</span></button>
-    <button type="button" class="voice-style" data-voice-style="patrick"><strong>PATRICK JANE · ENVOLVENTE</strong><span>Faber · interpretação mais quente, calma e conversacional</span></button>
-    <button type="button" class="voice-style" data-voice-style="demon"><strong>DAMON SALVATORE · INTENSA</strong><span>Faber · interpretação mais grave, quente e pausada</span></button>
+    <button type="button" class="voice-style active" data-voice-style="jarvis"><strong>JARVIS · CLÁSSICA</strong><span>Bruno · masculina sintética, precisa e tecnológica</span></button>
+    <button type="button" class="voice-style" data-voice-style="patrick"><strong>PATRICK JANE · ENVOLVENTE</strong><span>Faber · neural masculina, quente, calma e conversacional</span></button>
+    <button type="button" class="voice-style" data-voice-style="demon"><strong>DAMON SALVATORE · INTENSA</strong><span>Faber · neural masculina, mais grave, quente e pausada</span></button>
    </div>
    <div class="voice-adjust">
     <label for="voiceRate">VELOCIDADE <output id="voiceRateValue">1,00×</output></label><input id="voiceRate" type="range" min="0.75" max="1.25" step="0.05" value="1">
     <label for="voicePitch">TOM <output id="voicePitchValue">1,00</output></label><input id="voicePitch" type="range" min="0.75" max="1.25" step="0.05" value="1">
    </div>
    <div id="neuralVoiceState" role="status">VOZ NÃO INSTALADA</div>
-   <button type="button" id="downloadNeuralVoice">CARREGAR VOZ NEURAL · ~30 MB</button>
+   <button type="button" id="downloadNeuralVoice">CARREGAR VOZ NATURAL FABER · ~30 MB</button>
    <div class="module-actions"><button type="button" id="testJamesVoice">OUVIR AMOSTRA LOCAL</button><button type="button" class="secondary" id="saveJamesVoice">SALVAR CONFIGURAÇÃO</button></div>
-   <p class="small" id="voiceAvailability">Piper/Faber é baixado sob demanda e armazenado no cache do navegador. Primeiro carregamento: modelo de aproximadamente 18,7 MB + runtime WASM de aproximadamente 11 MB. O áudio é sintetizado localmente; chat e conversa ao vivo não usam a voz de áudio do Gemini.</p>
+   <p class="small" id="voiceAvailability">O perfil Jâmes Clássico usa Bruno, uma voz masculina sintética local sem download. Patrick e Damon usam Piper/Faber, uma voz masculina neural pt-BR. Primeiro carregamento natural: modelo de aproximadamente 18,7 MB + runtime WASM de aproximadamente 11 MB, armazenados no cache do navegador.</p>
   </section>
   <section class="panel voice-side"><div class="panel-head"><div class="panel-title">Entrada por voz</div></div>
    <div class="voice-orb-mini">◉</div><h2>Escuta sob comando</h2>
