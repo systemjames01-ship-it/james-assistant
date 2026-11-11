@@ -307,7 +307,7 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
     const title = typeof args.title === "string" ? args.title.trim().slice(0, 180) : "";
     const at = typeof args.at === "string" ? args.at.trim() : "";
     const epochMillis = Date.parse(at);
-    if (!title || !/(Z|[+-]\\d{2}:\\d{2})$/.test(at) || !Number.isFinite(epochMillis) || epochMillis <= Date.now() || epochMillis > Date.now() + 366 * 24 * 60 * 60 * 1000) return { error: "Informe o título e uma data/hora futura válida, dentro de um ano." };
+    if (!title || !/(Z|[+-][0-9]{2}:[0-9]{2})$/.test(at) || !Number.isFinite(epochMillis) || epochMillis <= Date.now() || epochMillis > Date.now() + 366 * 24 * 60 * 60 * 1000) return { error: "Informe o título e uma data/hora futura válida, com fuso explícito, dentro de um ano." };
     return { queuedForDevice: true, clientAction: { type: "schedule_reminder", title, at }, instruction: "O lembrete ainda não foi agendado. Aguarde a confirmação do Android antes de afirmar que foi agendado." };
   }
   if (name === "android_open_settings") {
