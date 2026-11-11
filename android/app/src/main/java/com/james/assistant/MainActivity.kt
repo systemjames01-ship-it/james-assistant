@@ -85,6 +85,7 @@ class MainActivity : android.app.Activity() {
     private var liveConversationEnabled = false
     private var liveVoiceSession: JamesLiveAudioSession? = null
     private var liveButton: Button? = null
+    private var voiceProfileLabel: TextView? = null
     private var visionButton: Button? = null
     private var orbView: JamesHologramView? = null
     private var liveCamera: JamesLiveCamera? = null
@@ -101,7 +102,7 @@ class MainActivity : android.app.Activity() {
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", it).apply()
             }
         createNotificationChannel()
-        selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 3)
+        selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 2)
         buildShell()
         showPage("overview")
         refreshBackendStatus()
@@ -151,8 +152,10 @@ class MainActivity : android.app.Activity() {
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         navButtons = mutableMapOf()
         val pages = listOf(
-            "overview" to "VISÃO GERAL",
-            "intelligence" to "NÚCLEO",
+            "overview" to "CABEÇA",
+            "control" to "CONTROLE",
+            "voices" to "VOZES",
+            "intelligence" to "CHAT",
             "perception" to "PERCEPÇÃO",
             "automation" to "AUTOMAÇÕES",
             "memory" to "MEMÓRIA",
@@ -192,6 +195,8 @@ class MainActivity : android.app.Activity() {
         content.removeAllViews()
         when (page) {
             "overview" -> renderOverview()
+            "control" -> renderControlCenter()
+            "voices" -> renderVoiceProfiles()
             "intelligence" -> renderIntelligence()
             "perception" -> renderPerception()
             "automation" -> renderTasks()
@@ -239,17 +244,17 @@ class MainActivity : android.app.Activity() {
         page.addView(liveButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply {
             topMargin = dp(8); bottomMargin = dp(6)
         })
-        val voiceState = TextView(this).apply {
-            text = "VOZ ATIVA POR PADRÃO  ·  PERFIL JARVIS  ·  DIGA “MUDAR VOZ” PARA TROCAR"
-            textSize = 8f
+        voiceProfileLabel = TextView(this).apply {
+            text = "PERFIL VOCAL  ·  " + voiceProfileNames[selectedVoiceProfile]
+            textSize = 9f
             gravity = Gravity.CENTER
             setTextColor(COLOR_MUTED)
         }
-        page.addView(voiceState, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
-        visionButton = makeButton("ATIVAR SENSOR VISUAL", true) { toggleLiveVision() }
+        page.addView(voiceProfileLabel, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
+        visionButton = makeButton("ABRIR OS OLHOS · VISÃO AO VIVO", true) { toggleLiveVision() }
         page.addView(visionButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { bottomMargin = dp(6) })
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        controls.addView(makeButton("ABRIR CONSOLE DE TEXTO", true) { showPage("intelligence") },
+        controls.addView(makeButton("CONVERSAR POR TEXTO", true) { showPage("intelligence") },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)))
         page.addView(controls)
         val modules = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
