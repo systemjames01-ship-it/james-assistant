@@ -51,10 +51,13 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     !neuralCss.includes("#jamesNeuralCanvas") ||
     !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
     !neuralVoice.includes("falarEmFluxo") ||
+    !neuralVoice.includes("Sintetizador") ||
+    !neuralVoice.includes("VOZZ_SYNTH") ||
     !neuralVoice.includes("VOZZ_ASSETS") ||
     !neuralVoice.includes('dispositivo: "auto"') ||
     !neuralVoice.includes("aoProgredir") ||
     !neuralVoice.includes("Piper.carregar") ||
+    !neuralVoice.includes('voice: "bruno"') ||
     html.includes("speechSynthesis") ||
     html.includes("SpeechSynthesisUtterance") ||
     html.includes("JamesAndroid.speak") ||
