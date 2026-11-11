@@ -35,6 +35,7 @@ class JamesLiveAudioSession(
 
     private val appContext = context.applicationContext
     private val client = OkHttpClient.Builder()
+        .pingInterval(20, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .writeTimeout(0, TimeUnit.MILLISECONDS)
         .build()
@@ -57,7 +58,7 @@ class JamesLiveAudioSession(
         audioManager.isSpeakerphoneOn = true
 
         val request = Request.Builder()
-            .url("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=" + java.net.URLEncoder.encode(token, "UTF-8"))
+            .url("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=" + java.net.URLEncoder.encode(token, "UTF-8"))
             .build()
         socket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
