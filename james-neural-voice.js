@@ -103,11 +103,12 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
     source.buffer = buffer;
     const userRate = Number(document.getElementById("voiceRate")?.value || 1);
     const userPitch = Number(document.getElementById("voicePitch")?.value || 1);
-    source.playbackRate.value = rate * userRate * userPitch;
+    const playbackRate = rate * userRate * userPitch;
+    source.playbackRate.value = playbackRate;
     source.connect(context.destination);
     const start = Math.max(context.currentTime + 0.025, nextStartAt);
     source.start(start);
-    nextStartAt = start + buffer.duration / rate;
+    nextStartAt = start + buffer.duration / playbackRate;
     activeSources.add(source);
     source.onended = () => {
       activeSources.delete(source);
@@ -239,6 +240,6 @@ import { FilesetResolver, TextToSpeech } from "https://cdn.jsdelivr.net/npm/@med
     startNeuralCanvas();
     const button = document.getElementById("downloadNeuralVoice");
     if (button) button.addEventListener("click", loadAndTest);
-    status("Voz neural ainda não carregada. Toque em “Carregar voz neural” para baixar o modelo local (aprox. 295 MB).", "idle");
+    status("Voz neural ainda não carregada. Toque em “Carregar voz neural” para baixar o modelo local (aprox. 295 MB). O navegador pode reutilizar o cache nas próximas sessões.", "idle");
   });;
 })();
