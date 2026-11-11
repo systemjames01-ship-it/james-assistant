@@ -143,7 +143,10 @@
     const activeRun = runId;
     const context = ensureAudioContext();
     if (context.state === "suspended") await context.resume();
-    const profile = profiles[selectedProfile] || profiles.jarvis;
+    const baseProfile = profiles[selectedProfile] || profiles.jarvis;
+    const userRate = Number(document.getElementById("voiceRate")?.value || 1);
+    const userPitch = Number(document.getElementById("voicePitch")?.value || 1);
+    const profile = { ...baseProfile, speed: baseProfile.speed * userRate, pitch: baseProfile.pitch * userPitch };
     status("Sintetizando resposta em português brasileiro…", "ready");
     try {
       for await (const part of engine.falarEmFluxo(content, { velocidade: profile.speed, normalizar: true })) {
