@@ -882,10 +882,10 @@ export default {
         console.error("Live token rate-limit storage failed:", error);
         return json({ error: "Não foi possível validar o limite de sessões de voz." }, 503, origin);
       }
-      const expireTime = new Date(now + 10 * 60 * 1000).toISOString();
+      const expireTime = new Date(now + 30 * 60 * 1000).toISOString();
       const newSessionExpireTime = new Date(now + 60 * 1000).toISOString();
       try {
-        const tokenResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {
+        const tokenResponse = await fetch("https://generativelanguage.googleapis.com/v1alpha/auth_tokens", {
           method: "POST",
           headers: {
             "x-goog-api-key": env.GEMINI_API_KEY,
@@ -898,9 +898,22 @@ export default {
             liveConnectConstraints: {
               model: "models/gemini-3.8-live",
               config: {
-                responseModalities: ["AUDIO"],
+                generationConfig: {
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    languageCode: "pt-BR",
+                    voiceConfig: {
+                      prebuiltVoiceConfig: {
+                        voiceName: ["Charon", "Algieba", "Algenib"][voiceProfile]
+                      }
+                    }
+                  }
+                },
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
+                realtimeInputConfig: {
+                  automaticActivityDetection: { disabled: false }
+                },
                 sessionResumption: {},
                 tools: [{ functionDeclarations: LIVE_FUNCTION_DECLARATIONS }],
                 systemInstruction: {
