@@ -559,7 +559,7 @@ test("live token endpoint returns a one-use token without exposing the API key",
     }
   };
   globalThis.fetch = async (url, options) => {
-    assert.equal(String(url), "https://generativelanguage.googleapis.com/v1alpha/auth_tokens");
+    assert.equal(String(url), "https://generativelanguage.googleapis.com/v1beta/auth_tokens");
     assert.equal(options.headers["x-goog-api-key"], "secret-test-key");
     provisionBody = JSON.parse(options.body);
     return new Response(JSON.stringify({ name: "auth_tokens/short-lived" }), { status: 200 });
