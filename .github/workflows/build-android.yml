@@ -1,6 +1,10 @@
 name: Build Jâmes Android APK
 
 on:
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-android.yml'
   workflow_dispatch:
   push:
     paths:
