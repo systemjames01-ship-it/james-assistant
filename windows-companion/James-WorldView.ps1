@@ -20,6 +20,22 @@ function Ensure-Command([string]$Name,[string]$WingetId) {
  Refresh-Path
  if(-not(Get-Command $Name -ErrorAction SilentlyContinue)){throw "$Name foi solicitado ao winget, mas ainda não está disponível. Feche e reabra a sessão do Windows e tente novamente."}
 }
+function Ensure-Node {
+ Refresh-Path
+ $versionText=$null
+ if(Get-Command node -ErrorAction SilentlyContinue){$versionText=node -p "process.versions.node"}
+ $version=$null
+ if($versionText){try{$version=[version]$versionText}catch{}}
+ if($version -and (($version.Major -eq 24 -and $version -ge [version]"24.14.0") -or $version.Major -eq 26)){return}
+ if(-not(Get-Command winget -ErrorAction SilentlyContinue)){throw "God's Eye View requer Node.js 24.14+ ou 26.x. Instale uma dessas versões e tente novamente."}
+ Write-Log "Instalando ou atualizando Node.js LTS compatível."
+ winget upgrade --id OpenJS.NodeJS.LTS --exact --silent --accept-package-agreements --accept-source-agreements
+ if($LASTEXITCODE -ne 0){winget install --id OpenJS.NodeJS.LTS --exact --silent --accept-package-agreements --accept-source-agreements}
+ Refresh-Path
+ $versionText=node -p "process.versions.node"
+ $version=[version]$versionText
+ if(-not(($version.Major -eq 24 -and $version -ge [version]"24.14.0") -or $version.Major -eq 26)){throw "Versão Node.js incompatível após a instalação: $versionText"}
+}
 function Stop-Gev {
  $listeners=Get-NetTCPConnection -LocalPort 4173 -State Listen -ErrorAction SilentlyContinue
  foreach($listener in $listeners){
@@ -33,7 +49,8 @@ function Stop-Gev {
 function Start-Gev {
  if(-not(Test-Path (Join-Path $repo "package.json"))){throw "God's Eye View ainda não está instalado. Use a ação instalar."}
  Stop-Gev
- $cmd="Set-Location -LiteralPath '$repo'; npm run dev -- --host 127.0.0.1"
+ $safeRepo=$repo.Replace("'","''")
+ $cmd="Set-Location -LiteralPath '$safeRepo'; npm run dev -- --host 127.0.0.1 --strictPort"
  Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile","-NoExit","-Command",$cmd) -WindowStyle Minimized
  Start-Sleep -Seconds 5
  Start-Process "http://127.0.0.1:4173"
@@ -46,7 +63,7 @@ try {
  switch($action){
   "install" {
    Ensure-Command "git" "Git.Git"
-   Ensure-Command "node" "OpenJS.NodeJS.LTS"
+   Ensure-Node
    $version=(node --version)
    if($version -notmatch '^v(24|26)\.') {throw "God's Eye View requer Node.js 24.14+ ou 26.x. Versão encontrada: $version"}
    if(-not(Test-Path (Join-Path $repo ".git"))){
