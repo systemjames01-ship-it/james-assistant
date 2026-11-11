@@ -21,6 +21,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import org.json.JSONObject
+import org.json.JSONArray
 import java.util.UUID
 import java.util.Locale
 
@@ -117,6 +118,19 @@ class MainActivity : android.app.Activity() {
         @JavascriptInterface fun stopSpeaking(): String {
             runOnUiThread { textToSpeech?.stop() }
             return result(true, "Leitura interrompida.")
+        }
+
+        @JavascriptInterface fun installedApps(): String {
+            return try {
+                val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                val names = packageManager.queryIntentActivities(launcher, 0)
+                    .map { it.loadLabel(packageManager).toString().trim() }
+                    .filter { it.isNotBlank() && it.length <= 60 }
+                    .distinct()
+                    .sortedBy { it.lowercase(Locale.ROOT) }
+                    .take(80)
+                JSONArray(names).toString()
+            } catch (_: Exception) { "[]" }
         }
 
         @JavascriptInterface fun version(): String = "2.5.0"
