@@ -67,7 +67,13 @@ class MainActivity : android.app.Activity() {
         }
     }
 
-    override fun onDestroy() {\n        textToSpeech?.stop()\n        textToSpeech?.shutdown()\n        super.onDestroy()\n    }\n\n    override fun onBackPressed() {
+    override fun onDestroy() {
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        super.onDestroy()
+    }
+
+    override fun onBackPressed() {
         if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
