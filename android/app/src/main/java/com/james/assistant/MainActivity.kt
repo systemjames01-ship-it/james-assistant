@@ -95,6 +95,7 @@ class MainActivity : android.app.Activity() {
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
     private var resumeLiveAfterBackground = false
+    private var pendingVoicePreview = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -290,13 +291,10 @@ class MainActivity : android.app.Activity() {
             addText(panel, detail, 11f, COLOR_MUTED, top = 5)
             addText(panel, "Timbre do perfil: " + voiceProfileModels[index], 9f, COLOR_MUTED, top = 5)
             addButton(panel, if (selectedVoiceProfile == index) "PERFIL ATUAL" else "USAR ESTA VOZ", secondary = selectedVoiceProfile == index) {
-                if (selectedVoiceProfile != index) {
-                    applyVoiceProfile(index)
-                    getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", index).apply()
-                    if (liveConversationEnabled) restartLiveConversation()
-                    setStatus("PERFIL " + voiceProfileNames[index] + " SELECIONADO")
-                    showPage("voices")
-                }
+                selectVoiceProfile(index)
+            }
+            addButton(panel, "OUVIR AMOSTRA", secondary = true) {
+                previewVoiceProfile(index)
             }
             page.addView(panel)
         }
@@ -305,6 +303,28 @@ class MainActivity : android.app.Activity() {
         addText(note, "São interpretações vocais originais inspiradas nos personagens e na dublagem brasileira, não clonagens nem gravações dos dubladores.", 10f, COLOR_MUTED, top = 6)
         page.addView(note)
         mountScrollable(page)
+    }
+
+    private fun selectVoiceProfile(index: Int) {
+        if (index !in 0..2) return
+        val changed = selectedVoiceProfile != index
+        applyVoiceProfile(index)
+        getSharedPreferences("james_core", MODE_PRIVATE).edit().putInt("voice_profile", index).apply()
+        setStatus("PERFIL " + voiceProfileNames[index] + " SELECIONADO")
+        if (changed && liveConversationEnabled) restartLiveConversation()
+        showPage("voices")
+    }
+
+    private fun previewVoiceProfile(index: Int) {
+        selectVoiceProfile(index)
+        pendingVoicePreview = true
+        if (liveConversationEnabled) {
+            if (liveVoiceSession?.sendText("Faça uma apresentação curta em português brasileiro para demonstrar sua voz. Diga apenas: Olá. Eu sou o Jâmes. Como posso ajudar?") == true) {
+                pendingVoicePreview = false
+            }
+        } else {
+            startLiveConversation()
+        }
     }
 
     private fun renderControlCenter() {
@@ -723,7 +743,13 @@ class MainActivity : android.app.Activity() {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
                                     setStatus(message)
-                                    if (message.contains("JÂMES AO VIVO")) liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
+                                    if (message.contains("JÂMES AO VIVO")) {
+                                        liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
+                                        if (pendingVoicePreview) {
+                                            pendingVoicePreview = false
+                                            liveVoiceSession?.sendText("Faça uma apresentação curta em português brasileiro para demonstrar sua voz. Diga apenas: Olá. Eu sou o Jâmes. Como posso ajudar?")
+                                        }
+                                    }
                                     if (liveVisionPending && message.contains("JÂMES AO VIVO")) startLiveVision()
                                 }
                             }
