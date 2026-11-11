@@ -4,223 +4,205 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RadialGradient
 import android.graphics.RectF
-import android.graphics.Typeface
+import android.graphics.Shader
 import android.view.View
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Layered, low-cost holographic HUD designed for the Galaxy A13. */
+/** Lightweight animated holographic eye/head interface tuned for mid-range Android devices. */
 class JamesHologramView(context: Context) : View(context) {
-    @Volatile private var mode = 0 // 0 idle, 1 listening, 2 speaking, 3 vision
+    @Volatile private var mode = 0
     @Volatile private var audioLevel = 0f
-    private val density = resources.displayMetrics.density
-    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val d = resources.displayMetrics.density
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val text = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
-    private val bounds = RectF()
+    private val oval = RectF()
     private val cyan = 0xFF66E8FF.toInt()
-    private val pale = 0xFFB7F7FF.toInt()
-    private val violet = 0xFFB99AFF.toInt()
+    private val ice = 0xFFC8FBFF.toInt()
+    private val violet = 0xFFB89AFF.toInt()
     private val green = 0xFF73F0C2.toInt()
 
-    fun setAudioLevel(level: Float) { audioLevel = level.coerceIn(0f, 1f) }
+    fun setAudioLevel(level: Float) { audioLevel = level.coerceIn(0f, 1f); postInvalidateOnAnimation() }
+    fun setMode(nextMode: Int) { mode = nextMode.coerceIn(0, 3); invalidate() }
 
-    fun setMode(nextMode: Int) {
-        val next = nextMode.coerceIn(0, 3)
-        if (mode != next) { mode = next; invalidate() }
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
+    override fun onDraw(c: Canvas) {
+        super.onDraw(c)
         val w = width.toFloat()
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
         val t = System.nanoTime() / 1_000_000_000.0
-        val accent = when (mode) { 1 -> 0xFF56D9FF.toInt(); 2 -> violet; 3 -> green; else -> cyan }
+        val accent = when (mode) { 1 -> cyan; 2 -> violet; 3 -> green; else -> cyan }
         val cx = w * .5f
         val cy = h * .47f
-        val r = minOf(w * .285f, h * .285f).coerceAtLeast(64f * density)
-        val pulse = 1f + (if (mode == 2) .035f else .014f) * sin(t * 2.4).toFloat()
-        val radius = r * pulse
+        val r = minOf(w * .37f, h * .30f).coerceAtLeast(72f * d)
+        val pulse = 1f + (.012f + audioLevel * .035f) * sin(t * 2.6).toFloat()
+        val eyeW = r * 1.42f * pulse
+        val eyeH = r * (.70f + audioLevel * .10f)
+        c.drawColor(0xFF020811.toInt())
+        drawGrid(c, w, h, t, accent)
+        drawOrbitalRings(c, cx, cy, r, t, accent)
 
-        canvas.drawColor(0xFF030A12.toInt())
-        drawBackgroundGrid(canvas, w, h, t, accent)
-        drawCornerBrackets(canvas, w, h, accent)
-
-        fill.shader = android.graphics.RadialGradient(cx, cy, radius * 1.65f,
-            intArrayOf((accent and 0x00FFFFFF) or 0x38200000, (accent and 0x00FFFFFF) or 0x18200000, 0x00000000),
-            floatArrayOf(0f, .64f, 1f), android.graphics.Shader.TileMode.CLAMP)
-        canvas.drawCircle(cx, cy, radius * 1.65f, fill)
+        fill.shader = RadialGradient(cx, cy, r * 2.1f,
+            intArrayOf((accent and 0x00FFFFFF) or 0x3A000000, 0x1022B8D0, 0x00000000),
+            floatArrayOf(0f, .55f, 1f), Shader.TileMode.CLAMP)
+        c.drawCircle(cx, cy, r * 2.1f, fill)
         fill.shader = null
 
-        drawOrbit(canvas, cx, cy, radius * 1.25f, .28f, t * .42, accent, 115)
-        drawOrbit(canvas, cx, cy, radius * 1.43f, .58f, -t * .31, pale, 72)
-        drawOrbit(canvas, cx, cy, radius * 1.62f, .20f, t * .22, accent, 48)
+        oval.set(cx-eyeW, cy-eyeH, cx+eyeW, cy+eyeH)
+        fill.color = 0xFF061827.toInt()
+        c.drawOval(oval, fill)
+        stroke.color = accent
+        stroke.alpha = 225
+        stroke.strokeWidth = 2.1f*d
+        c.drawOval(oval, stroke)
+        oval.inset(7f*d, 7f*d)
+        stroke.alpha = 95
+        stroke.strokeWidth = 1f*d
+        c.drawOval(oval, stroke)
+        drawLid(c, cx, cy, eyeW, eyeH, accent)
 
-        // Rotating spherical wireframe.
-        val rotY = t * .24
-        val rotX = .32 + sin(t * .17) * .08
-        val points = 24
-        for (latIndex in -5..5) {
-            val lat = latIndex * PI / 12.0
-            path.reset()
-            for (i in 0..points) {
-                val lon = (i.toDouble() / points) * PI * 2.0
-                val p = projectSphere(cx, cy, radius * .91f, lat, lon + rotY, rotX)
-                if (i == 0) path.moveTo(p.first, p.second) else path.lineTo(p.first, p.second)
-            }
-            line.color = accent
-            line.alpha = if (latIndex == 0) 125 else 58
-            line.strokeWidth = (if (latIndex == 0) 1.25f else .7f) * density
-            canvas.drawPath(path, line)
+        val irisR = r * (.43f + audioLevel*.045f)
+        fill.shader = RadialGradient(cx, cy, irisR,
+            intArrayOf(ice, accent, 0xFF12617C.toInt(), 0xFF03101D.toInt()),
+            floatArrayOf(0f, .22f, .72f, 1f), Shader.TileMode.CLAMP)
+        c.drawCircle(cx, cy, irisR, fill)
+        fill.shader = null
+        stroke.color = ice
+        stroke.alpha = 210
+        stroke.strokeWidth = 1.5f*d
+        c.drawCircle(cx, cy, irisR*.92f, stroke)
+        for (i in 0 until 64) {
+            val a = i * PI / 32.0 + t*.12
+            val inner = irisR * if (i % 4 == 0) .69f else .79f
+            val outer = irisR * if (i % 4 == 0) .98f else .90f
+            stroke.color = if (i % 4 == 0) ice else accent
+            stroke.alpha = if (i % 4 == 0) 220 else 95
+            stroke.strokeWidth = (if (i % 4 == 0) 1.6f else .7f)*d
+            c.drawLine(cx+cos(a).toFloat()*inner, cy+sin(a).toFloat()*inner,
+                cx+cos(a).toFloat()*outer, cy+sin(a).toFloat()*outer, stroke)
         }
-        for (lonIndex in 0 until 18) {
-            val lon = lonIndex * PI / 9.0 + rotY
-            path.reset()
-            for (i in 0..points) {
-                val lat = -PI / 2 + (i.toDouble() / points) * PI
-                val p = projectSphere(cx, cy, radius * .91f, lat, lon, rotX)
-                if (i == 0) path.moveTo(p.first, p.second) else path.lineTo(p.first, p.second)
-            }
-            line.color = accent
-            line.alpha = if (lonIndex % 3 == 0) 86 else 42
-            line.strokeWidth = .7f * density
-            canvas.drawPath(path, line)
-        }
+        fill.color = 0xFF01060D.toInt()
+        c.drawCircle(cx, cy, irisR*.40f, fill)
+        fill.color = ice
+        fill.alpha = 230
+        c.drawCircle(cx-irisR*.12f, cy-irisR*.14f, irisR*.09f, fill)
+        fill.color = accent
+        fill.alpha = 115
+        c.drawCircle(cx, cy, irisR*.53f, fill)
 
-        // Central reactor aperture.
-        fill.color = (accent and 0x00FFFFFF) or 0x1E000000
-        canvas.drawCircle(cx, cy, radius * .34f, fill)
-        line.color = pale; line.alpha = 220; line.strokeWidth = 1.4f * density
-        canvas.drawCircle(cx, cy, radius * .30f, line)
-        line.alpha = 110; line.strokeWidth = .8f * density
-        canvas.drawCircle(cx, cy, radius * .23f, line)
-        fill.color = pale; fill.alpha = 225
-        canvas.drawCircle(cx, cy, radius * .045f, fill)
-        fill.color = accent; fill.alpha = 85
-        canvas.drawCircle(cx, cy, radius * .12f, fill)
-
-        // Radial ticks and data packets.
-        for (i in 0 until 36) {
-            val a = i * PI / 18.0 + t * .12
-            val inner = radius * 1.07f
-            val outer = radius * if (i % 3 == 0) 1.16f else 1.11f
-            line.color = accent; line.alpha = if (i % 3 == 0) 175 else 75
-            line.strokeWidth = (if (i % 3 == 0) 1.2f else .65f) * density
-            canvas.drawLine(cx + cos(a).toFloat() * inner, cy + sin(a).toFloat() * inner,
-                cx + cos(a).toFloat() * outer, cy + sin(a).toFloat() * outer, line)
-            if (i % 3 == 0) {
-                fill.color = pale; fill.alpha = 175
-                canvas.drawCircle(cx + cos(a).toFloat() * radius * 1.20f,
-                    cy + sin(a).toFloat() * radius * 1.20f, 1.7f * density, fill)
-            }
-        }
-
-        drawTelemetry(canvas, w, cx, cy, radius, t, accent)
-        drawWaveform(canvas, cx, h * .82f, w * .28f, t, accent)
-        drawLabels(canvas, w, h, accent)
+        drawScanArcs(c, cx, cy, r, t, accent)
+        drawWave(c, cx, h*.83f, w*.29f, t, accent)
+        drawHudText(c, w, h, accent)
         postInvalidateOnAnimation()
     }
 
-    private fun projectSphere(cx: Float, cy: Float, r: Float, lat: Double, lon: Double, tilt: Double): Pair<Float, Float> {
-        val x = cos(lat) * sin(lon)
-        val y = sin(lat)
-        val z = cos(lat) * cos(lon)
-        val yy = y * cos(tilt) - z * sin(tilt)
-        val zz = y * sin(tilt) + z * cos(tilt)
-        val perspective = 1.0 / (1.0 + zz * .16)
-        return Pair(cx + (x * r * perspective).toFloat(), cy + (yy * r * perspective).toFloat())
+    private fun drawLid(c: Canvas, cx: Float, cy: Float, rx: Float, ry: Float, color: Int) {
+        path.reset()
+        path.moveTo(cx-rx, cy)
+        path.cubicTo(cx-rx*.48f, cy-ry*1.65f, cx+rx*.48f, cy-ry*1.65f, cx+rx, cy)
+        stroke.color=color
+        stroke.alpha=230
+        stroke.strokeWidth=2.2f*d
+        c.drawPath(path, stroke)
+        path.reset()
+        path.moveTo(cx-rx, cy)
+        path.cubicTo(cx-rx*.45f, cy+ry*1.48f, cx+rx*.45f, cy+ry*1.48f, cx+rx, cy)
+        stroke.alpha=155
+        stroke.strokeWidth=1.4f*d
+        c.drawPath(path, stroke)
+        stroke.alpha=80
+        stroke.strokeWidth=.7f*d
+        for (i in 0..8) {
+            val x = cx-rx*.82f + i*rx*.205f
+            val y = cy-ry*(.44f + .34f*sin(i*PI/8).toFloat())
+            c.drawLine(x,y,x+rx*.025f,y-ry*.13f,stroke)
+        }
     }
 
-    private fun drawOrbit(c: Canvas, cx: Float, cy: Float, r: Float, squash: Float, angle: Double, color: Int, alpha: Int) {
+    private fun drawOrbitalRings(c: Canvas, cx: Float, cy: Float, r: Float, t: Double, color: Int) {
         c.save()
-        c.rotate(Math.toDegrees(angle).toFloat(), cx, cy)
-        line.color = color; line.alpha = alpha; line.strokeWidth = 1.05f * density
-        bounds.set(cx-r, cy-r*squash, cx+r, cy+r*squash)
-        c.drawOval(bounds, line)
-        line.alpha = (alpha * .48f).toInt()
-        bounds.set(cx-r*1.035f, cy-r*squash*1.035f, cx+r*1.035f, cy+r*squash*1.035f)
-        c.drawOval(bounds, line)
-        fill.color = color; fill.alpha = 210
-        c.drawCircle(cx+r, cy, 2.3f*density, fill)
-        c.drawCircle(cx-r, cy, 1.6f*density, fill)
+        c.rotate((t*13).toFloat(),cx,cy)
+        stroke.color=color
+        stroke.alpha=75
+        stroke.strokeWidth=1.1f*d
+        oval.set(cx-r*1.63f,cy-r*.40f,cx+r*1.63f,cy+r*.40f)
+        c.drawOval(oval,stroke)
         c.restore()
-    }
-
-    private fun drawBackgroundGrid(c: Canvas, w: Float, h: Float, t: Double, accent: Int) {
-        line.color = accent; line.alpha = 16; line.strokeWidth = .6f*density
-        val step = 28f*density
-        var x = (-(t*4 % step.toDouble()).toFloat())
-        while (x < w) { c.drawLine(x, 0f, x, h, line); x += step }
-        var y = 0f
-        while (y < h) { c.drawLine(0f, y, w, y, line); y += step }
-    }
-
-    private fun drawCornerBrackets(c: Canvas, w: Float, h: Float, accent: Int) {
-        line.color = accent; line.alpha = 115; line.strokeWidth = 1.2f*density
-        val m = 13f*density; val l = 17f*density
-        val corners = arrayOf(floatArrayOf(m,m,1f,1f), floatArrayOf(w-m,m,-1f,1f),
-            floatArrayOf(m,h-m,1f,-1f), floatArrayOf(w-m,h-m,-1f,-1f))
-        corners.forEach { p ->
-            c.drawLine(p[0], p[1], p[0]+l*p[2], p[1], line)
-            c.drawLine(p[0], p[1], p[0], p[1]+l*p[3], line)
-        }
-    }
-
-    private fun drawTelemetry(c: Canvas, w: Float, cx: Float, cy: Float, r: Float, t: Double, accent: Int) {
-        line.color = accent; line.alpha = 75; line.strokeWidth = .7f*density
-        c.drawLine(12f*density, cy, 34f*density, cy, line)
-        c.drawLine(w-34f*density, cy, w-12f*density, cy, line)
-        text.color = accent; text.alpha = 175; text.textSize = 8f*density
-        text.typeface = Typeface.create("monospace", Typeface.NORMAL)
-        c.drawText("CORE MATRIX", 12f*density, cy-9f*density, text)
-        text.textAlign = Paint.Align.RIGHT
-        c.drawText("NEURAL LINK", w-12f*density, cy-9f*density, text)
-        text.textAlign = Paint.Align.LEFT
-        val sys = when (mode) { 1 -> "LISTEN"; 2 -> "SPEAK"; 3 -> "VISION"; else -> "STANDBY" }
-        c.drawText("SYS " + sys, 12f*density, cy+13f*density, text)
-        text.textAlign = Paint.Align.RIGHT
-        c.drawText("SYNC " + (96+3*sin(t).toInt()) + "%", w-12f*density, cy+13f*density, text)
-        text.textAlign = Paint.Align.LEFT
+        c.save()
+        c.rotate((-t*9).toFloat(),cx,cy)
+        stroke.color=ice
+        stroke.alpha=55
+        stroke.strokeWidth=.8f*d
+        oval.set(cx-r*1.48f,cy-r*.75f,cx+r*1.48f,cy+r*.75f)
+        c.drawOval(oval,stroke)
+        c.restore()
         for (i in 0 until 8) {
-            val a = t*(.22+i*.012)+i*PI/4
-            val rr = r*(1.34+(i%2)*.12).toFloat()
-            fill.color = accent; fill.alpha = 125
-            c.drawCircle(cx+cos(a).toFloat()*rr, cy+sin(a).toFloat()*rr*.56f, 1.5f*density, fill)
+            val a=i*PI/4.0-t*.22
+            fill.color=color
+            fill.alpha=if(i%2==0)210 else 95
+            c.drawCircle(cx+cos(a).toFloat()*r*1.73f,cy+sin(a).toFloat()*r*.82f,2.1f*d,fill)
         }
     }
 
-    private fun drawWaveform(c: Canvas, cx: Float, y: Float, width: Float, t: Double, accent: Int) {
-        line.color = accent; line.alpha = 115; line.strokeWidth = 1.1f*density
-        val bars = 40
-        val gap = width/bars
-        for (i in 0 until bars) {
-            val envelope = if (mode == 0) .18 else if (mode == 1) .48 else .78
-            val liveBoost = if (mode == 1 || mode == 2) (0.35f + audioLevel * 1.65f) else 1f
-            val wave = (.15 + .85*kotlin.math.abs(sin(t*(if (mode == 2) 8.0 else 3.2)+i*.52)))*envelope*liveBoost.toDouble()
-            val bh = (3f+wave.toFloat()*17f)*density
-            val x = cx-width/2+i*gap
-            c.drawLine(x, y-bh, x, y+bh, line)
-        }
+    private fun drawScanArcs(c: Canvas,cx:Float,cy:Float,r:Float,t:Double,color:Int) {
+        val start=((t*38)%360).toFloat()
+        stroke.color=color
+        stroke.alpha=95
+        stroke.strokeWidth=1f*d
+        oval.set(cx-r*1.78f,cy-r*1.18f,cx+r*1.78f,cy+r*1.18f)
+        c.drawArc(oval,start,68f,false,stroke)
+        stroke.alpha=150
+        stroke.strokeWidth=1.2f*d
+        oval.inset(7f*d,7f*d)
+        c.drawArc(oval,-start,34f,false,stroke)
     }
 
-    private fun drawLabels(c: Canvas, w: Float, h: Float, accent: Int) {
-        text.typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
-        text.textSize = 12f*density; text.color = pale; text.alpha = 235
-        c.drawText("J Â M E S", 16f*density, 24f*density, text)
-        text.textSize = 7.5f*density; text.color = accent; text.alpha = 170
-        text.typeface = Typeface.create("monospace", Typeface.NORMAL)
-        c.drawText("PERSONAL INTELLIGENCE SYSTEM", 16f*density, 37f*density, text)
-        text.textAlign = Paint.Align.RIGHT
-        val state = when (mode) { 1 -> "LISTENING"; 2 -> "SPEAKING"; 3 -> "VISION ACTIVE"; else -> "SYSTEM ONLINE" }
-        c.drawText(state, w-16f*density, 24f*density, text)
-        c.drawText("REALTIME / PT-BR", w-16f*density, 37f*density, text)
-        text.textAlign = Paint.Align.LEFT
-        text.textSize = 7f*density
-        c.drawText("NEURAL PROCESSING", 16f*density, h-22f*density, text)
-        c.drawText("SECURE SESSION", w-91f*density, h-22f*density, text)
+    private fun drawGrid(c:Canvas,w:Float,h:Float,t:Double,color:Int) {
+        stroke.color=color
+        stroke.alpha=20
+        stroke.strokeWidth=.6f*d
+        val step=36f*d
+        var x=0f
+        while(x<w){c.drawLine(x,0f,x,h,stroke);x+=step}
+        var y=0f
+        while(y<h){c.drawLine(0f,y,w,y,stroke);y+=step}
+        stroke.alpha=48
+        stroke.strokeWidth=1f*d
+        val scan=(t*26%h).toFloat()
+        c.drawLine(0f,scan,w,scan,stroke)
+    }
+
+    private fun drawWave(c:Canvas,cx:Float,y:Float,half:Float,t:Double,color:Int) {
+        path.reset()
+        for(i in 0..80){
+            val x=cx-half+2*half*i/80f
+            val envelope=sin(i*PI/80).toFloat()
+            val wave=sin(i*.48+t*5).toFloat()*(.08f+audioLevel*.42f)*envelope
+            if(i==0)path.moveTo(x,y+wave*45f*d) else path.lineTo(x,y+wave*45f*d)
+        }
+        stroke.color=color
+        stroke.alpha=if(mode==1||mode==2)220 else 85
+        stroke.strokeWidth=1.4f*d
+        c.drawPath(path,stroke)
+    }
+
+    private fun drawHudText(c:Canvas,w:Float,h:Float,color:Int) {
+        val p=Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface=android.graphics.Typeface.create("monospace",android.graphics.Typeface.BOLD)
+            textSize=9f*d
+            this.color=color
+            alpha=170
+        }
+        c.drawText("JÂMES // VISUAL CORE",12f*d,18f*d,p)
+        p.textAlign=Paint.Align.RIGHT
+        c.drawText(when(mode){1->"LISTENING";2->"SPEAKING";3->"VISION ACTIVE";else->"STANDBY"},w-12f*d,18f*d,p)
+        p.textAlign=Paint.Align.LEFT
+        p.textSize=8f*d
+        p.alpha=120
+        c.drawText("OPTICAL SENSOR  ·  NEURAL LINK",12f*d,h-12f*d,p)
     }
 }
