@@ -26,11 +26,17 @@
    const projected=points.map(p=>{const x=p.x*cos-p.z*sin,z=p.x*sin+p.z*cos;return{p,x:cx+x*scale,y:cy-p.y*scale*.9,z,depth:(z+1.2)/2.4};});
    const visible=projected.filter(q=>q.z>-.48).sort((a,b)=>a.z-b.z);
    ctx.save();ctx.globalCompositeOperation="lighter";
-   for(let side of [-1,1]){
-    const group=visible.filter(q=>q.p.side===side);
-    ctx.beginPath();
-    for(let i=0;i<group.length;i+=3){const q=group[i];if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y);}
-    ctx.strokeStyle="rgba(61,190,255,.12)";ctx.lineWidth=1;ctx.stroke();
+   const pointMap=new Map(projected.map(q=>[q.p.side+":"+q.p.lat+":"+q.p.lon,q]));
+   ctx.lineWidth=.72;
+   for(const q of visible){
+    const neighbors=[[q.p.lat,q.p.lon+1],[q.p.lat+1,q.p.lon]];
+    for(const [lat,lon] of neighbors){
+     if(lat>22)continue;
+     const next=pointMap.get(q.p.side+":"+lat+":"+(lon%40));
+     if(!next||next.z<-.48)continue;
+     ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(next.x,next.y);
+     ctx.strokeStyle="rgba(61,190,255,"+(.045+Math.min(q.depth,next.depth)*.16)+")";ctx.stroke();
+    }
    }
    for(let i=0;i<visible.length;i++){
     const q=visible[i],pulse=(Math.sin(performance.now()*.0018+q.p.phase)+1)/2,alpha=.16+q.depth*.45+pulse*neuralActivity*.36;
