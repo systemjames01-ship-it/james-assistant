@@ -606,3 +606,36 @@ test("live tool endpoint executes allowlisted tools and rejects unknown tools", 
   const deniedResponse = await worker.fetch(deniedRequest, {});
   assert.equal(deniedResponse.status, 400);
 });
+
+
+test("live voice transcript is persisted into the same shared conversation history", async () => {
+  const batches = [];
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          return { sql, values };
+        }
+      };
+    },
+    batch: async statements => { batches.push(statements); return []; }
+  };
+  const request = new Request("https://worker.test/?action=live-turn", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "session_test_12345",
+      userText: "Qual é o estado do projeto?",
+      modelText: "O projeto está em desenvolvimento."
+    })
+  });
+  const response = await worker.fetch(request, { DB: db });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.saved, true);
+  assert.equal(batches.length, 1);
+  assert.equal(batches[0][0].values[0], "session_test_12345");
+  assert.equal(batches[0][0].values[1], "Qual é o estado do projeto?");
+  assert.equal(batches[0][1].values[0], "session_test_12345");
+  assert.equal(batches[0][1].values[1], "O projeto está em desenvolvimento.");
+});
