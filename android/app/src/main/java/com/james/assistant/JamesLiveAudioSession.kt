@@ -22,7 +22,6 @@ class JamesLiveAudioSession(
     context: Context,
     private val token: String,
     private val voiceName: String,
-    private val voiceInstruction: String,
     private val listener: Listener
 ) {
     interface Listener {
@@ -65,7 +64,6 @@ class JamesLiveAudioSession(
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 val setup = JSONObject()
                     .put("model", "models/gemini-3.8-live")
-                    .put("systemInstruction", JSONObject().put("parts", org.json.JSONArray().put(JSONObject().put("text", voiceInstruction))))
                     .put("generationConfig", JSONObject()
                         .put("responseModalities", org.json.JSONArray().put("AUDIO"))
                         .put("speechConfig", JSONObject().put("voiceConfig", JSONObject()
