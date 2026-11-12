@@ -94,6 +94,7 @@ class MainActivity : android.app.Activity() {
     private var backendSummary = "Verificando o núcleo..."
     private var selectedVoiceProfile = 0
     private var liveConversationEnabled = false
+    private var notificationPermissionRequested = false
     private var liveVoiceSession: JamesLiveAudioSession? = null
     private var liveButton: Button? = null
     private var voiceProfileLabel: TextView? = null
@@ -1348,6 +1349,13 @@ class MainActivity : android.app.Activity() {
 
     private fun startLiveConversation() {
         if (liveConversationEnabled) return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !notificationPermissionRequested) {
+            notificationPermissionRequested = true
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIFICATIONS)
+            return
+        }
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MICROPHONE)
             return
@@ -1936,7 +1944,9 @@ class MainActivity : android.app.Activity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQ_NOTIFICATIONS) {
-            setStatus(if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) "NOTIFICAÇÕES AUTORIZADAS" else "NOTIFICAÇÕES NÃO AUTORIZADAS")
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            setStatus(if (granted) "NOTIFICAÇÕES AUTORIZADAS" else "NOTIFICAÇÕES NEGADAS · A SESSÃO PODERÁ TER VISIBILIDADE LIMITADA")
+            startLiveConversation()
         } else if (requestCode == REQ_MICROPHONE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startLiveConversation()
