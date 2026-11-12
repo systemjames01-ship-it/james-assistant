@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#02070d">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="james.css?v=4.0">
+<link rel="stylesheet" href="james.css?v=4.1">
 <title>Jâmes — Neural Command Interface</title>
 </head>
 <body>
@@ -37,7 +37,7 @@
   </div>
 
   <nav class="tabs" aria-label="Jâmes">
-    <button class="tab active" data-tab="core"><span>01</span><b>NÚCLEO</b></button>
+    <button class="tab active" data-tab="core"><span>01</span><b>JÂMES AO VIVO</b></button>
     <button class="tab" data-tab="chat"><span>02</span><b>COMUNICAÇÃO</b></button>
     <button class="tab" data-tab="control"><span>03</span><b>CONTROLE</b></button>
   </nav>
@@ -45,7 +45,7 @@
   <section id="core" class="view active">
     <div class="hero-grid">
       <div class="core-stage">
-        <div class="stage-head"><span>NEURAL CORE</span><b id="coreMode">DORMANT</b></div>
+        <div class="stage-head"><span>AVATAR HOLOGRÁFICO / JÂMES</span><b id="coreMode">DORMANT</b></div>
         <div class="holo">
           <div class="grid-disc"></div>
           <div class="orbit orbit-1"></div><div class="orbit orbit-2"></div><div class="orbit orbit-3"></div>
@@ -64,7 +64,7 @@
                 <path d="M150 70L92 112L116 160L72 205M92 112L176 96L220 132L188 188L230 220M116 160L188 188L150 245L72 205M176 96L150 150L188 188M150 150L92 112M150 150L220 132"/>
               </g>
             </svg>
-            <div class="core-logo"><strong>J</strong><span>JÂMES</span></div>
+            <div class="core-logo"><strong>J</strong><span>JÂMES</span><small id="avatarState">AGUARDANDO</small></div>
           </div>
           <div class="reticle r-top">◈</div><div class="reticle r-bottom">⌁</div>
           <div class="data-tag tag-a">COGNITION <b id="cognition">98%</b></div>
@@ -77,11 +77,11 @@
 
       <aside class="mission">
         <div class="panel primary">
-          <div class="panel-label">SYSTEM STATUS</div>
+          <div class="panel-label">CONVERSA DIRETA</div>
           <div class="status-big" id="coreStatus">STANDBY</div>
-          <p id="coreMessage">O núcleo está em repouso. Ligue o sistema para iniciar a interface.</p>
-          <button id="listen" class="main-command"><span>◉</span><div><b>COMANDO DE VOZ</b><small>Toque e fale com Jâmes</small></div><em>→</em></button>
-          <button id="quickVision" class="secondary-command"><span>◈</span> INICIAR VISÃO</button>
+          <p id="coreMessage">O núcleo está em repouso. Ligue o Jâmes e inicie a conversa por voz. Depois, ele ouvirá e responderá sem novos toques.</p>
+          <button id="listen" class="main-command"><span>◉</span><div><b>INICIAR CONVERSA</b><small>Ative uma vez; depois, fale naturalmente</small></div><em>→</em></button>
+          <button id="quickVision" class="secondary-command"><span>◈</span> INICIAR VISÃO</button><p class="voice-note">O microfone fica ativo somente durante a conversa. Toque novamente para encerrar ou diga “encerrar conversa”.</p>
         </div>
         <div class="metrics">
           <div><strong id="mVoice">OFF</strong><small>VOICE</small></div>
@@ -95,7 +95,7 @@
         </div>
       </aside>
     </div>
-    <div class="livebar"><span class="live-dot"></span><b id="liveText">Jâmes aguardando comando.</b><small>NEURAL LINK</small></div>
+    <div class="livebar"><span class="live-dot"></span><b id="liveText">Jâmes aguardando comando.</b><small id="voiceModeLabel">VOICE STANDBY</small></div>
     <video id="camera" autoplay playsinline muted></video>
   </section>
 
@@ -116,6 +116,6 @@
     </div>
   </section>
 </main>
-<script src="james.js?v=4.0"></script>
+<script src="james.js?v=4.1"></script>
 </body>
 </html>
