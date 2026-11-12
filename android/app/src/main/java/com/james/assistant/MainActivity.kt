@@ -111,7 +111,7 @@ class MainActivity : android.app.Activity() {
         buildShell()
         showPage("overview")
         refreshBackendStatus()
-        startLiveConversation()
+        // Sensores permanecem desligados até o usuário ativar o botão principal.
     }
 
     private fun buildShell() {
@@ -157,14 +157,9 @@ class MainActivity : android.app.Activity() {
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         navButtons = mutableMapOf()
         val pages = listOf(
-            "overview" to "CABEÇA",
-            "control" to "CONTROLE",
-            "voices" to "VOZES",
+            "overview" to "JÂMES",
             "intelligence" to "CHAT",
-            "perception" to "PERCEPÇÃO",
-            "automation" to "AUTOMAÇÕES",
-            "memory" to "MEMÓRIA",
-            "device" to "DISPOSITIVO"
+            "control" to "CONTROLE"
         )
         pages.forEach { (key, label) ->
             val button = makeButton(label, secondary = true).apply {
@@ -193,7 +188,7 @@ class MainActivity : android.app.Activity() {
     private fun showPage(page: String) {
         currentPage = page
         navButtons.forEach { (key, button) ->
-            val selected = key == page
+            val selected = key == page || (key == "control" && page in setOf("voices", "perception", "automation", "memory", "device"))
             button.setBackground(background(if (selected) 0xFF16445A.toInt() else COLOR_PANEL, if (selected) COLOR_CYAN else 0xFF244257.toInt()))
             button.setTextColor(if (selected) COLOR_TEXT else COLOR_MUTED)
         }
@@ -238,14 +233,14 @@ class MainActivity : android.app.Activity() {
         }
         page.addView(subtitle, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
         val state = TextView(this).apply {
-            text = backendSummary
+            text = backendSummary + "\nSENSORES: DESLIGADOS ATÉ ATIVAÇÃO MANUAL"
             textSize = 10f
             gravity = Gravity.CENTER
             setTextColor(COLOR_GREEN)
             maxLines = 2
         }
         page.addView(state, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38)))
-        liveButton = makeButton("CONECTAR AO JÂMES", true) { toggleLiveConversation() }
+        liveButton = makeButton(if (liveConversationEnabled) "DESLIGAR JÂMES" else "LIGAR JÂMES", true) { toggleJamesPower() }
         page.addView(liveButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply {
             topMargin = dp(8); bottomMargin = dp(6)
         })
@@ -352,9 +347,11 @@ class MainActivity : android.app.Activity() {
         val systems = card()
         addText(systems, "MÓDULOS DO SISTEMA", 11f, COLOR_CYAN, true)
         addModule(systems, "CHAT E RACIOCÍNIO", "Conversa textual, contexto e ferramentas") { showPage("intelligence") }
-        addModule(systems, "MEMÓRIA", "Memórias autorizadas") { showPage("memory") }
-        addModule(systems, "AUTOMAÇÕES", "Tarefas, lembretes e ações Android") { showPage("automation") }
-        addModule(systems, "APARELHO", "Estado do dispositivo e acessibilidade") { showPage("device") }
+        addModule(systems, "PERFIS DE VOZ", "Identidade vocal e síntese de fala") { showPage("voices") }
+        addModule(systems, "PERCEPÇÃO", "Câmera, imagens e documentos") { showPage("perception") }
+        addModule(systems, "MEMÓRIA", "Memórias autorizadas e histórico") { showPage("memory") }
+        addModule(systems, "AUTOMAÇÕES", "Tarefas e lembretes locais") { showPage("automation") }
+        addModule(systems, "APARELHO", "Estado, permissões e acessibilidade") { showPage("device") }
         addButton(systems, "VERIFICAR CONEXÃO DO NÚCLEO", secondary = true) { refreshBackendStatus() }
         page.addView(systems)
         mountScrollable(page)
@@ -421,7 +418,7 @@ class MainActivity : android.app.Activity() {
 
         val note = card()
         addText(note, "LIMITES ATUAIS", 10f, COLOR_CYAN, true)
-        addText(note, "A versão atual envia capturas e arquivos para análise. Ainda não existe vídeo contínuo, reconhecimento visual em segundo plano ou monitoramento permanente.", 11f, COLOR_MUTED, top = 7)
+        addText(note, "A câmera ao vivo funciona durante uma sessão ativa e autorizada. O Android pode suspender sensores quando o aplicativo sai de primeiro plano; monitoramento 24 horas exige um serviço em primeiro plano, notificação persistente, consumo de bateria e aprovação explícita. Ainda não é anunciado como recurso permanente.", 11f, COLOR_MUTED, top = 7)
         page.addView(note)
         mountScrollable(page)
     }
@@ -721,6 +718,17 @@ class MainActivity : android.app.Activity() {
         if (liveConversationEnabled) stopLiveConversation() else startLiveConversation()
     }
 
+    /** Botão mestre: inicia voz e solicita visão separadamente, respeitando as permissões Android. */
+    private fun toggleJamesPower() {
+        if (liveConversationEnabled) {
+            stopLiveConversation()
+            return
+        }
+        liveVisionPending = true
+        setStatus("ATIVANDO JÂMES · AGUARDANDO PERMISSÕES DO APARELHO")
+        startLiveConversation()
+    }
+
     private fun startLiveConversation() {
         if (liveConversationEnabled) return
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -728,7 +736,7 @@ class MainActivity : android.app.Activity() {
             return
         }
         liveConversationEnabled = true
-        liveButton?.text = "CONECTANDO AO NÚCLEO DE VOZ..."
+        liveButton?.text = "INICIANDO JÂMES..."
         setStatus("SOLICITANDO SESSÃO SEGURA DE VOZ")
         executor.execute {
             try {
@@ -744,7 +752,7 @@ class MainActivity : android.app.Activity() {
                                 if (liveConversationEnabled) {
                                     setStatus(message)
                                     if (message.contains("JÂMES AO VIVO")) {
-                                        liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
+                                        liveButton?.text = "DESLIGAR JÂMES"
                                         if (pendingVoicePreview) {
                                             pendingVoicePreview = false
                                             liveVoiceSession?.sendText("Faça uma apresentação curta em português brasileiro para demonstrar sua voz. Diga apenas: Olá. Eu sou o Jâmes. Como posso ajudar?")
@@ -783,7 +791,7 @@ class MainActivity : android.app.Activity() {
             } catch (error: Exception) {
                 runOnUiThread {
                     liveConversationEnabled = false
-                    liveButton?.text = "CONECTAR AO JÂMES"
+                    liveButton?.text = "LIGAR JÂMES"
                     setStatus("NÃO FOI POSSÍVEL INICIAR A VOZ")
                     addChatMessage(error.message ?: "Falha ao iniciar a sessão de voz.", true, true)
                 }
@@ -860,7 +868,7 @@ class MainActivity : android.app.Activity() {
         liveVoiceSession?.close()
         liveVoiceSession = null
         orbView?.setAudioLevel(0f)
-        liveButton?.text = "CONECTAR AO JÂMES"
+        liveButton?.text = "LIGAR JÂMES"
         setStatus("CONVERSA AO VIVO ENCERRADA")
     }
 
@@ -1273,7 +1281,7 @@ class MainActivity : android.app.Activity() {
                 startLiveConversation()
             } else {
                 liveConversationEnabled = false
-                liveButton?.text = "CONECTAR AO JÂMES"
+                liveButton?.text = "LIGAR JÂMES"
                 liveVisionPending = false
                 setStatus("MICROFONE NÃO AUTORIZADO")
             }
