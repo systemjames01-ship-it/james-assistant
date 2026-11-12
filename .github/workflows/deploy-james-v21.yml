@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'worker.js'
+      - 'wrangler.toml'
+      - 'migrations/**'
   workflow_dispatch:
     inputs:
       confirm_production:
