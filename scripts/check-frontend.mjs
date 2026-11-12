@@ -38,6 +38,18 @@ if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)
   throw new Error("Voice output must remain user-controllable and connected to AI replies.");
 }
 
+if (!html.includes('id="conversationPicker"') ||
+    !html.includes('id="newConversation"') ||
+    !html.includes("function createNewConversation()") ||
+    !html.includes("historyRequestVersion")) {
+  throw new Error("Browser chat sessions, conversation switching, or stale-history protection is missing.");
+}
+if (!androidMain.includes("private fun createNewConversation()") ||
+    !androidMain.includes("private fun showConversationPicker()") ||
+    !androidMain.includes("conversations_json")) {
+  throw new Error("Android persistent chat list or conversation picker is missing.");
+}
+
 const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
 const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta.url), "utf8");
 const liveVoice = hologramJs;
