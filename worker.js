@@ -1,6 +1,6 @@
 /* Jâmes v4 — text communication core */
 const ORIGIN="https://systemjames01-ship-it.github.io";
-const MODELS=["gemini-3.8-flash","gemini-3.5-flash-lite","gemini-3.1-flash-lite"];
+const MODELS=["gemini-3.8-flash","gemini-3.6-flash","gemini-3.5-flash-lite"];
 
 const headers=o=>({
   "Access-Control-Allow-Origin":o||ORIGIN,
@@ -51,7 +51,7 @@ async function ask(env,message,history=[]){
       if(r.status===400||r.status===401||r.status===403) break;
     }catch(e){lastCode="NETWORK_ERROR";}
   }
-  return {text:"Não consegui responder agora. O serviço de IA está indisponível neste momento. Tente novamente em alguns segundos.",ok:false,code:lastCode};
+  return {text:"Não consegui responder agora. O núcleo de IA recusou a solicitação ("+lastCode+"). Verifique a chave GEMINI_API_KEY e o acesso ao modelo no Google AI Studio.",ok:false,code:lastCode};
 }
 
 export default {async fetch(request,env){
