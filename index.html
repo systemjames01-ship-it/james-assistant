@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#070b11">
 <meta name="description" content="Jâmes — assistente pessoal inteligente criado por Jamerson Ramos.">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Jâmes v4.1 | Sistema Pessoal</title>
+<title>Jâmes v5.0 | Sistema de Inteligência Pessoal</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
 :root{color-scheme:dark;--bg:#050a12;--panel:#0a1421;--panel2:#0d1c2b;--line:rgba(115,213,235,.17);--cyan:#68e4f2;--blue:#4da8ff;--ice:#d8fbff;--muted:#8299ad;--text:#eaf5fb;--green:#71e2b1;--amber:#ffc979;--red:#ff7d86}
@@ -215,6 +215,139 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 <link rel="stylesheet" href="./interface-v27.css">
 <link rel="stylesheet" href="./james-v3.css">
  <link rel="stylesheet" href="./hologram-v24.css">
+
+<style id="james-v5-command-design">
+:root{
+ --v5-bg:#030711;--v5-panel:rgba(7,18,34,.88);--v5-line:rgba(91,210,255,.24);
+ --v5-cyan:#54e8ff;--v5-blue:#368cff;--v5-violet:#bd83ff;--v5-gold:#ffc66d;
+ --v5-text:#eaf8ff;--v5-muted:#829db3;
+}
+html,body{background:radial-gradient(ellipse at 50% 0%,#10243d 0,transparent 38%),radial-gradient(ellipse at 12% 55%,rgba(0,136,190,.12),transparent 30%),#02050c!important;color:var(--v5-text)}
+body:before{opacity:.16;background-size:28px 28px;mask-image:linear-gradient(#000,transparent 85%)}
+.app-shell{max-width:1780px;padding:16px clamp(12px,2.2vw,34px) 40px}
+.topbar{position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;padding:10px 4px 16px;border-bottom:1px solid rgba(84,232,255,.25)}
+.brand-mark{width:50px;height:50px;border-radius:16px;background:linear-gradient(145deg,#0d4162,#071321);font-size:23px;box-shadow:0 0 30px #087ba655,inset 0 0 22px #54e8ff22}
+.brand-name{font-size:clamp(22px,3vw,32px);letter-spacing:.23em;text-shadow:0 0 24px #54e8ff66}
+.brand-sub{font-size:9px;letter-spacing:.2em;color:#8ab7ca}
+.topbar:after{content:"SEMPRE AO SEU LADO · EM QUALQUER LUGAR · EM QUALQUER MISSÃO";grid-column:2;grid-row:1;color:#8ac9dc;font:10px 'DM Mono',monospace;letter-spacing:.15em;text-align:center}
+.top-right{grid-column:3;grid-row:1;justify-content:flex-end}
+.creator{color:#7594aa}
+.system-indicator{border-radius:30px;background:#092b2a;border-color:#2dd6a355;box-shadow:0 0 18px #25d6a322}
+#status{grid-column:1/-1;max-width:none;padding:8px 12px;border:1px solid rgba(84,232,255,.12);border-radius:9px;background:#06111e;color:#a9dff0}
+.hero.head-view{
+ display:grid!important;grid-template-columns:minmax(215px,.76fr) minmax(320px,1.25fr) minmax(215px,.76fr);
+ gap:clamp(12px,2vw,28px);align-items:center;min-height:0;margin:20px 0 18px;padding:clamp(14px,2vw,26px);
+ border:1px solid rgba(84,232,255,.35);border-radius:22px;
+ background:linear-gradient(135deg,rgba(5,19,34,.98),rgba(3,10,22,.97) 55%,rgba(12,14,34,.96));
+ box-shadow:0 25px 90px #0009,inset 0 0 70px #0878a411;
+}
+.hero.head-view:before{background-size:48px 48px;opacity:.65}
+.hero-copy{align-self:stretch;display:flex;flex-direction:column;justify-content:center;padding:12px 4px}
+.hero .eyebrow{font-size:9px;letter-spacing:.17em}
+.hero h1{font-size:clamp(27px,3vw,42px);line-height:1.08;letter-spacing:-.04em;text-shadow:0 0 28px #54e8ff33}
+.hero-copy>p{font-size:12px;line-height:1.8;color:#9ab2c5}
+.identity-status{display:grid;gap:8px;margin:22px 0 4px}
+.identity-status>div{display:flex;justify-content:space-between;gap:8px;padding:10px 11px;border:1px solid rgba(84,232,255,.16);border-radius:9px;background:linear-gradient(90deg,#092138aa,#07111f88)}
+.identity-status span{font:8px 'DM Mono',monospace;letter-spacing:.11em;color:#799bb0}
+.identity-status strong{font:9px 'DM Mono',monospace;color:#72eaff;text-align:right}
+.hero-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
+.hero-actions button{min-width:0;padding:10px 8px;font-size:9px}
+.reactor-wrap{min-height:390px;width:100%;padding:0}
+.reactor.holographic-eye{width:min(100%,470px);filter:drop-shadow(0 0 42px #22c9ff55)}
+.projection-frame{width:100%;min-height:390px;border:1px solid #51ddff44;border-radius:50% 50% 16px 16px / 25% 25% 16px 16px;background:radial-gradient(ellipse at 50% 48%,#0d3d5b55,transparent 65%),linear-gradient(180deg,#06182a44,#02071122);box-shadow:0 0 48px #009bd522,inset 0 0 48px #14bfff18}
+#jamesNeuralCanvas{filter:drop-shadow(0 0 15px #35dcff88)}
+.projection-caption{font-size:8px;letter-spacing:.2em;color:#75dff5}
+.projection-readout{font-size:8px;color:#71abc0}
+.head-control-stack{align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:11px;padding:14px;border:1px solid rgba(84,232,255,.18);border-radius:16px;background:linear-gradient(155deg,#0b1b2cdd,#040b16ee);box-shadow:inset 0 0 30px #1599c00c}
+.control-heading{display:flex;justify-content:space-between;gap:8px;color:#77dff2;font:9px 'DM Mono',monospace;letter-spacing:.12em}
+.control-heading b{color:#607f97;font-weight:400}
+.power-console{display:grid;grid-template-columns:84px 1fr;gap:12px;align-items:center;padding:12px;border:1px solid #42dfad55;border-radius:13px;background:radial-gradient(circle at 0 50%,#0a543d44,transparent 70%),#061a1c}
+.power-button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:78px;height:78px;min-height:78px;padding:5px;border-radius:50%;border:2px solid #48e8ae;background:radial-gradient(circle,#0d614b,#06251f 70%);color:#c4ffe9;box-shadow:0 0 24px #21db9b66,inset 0 0 15px #4fffc444}
+.power-button .power-symbol{font-size:31px;line-height:1}
+.power-button span:last-child{font-size:7px;letter-spacing:.1em}
+.power-copy strong{display:block;color:#8fffd2;font:9px 'DM Mono',monospace}
+.power-copy span{display:block;margin-top:5px;color:#8ca9ae;font-size:9px;line-height:1.5}
+.head-mic{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.head-mic button{min-height:48px;border-radius:10px;background:#0b2940;color:#8feeff;border-color:#43c9f455;font-size:20px}
+.sensor-legend{display:flex;flex-wrap:wrap;gap:8px;color:#7c9bad;font:8px 'DM Mono',monospace}
+.sensor-led{display:inline-block;width:6px;height:6px;border-radius:50%;background:#547083}
+.projection-transcript{min-height:54px;padding:10px;border:1px solid #46d9ff22;border-radius:9px;background:#030c17;color:#b7dbe8;font-size:10px}
+.holo-activity{padding:9px;border:1px solid #46d9ff22;border-radius:9px;background:#030c17}
+.holo-activity>div{display:flex;justify-content:space-between;color:#75dff2;font:8px 'DM Mono',monospace}
+.module-nav.v4-nav{position:sticky;top:0;z-index:20;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px!important;padding:12px 0 16px;background:#030711eF;backdrop-filter:blur(18px);border-bottom:1px solid #5bd2ff2b}
+.module-nav.v4-nav button{min-height:58px;border-radius:13px;background:linear-gradient(140deg,#0b2035,#07111f);border:1px solid #4ecdf544;color:#a8c8d8;font-size:11px;letter-spacing:.14em;box-shadow:inset 0 0 22px #43d7ff08}
+.module-nav.v4-nav button:nth-child(2){border-color:#b47bff44}
+.module-nav.v4-nav button:nth-child(3){border-color:#ffc66d44}
+.module-nav.v4-nav button[aria-pressed="true"]{color:#f0fdff;border-color:#54e8ff;box-shadow:0 0 25px #35cfff28,inset 0 0 22px #35cfff19;background:linear-gradient(135deg,#0e3a56,#09182b)}
+.module-nav.v4-nav button:nth-child(2)[aria-pressed="true"]{border-color:#c18aff;box-shadow:0 0 25px #a35cff35,inset 0 0 22px #a35cff1b;background:linear-gradient(135deg,#302052,#111328)}
+.module-nav.v4-nav button:nth-child(3)[aria-pressed="true"]{border-color:#ffc66d;box-shadow:0 0 25px #ffbd5830,inset 0 0 22px #ffbd5818;background:linear-gradient(135deg,#443019,#1b1720)}
+.view{animation:viewIn .28s ease-out}
+#controlView{padding-top:16px}
+#controlView .overview-grid{gap:14px}
+#controlView .overview-card,#controlView .panel{position:relative;overflow:hidden;border-radius:15px;border-color:#53d6f52b;background:linear-gradient(145deg,#0b1d30f5,#050e1bf5);box-shadow:0 16px 42px #0006,inset 0 1px #ffffff08}
+#controlView .overview-card:before{content:"";position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,transparent,#55e7ff88,transparent)}
+#controlView .overview-card h2{color:#c9f6ff;font-size:11px;letter-spacing:.16em}
+#controlView .overview-card p{color:#8eaabd}
+#controlView .metric{font-size:28px;color:#76eaff}
+#intelligenceView{grid-template-columns:minmax(0,1fr)!important;padding-top:16px}
+#intelligenceView .conversation{border-radius:18px;overflow:hidden;border-color:#ad7cff44;background:linear-gradient(150deg,#0e1428,#060b18);box-shadow:0 22px 65px #0008,0 0 30px #a35cff10}
+#intelligenceView .panel-head{border-color:#a77aff24;background:linear-gradient(90deg,#291b4433,transparent)}
+#intelligenceView .panel-title{color:#e8d7ff}
+#intelligenceView .panel-title:before{background:#c18aff;box-shadow:0 0 13px #b779ff}
+#intelligenceView #chat{height:min(60vh,690px);min-height:380px;background:radial-gradient(ellipse at 50% 0,#673a9b22,transparent 58%),#040815}
+#intelligenceView #form{background:#080d1c;border-color:#a77aff22}
+#intelligenceView #prompt{border-color:#9c71e844;background:#030713;border-radius:14px}
+#intelligenceView #prompt:focus{border-color:#c18aff;box-shadow:0 0 0 3px #b779ff18}
+#intelligenceView .user{background:linear-gradient(135deg,#38255c,#1d1a3a);border-color:#b47bff55}
+#intelligenceView .bot{background:linear-gradient(135deg,#17213a,#111729);border-color:#91a5d022}
+#intelligenceView .conversation-tools button{border-color:#a77aff44}
+#intelligenceView #send{background:linear-gradient(135deg,#d9b7ff,#9860e8);color:#180d29}
+.chat-sessions{background:#090e1e;border-color:#a77aff22}
+.chat-session{border-color:#9c71e833;background:#15162a;color:#b9a5d7}
+.chat-session.active{border-color:#c18aff;background:#38265b;color:#fff}
+#visualBriefing{border:1px solid #59dfff55;border-radius:16px;background:#061322;box-shadow:0 0 38px #1bc8ff22}
+#visualBriefing .visual-briefing-head{color:#9cefff}
+button{border-radius:10px;box-shadow:0 5px 20px #0003}
+button.secondary{background:linear-gradient(145deg,#12263a,#091525);border-color:#4ebcdb44;color:#b7dce9}
+input,textarea,select{color-scheme:dark}
+.footer{margin-top:24px;padding:18px;border-top:1px solid #54e8ff22;color:#64899e}
+@media(max-width:980px){
+ .hero.head-view{grid-template-columns:minmax(190px,.8fr) minmax(270px,1fr);gap:12px}
+ .head-control-stack{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;align-items:center}
+ .head-control-stack .control-heading:nth-of-type(1),.head-control-stack .power-console{grid-column:1}
+ .head-control-stack .control-heading:nth-of-type(2),.head-control-stack .head-mic{grid-column:2}
+ .head-control-stack .sensor-legend,.head-control-stack .projection-transcript,.head-control-stack .holo-activity{grid-column:1/-1}
+}
+@media(max-width:640px){
+ .app-shell{padding:8px 9px 22px}
+ .topbar{grid-template-columns:1fr auto;gap:8px}
+ .topbar:after{display:none}
+ .top-right{grid-column:2;grid-row:1}
+ .creator{display:none}
+ #status{font-size:8px}
+ .hero.head-view{grid-template-columns:1fr;gap:8px;padding:13px;border-radius:16px}
+ .hero-copy{padding:6px 4px;text-align:center}
+ .hero h1{font-size:30px}
+ .hero-copy>p{margin:auto;max-width:420px}
+ .identity-status{grid-template-columns:1fr 1fr;gap:6px;margin:13px 0}
+ .identity-status>div{flex-direction:column;align-items:center;text-align:center;padding:8px 5px}
+ .identity-status strong{text-align:center}
+ .hero-actions{grid-template-columns:1fr 1fr;margin-top:10px}
+ .reactor-wrap{min-height:270px}
+ .projection-frame{min-height:270px}
+ .reactor.holographic-eye{width:220px}
+ .head-control-stack{grid-column:auto;display:flex;gap:9px;padding:12px}
+ .power-console{grid-template-columns:76px 1fr;width:100%}
+ .power-button{width:70px;height:70px;min-height:70px}
+ .module-nav.v4-nav{gap:6px!important;padding:9px 0 12px}
+ .module-nav.v4-nav button{min-height:53px;padding:8px 4px;font-size:8px!important;letter-spacing:.04em!important}
+ #intelligenceView #chat{height:52vh;min-height:310px}
+ #intelligenceView .panel-head{align-items:flex-start;flex-direction:column}
+ #intelligenceView .conversation-tools{width:100%;justify-content:space-between}
+ #controlView .overview-card{grid-column:1/-1}
+}
+@media(prefers-reduced-motion:reduce){.projection-frame,.power-button{animation:none!important}}
+</style>
 </head>
 <body>
 <div class="app-shell">
@@ -233,8 +366,8 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 <section class="hero view head-view" id="overviewView" aria-label="Central holográfica de comando do Jâmes">
  <div class="hero-copy command-identity">
   <div class="eyebrow"><span class="live-dot"></span> SISTEMA PESSOAL · JAMERSON RAMOS</div>
-  <h1>À sua disposição.</h1>
-  <p>Inteligência, percepção e execução reunidas em uma central. Dê uma ordem por voz ou use o console de conversa.</p>
+  <h1>Sempre ao seu lado.</h1>
+  <p>Uma inteligência pessoal multimodal, com voz, visão, conversa e ferramentas em uma única central de comando.</p>
   <div class="identity-status">
    <div><span>ESTADO DO NÚCLEO</span><strong id="globeState">STANDBY</strong></div>
    <div><span>CONEXÃO AO VIVO</span><strong id="neuralLinkState">AGUARDANDO</strong></div>
@@ -426,7 +559,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
  <div class="world-sources"><span>FONTE OFICIAL</span><a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noopener noreferrer">github.com/bilawalsidhu/gods-eye-view</a><a href="https://godseyeview.ai/download/" target="_blank" rel="noopener noreferrer">Guia oficial de instalação</a></div>
 </section>
-<footer class="footer"><span>JÂMES v4.1 // SISTEMA PESSOAL</span><span>CRIADO POR JAMERSON RAMOS · EXECUÇÃO SOB CONTROLE DO USUÁRIO</span></footer>
+<footer class="footer"><span>JÂMES v5.0 // SISTEMA DE INTELIGÊNCIA PESSOAL</span><span>CRIADO POR JAMERSON RAMOS · EXECUÇÃO SOB CONTROLE DO USUÁRIO</span></footer>
 </div>
 <script>
 const WORKER_URL="https://james-ai.systemjames01.workers.dev";

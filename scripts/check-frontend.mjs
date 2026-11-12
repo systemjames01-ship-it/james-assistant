@@ -79,7 +79,8 @@ const primaryNav = navStart >= 0 && navEnd >= 0 ? html.slice(navStart, navEnd + 
 const visualBriefing = readFileSync(new URL("../james-visual-briefing.js", import.meta.url), "utf8");
 const voiceSmoke = readFileSync(new URL("../scripts/voice-smoke.mjs", import.meta.url), "utf8");
 new vm.Script(visualBriefing, { filename: "james-visual-briefing.js" });
-if ((primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
+if (!html.includes('id="james-v5-command-design"') || !html.includes("Jâmes v5.0 | Sistema de Inteligência Pessoal") ||
+    (primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
     !primaryNav.includes('data-view-target="overview"') ||
     !primaryNav.includes('data-view-target="intelligence"') ||
     !primaryNav.includes('data-view-target="control"') ||
@@ -95,8 +96,8 @@ if ((primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
     !hologramJs.includes("window.JamesVisualBriefing?.show(inputText,spoken)") ||
     !html.includes('const controlSectionIds=["controlView","voicesView","perceptionView","deviceView","worldView"]') ||
     !html.includes('const CHAT_SESSIONS_KEY="james_chat_sessions_v4"') ||
-    !serviceWorker.includes('james-shell-v4-1')) {
-  throw new Error("Jâmes v4 must expose exactly three primary areas, a local multi-conversation manager, a unified control panel, and a refreshed PWA cache.");
+    !serviceWorker.includes('james-shell-v5-0')) {
+  throw new Error("Jâmes v5 must expose exactly three primary areas, a local multi-conversation manager, a unified control panel, and a refreshed PWA cache.");
 }
 
-console.log("Validated Jâmes v4 three-area interface, local multi-conversation sessions, holographic live controls, PWA shell, local pt-BR voice, and existing integrations.");
+console.log("Validated Jâmes v5 three-area interface, local multi-conversation sessions, holographic live controls, PWA shell, local pt-BR voice, and existing integrations.");

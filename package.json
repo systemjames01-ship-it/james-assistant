@@ -1,7 +1,7 @@
 {
   "name": "james-assistant",
   "private": true,
-  "version": "4.1.0",
+  "version": "5.0.0",
   "scripts": {
     "check:worker": "node --check worker.js",
     "check:frontend": "node scripts/check-frontend.mjs",
