@@ -187,6 +187,13 @@ async function registerProfileConversation(db, profileId, sessionId, userContent
 
 async function fetchProfileConversations(db, profileId, limit = 50) {
   await ensureProfileConversationTable(db);
+  // Backfill the original one-session profile so older history remains visible after pairing.
+  try {
+    const legacy = await db.prepare(
+      "SELECT id FROM james_conversation_messages_v21 WHERE session_id = ? LIMIT 1"
+    ).bind(profileId).first();
+    if (legacy) await registerProfileConversation(db, profileId, profileId, "Conversa atual");
+  } catch { }
   const safeLimit = Math.max(1, Math.min(100, Number(limit) || 50));
   const result = await db.prepare(`
     SELECT session_id, title, created_at, updated_at
