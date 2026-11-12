@@ -275,8 +275,8 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 <section id="controlView" class="view" hidden>
  <div class="overview-grid">
   <article class="overview-card wide"><h2>Núcleo de inteligência</h2><div class="metric" id="overviewCoreState">INICIALIZANDO</div><p id="overviewCoreDetail">Verificando a conexão com o serviço de inteligência e suas ferramentas.</p><div class="module-actions"><button type="button" data-view-target="intelligence">Abrir console de comando</button><button type="button" class="secondary" id="overviewVoice">Falar com Jâmes</button></div></article>
-  <article class="overview-card"><h2>Dispositivo</h2><div class="metric" id="overviewBattery">--</div><div class="metric-sub" id="overviewDeviceName">Dados do aparelho indisponíveis</div><div class="module-actions"><button type="button" class="secondary" data-view-target="device">Diagnóstico</button></div></article>
-  <article class="overview-card"><h2>Percepção</h2><p>Câmera sob solicitação, imagens e documentos enviados para análise. Nenhuma captura em segundo plano.</p><div class="module-actions"><button type="button" class="secondary" data-view-target="perception">Abrir percepção</button></div></article>
+  <article class="overview-card"><h2>Dispositivo</h2><div class="metric" id="overviewBattery">--</div><div class="metric-sub" id="overviewDeviceName">Dados do aparelho indisponíveis</div><div class="module-actions"><button type="button" class="secondary" data-view-target="control">Diagnóstico</button></div></article>
+  <article class="overview-card"><h2>Percepção</h2><p>Câmera sob solicitação, imagens e documentos enviados para análise. Nenhuma captura em segundo plano.</p><div class="module-actions"><button type="button" class="secondary" data-view-target="control">Abrir percepção</button></div></article>
   <article class="overview-card"><h2>Memória e contexto</h2><p>Histórico unificado entre conversa e ferramentas. Memórias explícitas permanecem controladas pelo usuário.</p><div class="module-actions"><button type="button" class="secondary" data-scroll-target="memoriesSection">Ver memória</button></div></article>
   <article class="overview-card"><h2>Execução</h2><p>Tarefas, abertura de aplicativos e lembretes locais, sujeitos à conexão e às permissões do Android.</p><div class="module-actions"><button type="button" class="secondary" data-scroll-target="tasksSection">Ver automações</button></div></article>
   <article class="overview-card full"><h2>Arquitetura ativa</h2><div class="module-grid"><div class="module-card"><strong>Raciocínio e planejamento</strong><span>Contexto compartilhado e ferramentas chamadas pelo núcleo de IA.</span></div><div class="module-card"><strong>Percepção multimodal</strong><span>Análise de imagens e PDFs; câmera ao vivo somente quando aberta e autorizada.</span></div><div class="module-card"><strong>Integração Android</strong><span>Voz nativa, informações básicas do aparelho e ações locais autorizadas.</span></div></div></article>
@@ -685,7 +685,7 @@ function updateChatSessionTitle(message){
 }
 function startNewChat(){
  const id=window.crypto&&crypto.randomUUID?crypto.randomUUID():"james-"+Date.now()+"-"+Math.random().toString(36).slice(2);
- localStorage.setItem("james_session_id",id);const sessions=readChatSessions();sessions.unshift({id,title:"Nova conversa",updatedAt:Date.now()});
+ const sessions=readChatSessions();localStorage.setItem("james_session_id",id);sessions.unshift({id,title:"Nova conversa",updatedAt:Date.now()});
  localStorage.setItem(CHAT_SESSIONS_KEY,JSON.stringify(sessions.slice(0,30)));historyBefore=null;historyHasMore=false;
  chat.replaceChildren();addMessage("Nova conversa iniciada. O contexto desta janela começa separado das outras conversas.","bot");renderChatSessions();
 }
@@ -840,7 +840,7 @@ $("updateGodsEye").addEventListener("click",()=>launchWindowsWorld("update"));
 $("stopGodsEye").addEventListener("click",()=>launchWindowsWorld("stop"));
 $("copyWindowsInstall").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("windowsInstallCommand").textContent.trim());statusBox.textContent="Comando de instalação copiado.";}catch(error){statusBox.textContent="Selecione e copie o comando exibido na tela.";}});
 document.querySelectorAll("[data-scroll-target]").forEach(button=>button.addEventListener("click",()=>{
- switchView("intelligence");
+ switchView("control");
  const target=$(button.dataset.scrollTarget);
  if(target)target.scrollIntoView({behavior:"smooth",block:"start"});
 }));
