@@ -1,12 +1,16 @@
 {
   "name": "james-assistant",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.2.0",
   "scripts": {
     "check:worker": "node --check worker.js",
     "check:frontend": "node scripts/check-frontend.mjs",
     "check:voice": "node --check james-neural-voice.js && node --check scripts/serve-static.mjs && node --check scripts/voice-smoke.mjs",
-    "test": "npm run check:worker && npm run check:frontend && npm run check:voice && node --test tests/*.test.mjs"
+    "test": "npm run check:worker && npm run check:frontend && npm run check:voice && npm run check:wrangler && node --test tests/*.test.mjs",
+    "check:wrangler": "wrangler deploy --dry-run"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "wrangler": "4.135.0"
+  }
 }
