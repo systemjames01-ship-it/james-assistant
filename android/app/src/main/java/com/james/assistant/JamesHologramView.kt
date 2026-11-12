@@ -21,6 +21,7 @@ import kotlin.math.sqrt
 class JamesHologramView(context: Context) : View(context) {
     @Volatile private var mode = 0
     @Volatile private var audioLevel = 0f
+    @Volatile private var animationRunning = true
 
     private data class Node(val x: Float, val y: Float, val z: Float)
     private data class Edge(val a: Int, val b: Int)
@@ -65,6 +66,18 @@ class JamesHologramView(context: Context) : View(context) {
     fun setMode(nextMode: Int) {
         mode = nextMode.coerceIn(0, 3)
         invalidate()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        animationRunning = visibility == VISIBLE
+        if (animationRunning) postInvalidateOnAnimation()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        animationRunning = visibility == VISIBLE
+        if (animationRunning) postInvalidateOnAnimation()
     }
 
     override fun onDraw(c: Canvas) {
@@ -114,7 +127,7 @@ class JamesHologramView(context: Context) : View(context) {
         drawHudText(c, w, h, accent)
 
         // 30 FPS mantém a esfera fluida sem exigir atualização de 60 FPS contínua.
-        postInvalidateDelayed(33)
+        if (animationRunning) postInvalidateDelayed(33)
     }
 
     private fun drawNeuralNetwork(c: Canvas, cx: Float, cy: Float, r: Float, t: Double, color: Int) {
