@@ -36,7 +36,7 @@ const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8"
 const serviceWorker = readFileSync(new URL("../service-worker.js", import.meta.url), "utf8");
 new vm.Script(serviceWorker, { filename: "service-worker.js" });
 
-if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)speak(data.reply)")) {
+if (!html.includes('id="voiceOutput"') || !html.includes("const playback=speak(data.reply)")) {
   throw new Error("Voice output must remain user-controllable and connected to AI replies.");
 }
 
