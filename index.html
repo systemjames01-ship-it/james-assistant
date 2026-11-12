@@ -1,1 +1,122 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#02050b"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="james.css"><title>Jâmes — Holographic Interface</title></head><body><div class="stars"></div><div class="hud-corners"></div><main class="app"><header class="top"><div><div class="eyebrow">JÂMES // HOLOGRAPHIC COMMAND SYSTEM</div><h1>Jâmes</h1><div class="creator">PERSONAL AI • <b>JAMERSON RAMOS</b></div></div><button id="power" class="power"><span>⏻</span><b>OFFLINE</b></button></header><div class="systembar"><span id="systemState">CORE STANDBY</span><span id="networkState">● LINK OFF</span><span id="clock"></span></div><nav class="tabs"><button class="tab active" data-tab="core">01 · NÚCLEO</button><button class="tab" data-tab="chat">02 · COMUNICAÇÃO</button><button class="tab" data-tab="control">03 · CONTROLE</button></nav><section id="core" class="view active"><div class="command-deck"><div class="holo-wrap"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc a1"></div><div class="arc a2"></div><div class="scan"></div><div class="holo-core"><div class="hex"><span>JÂMES</span><small>NEURAL CORE</small></div></div><div class="float-label fl1">COGNITION <b>98%</b></div><div class="float-label fl2">PERCEPTION <b id="per">STANDBY</b></div><div class="float-label fl3">NETWORK <b id="net">OFF</b></div><div class="float-label fl4">MEMORY <b>LOCAL</b></div></div><aside class="right-rail"><div class="glass"><small>SYSTEM STATUS</small><strong id="coreStatus">STANDBY</strong><p id="coreMessage">Ative o núcleo para iniciar a interface holográfica.</p></div><div class="telemetry"><div><b id="mVoice">OFF</b><small>VOICE</small></div><div><b id="mVision">OFF</b><small>VISION</small></div><div><b id="mMemory">LOCAL</b><small>MEMORY</small></div><div><b>24/7</b><small>MONITOR</small></div></div><div class="holo-panel"><div class="panel-title">VISUAL FEED</div><div id="visualStage">AWAITING CONTEXT</div></div></aside></div><div class="bottom-deck"><button id="listen" class="arc-button"><span>◉</span> VOICE COMMAND</button><div id="liveText">Jâmes aguardando comando.</div><button id="quickVision" class="arc-button">◈ VISION</button></div><video id="camera" autoplay playsinline muted></video></section><section id="chat" class="view"><div class="section-head"><div><span class="eyebrow">PRIVATE CHANNEL</span><h2>Comunicação</h2></div><button id="newChat" class="arc-button">＋ NOVA SESSÃO</button></div><div id="messages" class="messages"></div><form id="form" class="composer"><textarea id="input" rows="1" placeholder="Comando ou mensagem para Jâmes…"></textarea><button>TRANSMITIR</button></form></section><section id="control" class="view"><div class="section-head"><div><span class="eyebrow">MANUAL COMMAND DECK</span><h2>Controle</h2></div><span class="version">JÂMES / 3.1</span></div><div class="control-grid"><article><h3>PERCEPÇÃO</h3><button id="permBtn" class="arc-button">AUTORIZAR SENSORES</button><p>Microfone <i id="mic">standby</i></p><p>Câmera <i id="cam">standby</i></p><p>Voz sintética <i>ready</i></p></article><article><h3>CORE ENGINE</h3><p>Raciocínio <i>adaptive</i></p><p>Web <i>enabled</i></p><p>Fallback <i>enabled</i></p><p>Contexto <i>unified</i></p></article><article><h3>MEMÓRIA</h3><p>Sessão <i id="memoryState">local</i></p><button id="clear" class="arc-button">PURGAR SESSÃO</button></article><article><h3>CONEXÕES</h3><p>Android <i>ready</i></p><p>Windows <i>ready</i></p><p>Worker <i id="apiState">offline</i></p><p>Web App <i>online</i></p></article><article class="wide"><h3>MANUAL HOLOGRAPHIC CONTROLS</h3><div class="control-console"><button class="dial" data-action="zoom">◎<small>ZOOM</small></button><button class="dial" data-action="scan">⌁<small>SCAN</small></button><button class="dial" data-action="rotate">⟳<small>ROTATE</small></button><button class="dial" data-action="focus">✦<small>FOCUS</small></button></div><p class="hint">Os controles holográficos são a camada visual de comando; permissões protegidas continuam sob autoridade do sistema operacional.</p></article></div></section></main><script src="james.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#02070d">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="james.css?v=4.0">
+<title>Jâmes — Neural Command Interface</title>
+</head>
+<body>
+<div class="space"></div>
+<div class="noise"></div>
+<div class="frame frame-a"></div><div class="frame frame-b"></div>
+
+<main class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><span></span><span></span><span></span></div>
+      <div>
+        <div class="eyebrow">PERSONAL NEURAL SYSTEM / 04.0</div>
+        <h1>Jâmes</h1>
+        <p>INTELLIGENCE FOR <b>JAMERSON RAMOS</b></p>
+      </div>
+    </div>
+    <button id="power" class="power" aria-label="Ligar Jâmes">
+      <span class="power-ring"></span><span class="power-icon">⏻</span>
+      <small id="powerText">STANDBY</small>
+    </button>
+  </header>
+
+  <div class="statusline">
+    <span><i class="pulse"></i><b id="systemState">CORE STANDBY</b></span>
+    <span id="networkState">LINK / OFFLINE</span>
+    <span id="clock">00:00:00</span>
+  </div>
+
+  <nav class="tabs" aria-label="Jâmes">
+    <button class="tab active" data-tab="core"><span>01</span><b>NÚCLEO</b></button>
+    <button class="tab" data-tab="chat"><span>02</span><b>COMUNICAÇÃO</b></button>
+    <button class="tab" data-tab="control"><span>03</span><b>CONTROLE</b></button>
+  </nav>
+
+  <section id="core" class="view active">
+    <div class="hero-grid">
+      <div class="core-stage">
+        <div class="stage-head"><span>NEURAL CORE</span><b id="coreMode">DORMANT</b></div>
+        <div class="holo">
+          <div class="grid-disc"></div>
+          <div class="orbit orbit-1"></div><div class="orbit orbit-2"></div><div class="orbit orbit-3"></div>
+          <div class="orbit orbit-4"></div>
+          <div class="crosshair"></div>
+          <div class="beam beam-x"></div><div class="beam beam-y"></div>
+          <div class="neural">
+            <div class="neural-glow"></div>
+            <div class="brain-shell shell-a"></div><div class="brain-shell shell-b"></div>
+            <div class="brain-shell shell-c"></div>
+            <div class="node n1"></div><div class="node n2"></div><div class="node n3"></div><div class="node n4"></div>
+            <div class="node n5"></div><div class="node n6"></div><div class="node n7"></div><div class="node n8"></div>
+            <div class="node n9"></div><div class="node n10"></div><div class="node n11"></div><div class="node n12"></div>
+            <svg class="synapses" viewBox="0 0 300 300" aria-hidden="true">
+              <g>
+                <path d="M150 70L92 112L116 160L72 205M92 112L176 96L220 132L188 188L230 220M116 160L188 188L150 245L72 205M176 96L150 150L188 188M150 150L92 112M150 150L220 132"/>
+              </g>
+            </svg>
+            <div class="core-logo"><strong>J</strong><span>JÂMES</span></div>
+          </div>
+          <div class="reticle r-top">◈</div><div class="reticle r-bottom">⌁</div>
+          <div class="scanline"></div>
+          <div class="data-tag tag-a">COGNITION <b id="cognition">98%</b></div>
+          <div class="data-tag tag-b">PERCEPTION <b id="per">STANDBY</b></div>
+          <div class="data-tag tag-c">NETWORK <b id="net">OFF</b></div>
+          <div class="data-tag tag-d">MEMORY <b id="memoryCore">LOCAL</b></div>
+        </div>
+        <div class="stage-footer"><span>LATENCY <b id="latency">—</b></span><span>UPTIME <b id="uptime">00:00:00</b></span><span>SECURE <b>YES</b></span></div>
+      </div>
+
+      <aside class="mission">
+        <div class="panel primary">
+          <div class="panel-label">SYSTEM STATUS</div>
+          <div class="status-big" id="coreStatus">STANDBY</div>
+          <p id="coreMessage">O núcleo está em repouso. Ligue o sistema para iniciar a interface.</p>
+          <button id="listen" class="main-command"><span>◉</span><div><b>COMANDO DE VOZ</b><small>Toque e fale com Jâmes</small></div><em>→</em></button>
+          <button id="quickVision" class="secondary-command"><span>◈</span> INICIAR VISÃO</button>
+        </div>
+        <div class="metrics">
+          <div><strong id="mVoice">OFF</strong><small>VOICE</small></div>
+          <div><strong id="mVision">OFF</strong><small>VISION</small></div>
+          <div><strong id="mMemory">LOCAL</strong><small>MEMORY</small></div>
+          <div><strong>24/7</strong><small>MONITOR</small></div>
+        </div>
+        <div class="panel visual">
+          <div class="panel-label">VISUAL CONTEXT <span id="visualState">WAITING</span></div>
+          <div id="visualStage"><div class="visual-orb"></div><span>AWAITING INPUT</span></div>
+        </div>
+      </aside>
+    </div>
+    <div class="livebar"><span class="live-dot"></span><b id="liveText">Jâmes aguardando comando.</b><small>NEURAL LINK</small></div>
+    <video id="camera" autoplay playsinline muted></video>
+  </section>
+
+  <section id="chat" class="view">
+    <div class="section-title"><div><span class="eyebrow">PRIVATE NEURAL CHANNEL</span><h2>Comunicação</h2></div><button id="newChat" class="small-button">＋ NOVA SESSÃO</button></div>
+    <div id="messages" class="messages"></div>
+    <form id="form" class="composer"><textarea id="input" rows="1" placeholder="Escreva um comando para Jâmes…"></textarea><button>ENVIAR <span>↗</span></button></form>
+  </section>
+
+  <section id="control" class="view">
+    <div class="section-title"><div><span class="eyebrow">MANUAL COMMAND DECK</span><h2>Controle</h2></div><span class="version">JÂMES / 04.0</span></div>
+    <div class="control-grid">
+      <article class="control-card sensor"><div class="card-top"><h3>PERCEPÇÃO</h3><span>01</span></div><button id="permBtn" class="wide-button">AUTORIZAR SENSORES</button><p>Microfone <i id="mic">standby</i></p><p>Câmera <i id="cam">standby</i></p><p>Voz sintética <i>ready</i></p></article>
+      <article class="control-card"><div class="card-top"><h3>CORE ENGINE</h3><span>02</span></div><p>Raciocínio <i>adaptive</i></p><p>Web <i>enabled</i></p><p>Fallback <i>enabled</i></p><p>Contexto <i>unified</i></p></article>
+      <article class="control-card"><div class="card-top"><h3>MEMÓRIA</h3><span>03</span></div><p>Sessão <i id="memoryState">local</i></p><p>Persistência <i>browser</i></p><button id="clear" class="danger-button">PURGAR SESSÃO</button></article>
+      <article class="control-card"><div class="card-top"><h3>CONEXÕES</h3><span>04</span></div><p>Android <i>ready</i></p><p>Web App <i>online</i></p><p>AI Worker <i id="apiState">offline</i></p><p>Secure Link <i>HTTPS</i></p></article>
+      <article class="control-card wide-card"><div class="card-top"><h3>HOLOGRAPHIC MANUAL CONTROL</h3><span>05</span></div><div class="dial-row"><button class="dial" data-action="zoom"><b>◎</b><small>ZOOM</small></button><button class="dial" data-action="scan"><b>⌁</b><small>SCAN</small></button><button class="dial" data-action="rotate"><b>⟳</b><small>ROTATE</small></button><button class="dial" data-action="focus"><b>✦</b><small>FOCUS</small></button></div><div class="console-readout" id="consoleReadout">MANUAL DECK READY / AWAITING INPUT</div></article>
+    </div>
+  </section>
+</main>
+<script src="james.js?v=4.0"></script>
+</body>
+</html>
