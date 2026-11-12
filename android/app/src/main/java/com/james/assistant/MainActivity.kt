@@ -106,6 +106,7 @@ class MainActivity : android.app.Activity() {
             .getString("session_id", null) ?: UUID.randomUUID().toString().also {
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", it).apply()
             }
+        registerCurrentConversation()
         createNotificationChannel()
         selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 2)
         buildShell()
@@ -361,7 +362,9 @@ class MainActivity : android.app.Activity() {
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val head = card()
         addText(head, "CONSOLE DO NÚCLEO", 11f, COLOR_CYAN, true)
-        addText(head, "Uma conversa. Um contexto. Ferramentas quando necessárias.", 11f, COLOR_MUTED, top = 5)
+        addText(head, "Conversas separadas, histórico persistente e ferramentas integradas.", 11f, COLOR_MUTED, top = 5)
+        addButton(head, "NOVA CONVERSA") { createNewConversation() }
+        addButton(head, "HISTÓRICO DE CONVERSAS", secondary = true) { showConversationPicker() }
         page.addView(head)
 
         chatScroll = ScrollView(this).apply {
@@ -472,6 +475,78 @@ class MainActivity : android.app.Activity() {
         addButton(service, "TESTAR CONEXÃO", secondary = true) { refreshBackendStatus() }
         page.addView(service)
         mountScrollable(page)
+    }
+
+    private fun conversationList(): JSONArray {
+        val raw = getSharedPreferences("james_core", MODE_PRIVATE).getString("conversations_json", "[]")
+        return try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+    }
+
+    private fun saveConversationList(list: JSONArray) {
+        getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("conversations_json", list.toString()).apply()
+    }
+
+    private fun registerCurrentConversation() {
+        val list = conversationList()
+        val exists = (0 until list.length()).any { list.optJSONObject(it)?.optString("id") == sessionId }
+        if (!exists) list.put(JSONObject().put("id", sessionId).put("title", "Conversa atual").put("updatedAt", System.currentTimeMillis()))
+        saveConversationList(list)
+    }
+
+    private fun createNewConversation() {
+        if (liveConversationEnabled) stopLiveConversation()
+        sessionId = UUID.randomUUID().toString()
+        getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", sessionId).apply()
+        val list = conversationList()
+        list.put(JSONObject().put("id", sessionId).put("title", "Nova conversa").put("updatedAt", System.currentTimeMillis()))
+        while (list.length() > 40) list.remove(0)
+        saveConversationList(list)
+        showPage("intelligence")
+        setStatus("NOVA CONVERSA CRIADA")
+    }
+
+    private fun showConversationPicker() {
+        val list = conversationList()
+        if (list.length() == 0) {
+            Toast.makeText(this, "Nenhuma conversa salva neste aparelho.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val entries = (0 until list.length()).mapNotNull { list.optJSONObject(it) }
+            .sortedByDescending { it.optLong("updatedAt") }
+        val labels = entries.map { item ->
+            val title = item.optString("title", "Conversa")
+            val date = item.optLong("updatedAt")
+            title + if (date > 0) " · " + java.text.SimpleDateFormat("dd/MM HH:mm", Locale("pt", "BR")).format(java.util.Date(date)) else ""
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("HISTÓRICO DE CONVERSAS")
+            .setItems(labels) { _, index ->
+                val selected = entries.getOrNull(index)?.optString("id").orEmpty()
+                if (selected.isNotBlank() && selected != sessionId) {
+                    if (liveConversationEnabled) stopLiveConversation()
+                    sessionId = selected
+                    getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", sessionId).apply()
+                    showPage("intelligence")
+                    setStatus("CONVERSA RECUPERADA")
+                }
+            }
+            .setNegativeButton("FECHAR", null)
+            .show()
+    }
+
+    private fun updateCurrentConversationTitle(firstMessage: String) {
+        val list = conversationList()
+        for (index in 0 until list.length()) {
+            val item = list.optJSONObject(index) ?: continue
+            if (item.optString("id") != sessionId) continue
+            val currentTitle = item.optString("title")
+            if (currentTitle.isBlank() || currentTitle == "Nova conversa" || currentTitle == "Conversa atual") {
+                item.put("title", firstMessage.replace(Regex("\\s+"), " ").trim().take(46).ifBlank { "Conversa" })
+            }
+            item.put("updatedAt", System.currentTimeMillis())
+            break
+        }
+        saveConversationList(list)
     }
 
     private fun loadHistory() {
@@ -1206,6 +1281,7 @@ class MainActivity : android.app.Activity() {
 
     private fun addChatMessage(text: String, fromJames: Boolean, isError: Boolean = false) {
         if (!::chatMessages.isInitialized) return
+        if (!fromJames && !isError) updateCurrentConversationTitle(text)
         val bubble = TextView(this).apply {
             this.text = text
             textSize = 13f
