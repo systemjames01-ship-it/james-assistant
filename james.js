@@ -29,11 +29,11 @@ function pumpSpeech(){
   u.onend=finish;u.onerror=finish;speechSynthesis.speak(u);
 }
 function queueSpeech(text){const value=String(text||"").trim();if(!value||!("speechSynthesis"in window))return;speechQueue.push(value);pumpSpeech()}
-function stopSpeech(){speechQueue=[];speechActive=false;stopSpeech()}
+function stopSpeech(){speechQueue=[];speechActive=false;speechSynthesis?.cancel()}
 function extractSpeechChunks(buffer,flush=false){
   const chunks=[];let rest=buffer;
   while(rest){
-    const match=rest.match(/^([\\s\\S]*?[.!?…](?:[”’"')\\]]*)\\s+)/);
+    const match=rest.match(/^([\s\S]*?[.!?…](?:[”’"')\]]*)\s+)/);
     if(match){chunks.push(match[1].trim());rest=rest.slice(match[0].length);continue}
     if(rest.length>190){let cut=rest.lastIndexOf(" ",180);if(cut<100)cut=180;chunks.push(rest.slice(0,cut).trim());rest=rest.slice(cut).trimStart();continue}
     break;
