@@ -1328,7 +1328,7 @@ export default {
         try {
           const attachmentSummary = attachmentLabels.length ? " [Anexos: " + attachmentLabels.join(", ") + "]" : "";
           const storedUserContent = (message || "[Anexo enviado para análise]") + attachmentSummary;
-          await saveConversationTurn(env.DB, storageSessionId, storedUserContent, reply);
+          await saveConversationTurn(env.DB, storageSessionId, storedUserContent, reply, profileId);
         } catch (saveError) {
           memoryAvailable = false;
           console.error("D1 history save failed; reply will still be returned:", saveError);
