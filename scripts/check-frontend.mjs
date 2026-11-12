@@ -10,6 +10,16 @@ for (let i = 0; i < scripts.length; i++) {
   new vm.Script(scripts[i][1], { filename: "index.html:inline-script-" + (i + 1) });
 }
 
+const primaryNav = html.match(/<nav class="view-nav module-nav three-mode-nav"[^>]*>([\\s\\S]*?)<\\/nav>/);
+if (!primaryNav) throw new Error("The three-mode primary navigation is missing.");
+const primaryTargets = [...primaryNav[1].matchAll(/data-view-target="([^"]+)"/g)].map(match => match[1]);
+if (primaryTargets.join(",") !== "overview,intelligence,control") {
+  throw new Error("Primary navigation must expose exactly Núcleo, Conversa, and Painel de Controle.");
+}
+if (!html.includes('id="controlStorage"') || !html.includes('id="chatAttach"') ||
+    !html.includes('id="chatSendAttachment"') || !html.includes('id="jamesPower"')) {
+  throw new Error("Unified control hub, chat attachment actions, or master power control is missing.");
+}
 const manifest = JSON.parse(readFileSync(new URL("../manifest.webmanifest", import.meta.url), "utf8"));
 if (manifest.name !== "Jâmes — Assistente Pessoal" || manifest.display !== "standalone") {
   throw new Error("PWA manifest is missing the expected app identity or standalone display mode.");
