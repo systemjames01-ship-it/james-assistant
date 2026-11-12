@@ -1,6 +1,7 @@
-/* Jâmes v4 — text communication core */
+/* Jâmes v4 — low-latency text communication core */
 const ORIGIN="https://systemjames01-ship-it.github.io";
-const MODELS=["gemini-3.8-flash","gemini-3.6-flash","gemini-3.5-flash-lite"];
+const MODEL="gemini-3.8-flash";
+const REQUEST_TIMEOUT_MS=20000;
 
 const headers=o=>({
   "Access-Control-Allow-Origin":o||ORIGIN,
@@ -27,31 +28,38 @@ async function ask(env,message,history=[]){
     {role:"user",parts:[{text:message}]}
   ];
   const system="Você é Jâmes, o assistente pessoal de Jamerson Ramos. Responda em português do Brasil por padrão. Seja natural, inteligente, objetivo e útil. Não invente capacidades que ainda não foram implementadas. Quando não souber algo, diga isso claramente.";
-  let lastCode="AI_UNAVAILABLE";
-  for(const model of MODELS){
-    const url="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
-    const body={
-      systemInstruction:{parts:[{text:system}]},
-      contents,
-      generationConfig:{maxOutputTokens:2048,temperature:.7}
-    };
-    try{
-      const r=await fetch(url,{
-        method:"POST",
-        headers:{"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
-        body:JSON.stringify(body)
-      });
-      const d=await r.json().catch(()=>({}));
-      if(r.ok){
-        const parts=d?.candidates?.[0]?.content?.parts||[];
-        const text=parts.map(p=>p.text||"").filter(Boolean).join("\n").trim();
-        if(text) return {text,ok:true,model};
-      }
-      lastCode=String(d?.error?.status||d?.error?.code||r.status);
-      if(r.status===400||r.status===401||r.status===403) break;
-    }catch(e){lastCode="NETWORK_ERROR";}
+  const url="https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent";
+  const body={
+    systemInstruction:{parts:[{text:system}]},
+    contents,
+    generationConfig:{
+      maxOutputTokens:2048,
+      thinkingConfig:{thinkingLevel:"low"}
+    }
+  };
+  try{
+    const r=await fetch(url,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
+      body:JSON.stringify(body),
+      signal:AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+    const d=await r.json().catch(()=>({}));
+    if(r.ok){
+      const parts=d?.candidates?.[0]?.content?.parts||[];
+      const text=parts.map(p=>p.text||"").filter(Boolean).join("\n").trim();
+      if(text) return {text,ok:true,model:MODEL};
+      return {text:"O Gemini respondeu sem conteúdo. Tente novamente.",ok:false,code:"EMPTY_RESPONSE"};
+    }
+    const code=String(d?.error?.status||d?.error?.code||r.status);
+    return {text:"Não consegui responder agora. O Gemini recusou a solicitação ("+code+").",ok:false,code};
+  }catch(e){
+    const code=e?.name==="TimeoutError"?"AI_TIMEOUT":"NETWORK_ERROR";
+    const message=code==="AI_TIMEOUT"
+      ?"O Gemini demorou mais de 20 segundos. Tente novamente."
+      :"Não foi possível alcançar o Gemini. Verifique a conexão.";
+    return {text:message,ok:false,code};
   }
-  return {text:"Não consegui responder agora. O núcleo de IA recusou a solicitação ("+lastCode+"). Verifique a chave GEMINI_API_KEY e o acesso ao modelo no Google AI Studio.",ok:false,code:lastCode};
 }
 
 export default {async fetch(request,env){
@@ -61,6 +69,7 @@ export default {async fetch(request,env){
     status:"online",
     service:"Jâmes AI Worker",
     aiConfigured:!!env.GEMINI_API_KEY,
+    model:MODEL,
     capabilities:["text_chat","conversation_context","voice_bridge","vision_bridge"]
   },200,origin);
   if(request.method!=="POST") return out({error:"Método não suportado."},405,origin);
