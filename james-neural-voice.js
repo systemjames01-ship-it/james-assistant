@@ -234,7 +234,25 @@
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
-    let width = 0, height = 0, phase = 0, frame = 0, lastDraw = 0, raf = 0, resizeObserver = null;
+
+    let width = 0, height = 0, phase = 0, lastDraw = 0, raf = 0;
+    const pointCount = 112;
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const points = Array.from({ length: pointCount }, (_, i) => {
+      const y = 1 - (i / (pointCount - 1)) * 2;
+      const radius = Math.sqrt(1 - y * y);
+      const angle = goldenAngle * i;
+      return { x: Math.cos(angle) * radius, y, z: Math.sin(angle) * radius };
+    });
+    const edges = [];
+    for (let i = 0; i < points.length; i++) {
+      for (let j = i + 1; j < points.length; j++) {
+        const a = points[i], b = points[j];
+        const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+        if (dx * dx + dy * dy + dz * dz < 0.34) edges.push([i, j]);
+      }
+    }
+
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -243,45 +261,105 @@
       canvas.width = width;
       canvas.height = height;
     };
+
     const draw = now => {
       raf = requestAnimationFrame(draw);
       if (document.hidden || now - lastDraw < 42) return;
       lastDraw = now;
-      phase += 0.022;
-      frame++;
+      phase += 0.009;
       ctx.clearRect(0, 0, width, height);
-      const mid = height * 0.52;
-      ctx.strokeStyle = "rgba(128,217,232,.10)";
-      ctx.lineWidth = 1;
-      for (let i = 1; i < 6; i++) {
-        const y = height * i / 6;
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-      }
+
       const active = document.getElementById("holoProjection")?.dataset.state === "live";
-      const amp = height * (active ? 0.25 : 0.12);
-      for (let layer = 0; layer < 4; layer++) {
+      const cx = width * 0.5, cy = height * 0.51;
+      const radius = Math.max(24, Math.min(width, height) * (active ? 0.39 : 0.36));
+      const rotY = phase, rotX = -0.24 + Math.sin(phase * 0.43) * 0.12;
+      const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+      const projected = points.map(point => {
+        const x = point.x * cosY - point.z * sinY;
+        const z = point.x * sinY + point.z * cosY;
+        const y = point.y * cosX - z * sinX;
+        const depth = point.y * sinX + z * cosX;
+        const perspective = 2.8 / (2.8 - depth * 0.58);
+        return {
+          x: cx + x * radius * perspective,
+          y: cy + y * radius * perspective,
+          depth: (depth + 1) * 0.5
+        };
+      });
+
+      const aura = ctx.createRadialGradient(cx, cy, radius * 0.08, cx, cy, radius * 1.55);
+      aura.addColorStop(0, active ? "rgba(75,226,255,.22)" : "rgba(65,193,235,.14)");
+      aura.addColorStop(0.58, "rgba(26,130,190,.08)");
+      aura.addColorStop(1, "rgba(8,36,68,0)");
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 1.55, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.strokeStyle = active ? "rgba(112,238,255,.28)" : "rgba(112,213,242,.18)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 7]);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, radius * 1.16, radius * 0.36, -0.42, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([1, 8]);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, radius * 1.12, radius * 0.43, 0.62, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      for (const [from, to] of edges) {
+        const a = projected[from], b = projected[to];
+        const depth = (a.depth + b.depth) * 0.5;
+        if (depth < 0.18) continue;
         ctx.beginPath();
-        for (let x = 0; x <= width; x += 3) {
-          const t = x / Math.max(1, width);
-          const envelope = 0.12 + Math.pow(Math.sin(Math.PI * t), 1.4) * 0.88;
-          const y = mid + Math.sin(t * 21 + phase * (1 + layer * .13) + layer) * amp * envelope * (1 - layer * .13)
-            + Math.sin(t * 57 - phase * .7 + layer * 2) * amp * .18;
-          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = layer === 0 ? "rgba(216,183,122,.92)" : `rgba(128,217,232,${.52 - layer * .09})`;
-        ctx.lineWidth = layer === 0 ? 1.8 : 1;
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = active
+          ? "rgba(105,235,255," + (0.08 + depth * 0.27) + ")"
+          : "rgba(103,210,240," + (0.055 + depth * 0.19) + ")";
+        ctx.lineWidth = 0.65 + depth * 0.45;
         ctx.stroke();
       }
-      const scanX = (frame * 1.4) % Math.max(1, width);
-      const gradient = ctx.createLinearGradient(scanX - 35, 0, scanX + 35, 0);
-      gradient.addColorStop(0, "rgba(128,217,232,0)");
-      gradient.addColorStop(.5, "rgba(128,217,232,.12)");
-      gradient.addColorStop(1, "rgba(128,217,232,0)");
-      ctx.fillStyle = gradient; ctx.fillRect(scanX - 35, 0, 70, height);
+
+      for (const point of projected) {
+        const size = 0.7 + point.depth * (active ? 2.3 : 1.8);
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+        ctx.fillStyle = point.depth > 0.68 ? "rgba(222,253,255,.96)" : "rgba(91,224,255," + (0.34 + point.depth * 0.58) + ")";
+        ctx.shadowColor = "rgba(71,218,255,.9)";
+        ctx.shadowBlur = point.depth > 0.65 ? 9 : 4;
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      const core = ctx.createRadialGradient(cx - radius * 0.08, cy - radius * 0.12, 1, cx, cy, radius * 0.33);
+      core.addColorStop(0, "rgba(238,255,255,.9)");
+      core.addColorStop(0.18, "rgba(106,236,255,.36)");
+      core.addColorStop(0.62, "rgba(32,150,213,.12)");
+      core.addColorStop(1, "rgba(32,150,213,0)");
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.33, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 1.015, 0, Math.PI * 2);
+      ctx.strokeStyle = active ? "rgba(143,245,255,.58)" : "rgba(117,221,245,.36)";
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
     };
+
     resize();
-    if ("ResizeObserver" in window) { resizeObserver = new ResizeObserver(resize); resizeObserver.observe(canvas); }
-    else window.addEventListener("resize", resize, { passive: true });
+    let resizeObserver = null;
+    if ("ResizeObserver" in window) {
+      resizeObserver = new ResizeObserver(resize);
+      resizeObserver.observe(canvas);
+    } else {
+      window.addEventListener("resize", resize, { passive: true });
+    }
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) cancelAnimationFrame(raf);
       else raf = requestAnimationFrame(draw);
