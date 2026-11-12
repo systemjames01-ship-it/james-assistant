@@ -647,6 +647,41 @@ test("live token endpoint returns a one-use token without exposing the API key",
   }
 });
 
+test("browser Live sessions receive text-mode tokens for local neural speech", async () => {
+  const originalFetch = globalThis.fetch;
+  let provisionBody;
+  const db = {
+    prepare() {
+      return {
+        bind() {
+          return {
+            first: async () => null,
+            all: async () => ({ results: [] }),
+            run: async () => ({ success: true })
+          };
+        }
+      };
+    }
+  };
+  globalThis.fetch = async (_url, options) => {
+    provisionBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({ name: "auth_tokens/text-session" }), { status: 200 });
+  };
+  try {
+    const request = new Request("https://worker.test/?action=live-token", {
+      method: "POST",
+      headers: { Origin: origin, "CF-Connecting-IP": "192.0.2.21", "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: "session_test_12345", voiceProfile: 1, responseModality: "TEXT" })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "secret-test-key", DB: db });
+    assert.equal(response.status, 200);
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.generationConfig, { responseModalities: ["TEXT"] });
+    assert.equal(provisionBody.liveConnectConstraints.config.outputAudioTranscription, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("live tool endpoint executes allowlisted tools and rejects unknown tools", async () => {
   const calculateRequest = new Request("https://worker.test/?action=live-tool", {
     method: "POST",
