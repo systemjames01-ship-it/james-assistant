@@ -71,4 +71,17 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
   throw new Error("Local Piper/Faber Brazilian Portuguese voice, original voice profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
 }
 
-console.log("Validated Jâmes v3 command interface, local Piper/Faber pt-BR TTS, voice profiles, live text-to-neural-speech, PWA, and legacy integrations.");
+const primaryNav = html.match(/<nav class="view-nav module-nav v4-nav"[\\s\\S]*?<\\/nav>/)?.[0] || "";
+if ((primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
+    !primaryNav.includes('data-view-target="overview"') ||
+    !primaryNav.includes('data-view-target="intelligence"') ||
+    !primaryNav.includes('data-view-target="control"') ||
+    !html.includes('id="newChat"') ||
+    !html.includes('id="chatSessionList"') ||
+    !html.includes('const controlSectionIds=["controlView","voicesView","perceptionView","deviceView","worldView"]') ||
+    !html.includes('const CHAT_SESSIONS_KEY="james_chat_sessions_v4"') ||
+    !serviceWorker.includes('james-shell-v4-0')) {
+  throw new Error("Jâmes v4 must expose exactly three primary areas, a local multi-conversation manager, a unified control panel, and a refreshed PWA cache.");
+}
+
+console.log("Validated Jâmes v4 three-area interface, local multi-conversation sessions, holographic live controls, PWA shell, local pt-BR voice, and existing integrations.");
