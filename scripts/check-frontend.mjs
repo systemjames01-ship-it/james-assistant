@@ -46,6 +46,7 @@ if (!html.includes('id="conversationPicker"') ||
     !html.includes("historyRequestVersion") ||
     !html.includes('id="holoVisuals"') ||
     !html.includes("function showHoloVisuals(items)") ||
+    !html.includes("function showChatVisuals(items)") ||
     !html.includes("setTimeout(render,7000)") ||
     !html.includes("function getProfileId()") ||
     !html.includes("profileId:getProfileId()") ||
