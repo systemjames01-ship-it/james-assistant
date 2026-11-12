@@ -40,6 +40,7 @@ import android.widget.ImageView
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONArray
@@ -105,6 +106,10 @@ class MainActivity : android.app.Activity() {
     private var liveVisualChatImage: ImageView? = null
     private var liveVisualChatCredit: TextView? = null
     private var profileInstructionsInput: EditText? = null
+    private var connectionNameInput: EditText? = null
+    private var connectionTargetInput: EditText? = null
+    private var connectionKindSpinner: Spinner? = null
+    private var connectionsPanel: LinearLayout? = null
     private val liveVisualHandler = Handler(Looper.getMainLooper())
     private var liveVisuals = emptyList<JSONObject>()
     private var lastLiveVisuals = emptyList<JSONObject>()
@@ -451,6 +456,34 @@ class MainActivity : android.app.Activity() {
         addButton(profile, "SALVAR PERSONALIZAÇÃO") { saveProfileInstructions() }
         page.addView(profile)
         loadProfileInstructions()
+
+        val connections = card()
+        addText(connections, "CONEXÕES MANUAIS", 11f, COLOR_CYAN, true)
+        addText(connections, "Cadastre aplicativos Android, sites HTTPS e dispositivos com painel HTTP/HTTPS. Isso permite ao Jâmes reconhecê-los e abri-los quando você pedir. Acesso a dados privados exige autorização própria do serviço.", 10f, COLOR_MUTED, top = 6)
+        connectionNameInput = EditText(this).apply {
+            hint = "Nome · ex.: WhatsApp, câmera IP"
+            setSingleLine(true)
+            setTextColor(COLOR_TEXT)
+            setHintTextColor(COLOR_MUTED)
+        }
+        connections.addView(connectionNameInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+        connectionKindSpinner = Spinner(this).apply {
+            adapter = android.widget.ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("Aplicativo Android", "Site HTTPS", "Dispositivo / painel de rede"))
+        }
+        connections.addView(connectionKindSpinner, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5) })
+        connectionTargetInput = EditText(this).apply {
+            hint = "Nome exato do app ou URL http(s)://"
+            setSingleLine(true)
+            setTextColor(COLOR_TEXT)
+            setHintTextColor(COLOR_MUTED)
+        }
+        connections.addView(connectionTargetInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5) })
+        addButton(connections, "ADICIONAR CONEXÃO") { saveManualConnection() }
+        connectionsPanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        connections.addView(connectionsPanel, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        addText(connections, "Os atalhos ficam neste aparelho e não armazenam senhas ou chaves de API.", 9f, COLOR_MUTED, top = 7)
+        page.addView(connections)
+        renderManualConnections()
 
         val sensors = card()
         addText(sensors, "SENSORES E PERCEPÇÃO", 11f, COLOR_CYAN, true)
@@ -1045,6 +1078,94 @@ class MainActivity : android.app.Activity() {
         }
     }
 
+    private fun readManualConnections(): JSONArray {
+        val raw = getSharedPreferences("james_core", MODE_PRIVATE).getString("connections_json", "[]").orEmpty()
+        return try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+    }
+
+    private fun saveManualConnections(items: JSONArray) {
+        getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("connections_json", items.toString()).apply()
+    }
+
+    private fun renderManualConnections() {
+        val panel = connectionsPanel ?: return
+        panel.removeAllViews()
+        val items = readManualConnections()
+        if (items.length() == 0) {
+            addText(panel, "Nenhuma conexão cadastrada neste aparelho.", 9f, COLOR_MUTED, top = 8)
+            return
+        }
+        for (index in 0 until items.length()) {
+            val item = items.optJSONObject(index) ?: continue
+            val row = card()
+            val kind = item.optString("type")
+            val target = item.optString("target")
+            addText(row, item.optString("name", "Conexão"), 10f, COLOR_TEXT, true)
+            addText(row, (when (kind) { "app" -> "APP"; "device" -> "DISPOSITIVO"; else -> "SITE" }) + " · " + target, 9f, COLOR_MUTED, top = 3)
+            addButton(row, "ABRIR") { openManualConnection(item) }
+            addButton(row, "REMOVER", secondary = true) { removeManualConnection(item.optString("id")) }
+            panel.addView(row)
+        }
+    }
+
+    private fun saveManualConnection() {
+        val name = connectionNameInput?.text?.toString()?.trim()?.take(60).orEmpty()
+        val target = connectionTargetInput?.text?.toString()?.trim()?.take(2048).orEmpty()
+        val kind = when (connectionKindSpinner?.selectedItemPosition ?: 0) { 1 -> "site"; 2 -> "device"; else -> "app" }
+        if (name.length < 2 || target.isBlank()) {
+            setStatus("INFORME O NOME E O DESTINO DA CONEXÃO")
+            return
+        }
+        if (kind == "site" || kind == "device") {
+            try {
+                val uri = android.net.Uri.parse(target)
+                if (uri.scheme !in setOf("http", "https") || uri.host.isNullOrBlank() || (kind == "site" && uri.scheme != "https")) {
+                    setStatus("ENDEREÇO INVÁLIDO: USE HTTPS PARA SITES E HTTP/HTTPS PARA DISPOSITIVOS")
+                    return
+                }
+            } catch (_: Exception) {
+                setStatus("ENDEREÇO INVÁLIDO")
+                return
+            }
+        }
+        val items = readManualConnections()
+        val next = JSONArray()
+        var replaced = false
+        for (index in 0 until items.length()) {
+            val item = items.optJSONObject(index) ?: continue
+            if (item.optString("name").equals(name, ignoreCase = true)) {
+                next.put(JSONObject().put("id", item.optString("id")).put("name", name).put("type", kind).put("target", target))
+                replaced = true
+            } else next.put(item)
+        }
+        if (!replaced) next.put(JSONObject().put("id", UUID.randomUUID().toString()).put("name", name).put("type", kind).put("target", target))
+        saveManualConnections(next)
+        connectionNameInput?.setText("")
+        connectionTargetInput?.setText("")
+        renderManualConnections()
+        setStatus("CONEXÃO SALVA NESTE APARELHO")
+    }
+
+    private fun removeManualConnection(id: String) {
+        val items = readManualConnections()
+        val next = JSONArray()
+        for (index in 0 until items.length()) {
+            val item = items.optJSONObject(index) ?: continue
+            if (item.optString("id") != id) next.put(item)
+        }
+        saveManualConnections(next)
+        renderManualConnections()
+        setStatus("CONEXÃO REMOVIDA")
+    }
+
+    private fun openManualConnection(item: JSONObject) {
+        val kind = item.optString("type")
+        val action = if (kind == "app") JSONObject().put("type", "open_app").put("appName", item.optString("target"))
+            else JSONObject().put("type", "open_url").put("url", item.optString("target"))
+        val result = executeClientAction(action)
+        addChatMessage((if (result.first) "ANDROID CONFIRMOU: " else "ANDROID NÃO CONCLUIU: ") + result.second, result.first, !result.first)
+    }
+
     private fun loadProfileInstructions() {
         val targetProfile = profileId
         executor.execute {
@@ -1184,6 +1305,7 @@ class MainActivity : android.app.Activity() {
             .put("timezone", TimeZone.getDefault().id)
             .put("localNow", OffsetDateTime.now().withNano(0).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
             .put("device", deviceInfo())
+            .put("connections", readManualConnections())
     }
 
     private fun deviceInfo(): JSONObject {
