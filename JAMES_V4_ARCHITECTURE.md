@@ -30,7 +30,7 @@ O botão inicia/encerra uma sessão ao vivo e solicita microfone/câmera conform
 - Validar os três modos no navegador Android e em telas maiores.
 - Executar testes de integração reais do Worker/Live API e confirmar o estado das migrações D1 antes de produção.
 - Desenvolver/validar o app Android nativo (APK) com serviço de voz em primeiro plano, controles persistentes, notificações e ponte de ações; nunca alegar 24/7 sem teste em dispositivo.
-- Implementar uma galeria de referências visuais com pesquisa de imagens licenciadas e exibição temporizada, sem inserir imagens aleatórias ou não verificadas.
+- Galeria de referências visuais implementada via API pública do Wikimedia Commons; resultados exibidos com título/licença/crédito e rotação de 7 segundos. A pesquisa usa palavras-chave extraídas localmente do assunto; disponibilidade depende da API pública e da conexão.
 - Adicionar sincronização autenticada de conversas entre dispositivos e controles de exportação/apagamento.
 
 ## Custo e privacidade
