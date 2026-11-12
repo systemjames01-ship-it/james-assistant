@@ -417,7 +417,7 @@ class MainActivity : android.app.Activity() {
 
         val note = card()
         addText(note, "LIMITES ATUAIS", 10f, COLOR_CYAN, true)
-        addText(note, "A câmera ao vivo funciona durante uma sessão ativa e autorizada. O Android pode suspender sensores quando o aplicativo sai de primeiro plano; monitoramento 24 horas exige um serviço em primeiro plano, notificação persistente, consumo de bateria e aprovação explícita. Ainda não é anunciado como recurso permanente.", 11f, COLOR_MUTED, top = 7)
+        addText(note, "Quando você liga o Jâmes, uma notificação persistente mantém a sessão autorizada de microfone e, quando ativada, câmera em primeiro plano mesmo ao alternar de aplicativo ou apagar a tela. O Android, o fabricante, a bateria e as permissões ainda podem interromper a sessão; isso não é garantia de monitoramento ininterrupto por 24 horas.", 11f, COLOR_MUTED, top = 7)
         page.addView(note)
         mountScrollable(page)
     }
