@@ -19,7 +19,7 @@ function renderChat(){
 renderChat();
 function speak(t){if(!("speechSynthesis"in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="pt-BR";u.rate=.98;speechSynthesis.speak(u)}
 function setState(v){$("#systemState").textContent=v}
-async function health(){try{const r=await fetch(API,{cache:"no-store"}),x=await r.json();$("#networkState").textContent=x.status==="online"?"LINK / ONLINE":"LINK / ERROR";$("#apiState").textContent=x.aiConfigured?"online":"sem chave";$("#mMemory").textContent=x.databaseConfigured?"D1":"LOCAL";$("#net").textContent="ONLINE";$("#latency").textContent="READY"}catch{$("#networkState").textContent="LINK / OFFLINE";$("#apiState").textContent="offline";$("#net").textContent="OFF";$("#latency").textContent="—"}}
+async function health(){try{const r=await fetch(API,{cache:"no-store"}),x=await r.json();$("#networkState").textContent=x.status==="online"?(x.aiConfigured?"AI LINK / ONLINE":"WORKER ONLINE / AI SEM CHAVE"):"LINK / ERROR";$("#apiState").textContent=x.aiConfigured?"online":"SEM CHAVE";$("#mMemory").textContent=x.databaseConfigured?"D1":"LOCAL";$("#net").textContent="ONLINE";$("#latency").textContent="READY"}catch{$("#networkState").textContent="LINK / OFFLINE";$("#apiState").textContent="offline";$("#net").textContent="OFF";$("#latency").textContent="—"}}
 async function perms(){if(!navigator.mediaDevices?.getUserMedia){add("Este navegador não expõe sensores de mídia.");return false}try{stream=await navigator.mediaDevices.getUserMedia({audio:true,video:true});$("#mic").textContent="authorized";$("#cam").textContent="authorized";$("#mVoice").textContent="ON";$("#mVision").textContent="ON";$("#per").textContent="ACTIVE";$("#camera").srcObject=stream;return true}catch{$("#mic").textContent="blocked";$("#cam").textContent="blocked";add("Microfone/câmera não autorizados. Você pode liberar as permissões nas configurações do navegador.");return false}}
 async function send(t){
   t=String(t||"").trim(); if(!t||busy)return;
@@ -40,7 +40,7 @@ async function send(t){
     if(on)speak(x.reply||"");
   }catch(e){
     typing.remove();
-    add("Não consegui conectar ao núcleo de IA. Verifique a conexão e tente novamente.");
+    add("Falha no núcleo de IA. Código: "+(x?.errorCode||"UNKNOWN")+".");
     $("#liveText").textContent="Falha no link neural.";
   }finally{
     busy=false; button.disabled=false; button.innerHTML="ENVIAR <span>↗</span>";
