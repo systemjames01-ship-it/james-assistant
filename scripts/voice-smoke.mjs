@@ -59,8 +59,8 @@ try {
         window.__workerRequest = JSON.parse(init.body || "{}");
         const encoder = new TextEncoder();
         const chunks = [
-          'data: {"candidates":[{"content":{"parts":[{"text":"Olá, Jamerson. "}]}}]}\\n\\n',
-          'data: {"candidates":[{"content":{"parts":[{"text":"Estou ouvindo você."}]}}]}\\n\\n'
+          'data: {"candidates":[{"content":{"parts":[{"text":"Olá, Jamerson. "}]}}]}\n\n',
+          'data: {"candidates":[{"content":{"parts":[{"text":"Estou ouvindo você."}]}}]}\n\n'
         ];
         const body = new ReadableStream({
           async start(controller) {
