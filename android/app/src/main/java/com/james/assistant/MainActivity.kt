@@ -845,11 +845,8 @@ class MainActivity : android.app.Activity() {
                 false to "Endereço recusado: somente HTTP/HTTPS são permitidos."
             } else {
                 val intent = Intent(Intent.ACTION_VIEW, uri)
-                if (intent.resolveActivity(packageManager) == null) false to "Nenhum navegador ou app pode abrir este endereço."
-                else {
-                    startActivity(intent)
-                    true to "Endereço aberto no aplicativo compatível."
-                }
+                startActivity(intent)
+                true to "Endereço encaminhado ao aplicativo compatível."
             }
         } catch (error: Exception) {
             false to "Não foi possível abrir o endereço: " + (error.message ?: "erro")
