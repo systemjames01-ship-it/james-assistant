@@ -123,6 +123,8 @@ jobs:
             root = tap_text("CONTROLE")
             if "PERFIL PESSOAL E SINCRONIZAÇÃO" not in texts(root):
                 raise SystemExit("Control view did not expose profile pairing.")
+            if "INSTRUÇÕES PERSONALIZADAS" not in texts(root):
+                raise SystemExit("Control view did not expose persistent personalization.")
 
             root = tap_text("JÂMES")
             if "LIGAR JÂMES" not in texts(root):
