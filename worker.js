@@ -80,20 +80,43 @@ function json(data, status, origin) {
   });
 }
 
-async function consumeRequestRateLimit(db, bucketKey, maxRequests, windowSeconds = 60) {
+const requestRateBuckets = new Map();
+
+function consumeInMemoryRateLimit(bucketKey, maxRequests, windowSeconds) {
   const now = Math.floor(Date.now() / 1000);
   const windowStart = Math.floor(now / windowSeconds) * windowSeconds;
-  await db.prepare(
-    "CREATE TABLE IF NOT EXISTS james_request_rate_limits (bucket_key TEXT PRIMARY KEY, window_started_at INTEGER NOT NULL, request_count INTEGER NOT NULL)"
-  ).run();
-  const row = await db.prepare(
-    "INSERT INTO james_request_rate_limits (bucket_key, window_started_at, request_count) VALUES (?, ?, 1) " +
-    "ON CONFLICT(bucket_key) DO UPDATE SET " +
-    "request_count = CASE WHEN window_started_at = excluded.window_started_at THEN request_count + 1 ELSE 1 END, " +
-    "window_started_at = excluded.window_started_at RETURNING request_count"
-  ).bind(bucketKey, windowStart).first();
-  const count = Number(row?.request_count || 0);
-  return { allowed: count > 0 && count <= maxRequests, count, remaining: Math.max(0, maxRequests - count) };
+  let entry = requestRateBuckets.get(bucketKey);
+  if (!entry || entry.windowStart !== windowStart) entry = { windowStart, count: 0 };
+  entry.count++;
+  requestRateBuckets.set(bucketKey, entry);
+  if (requestRateBuckets.size > 1000) {
+    for (const [key, value] of requestRateBuckets) {
+      if (value.windowStart + windowSeconds <= now) requestRateBuckets.delete(key);
+    }
+  }
+  return { allowed: entry.count <= maxRequests, count: entry.count, remaining: Math.max(0, maxRequests - entry.count) };
+}
+
+async function consumeRequestRateLimit(db, bucketKey, maxRequests, windowSeconds = 60) {
+  if (!db?.prepare) return consumeInMemoryRateLimit(bucketKey, maxRequests, windowSeconds);
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const windowStart = Math.floor(now / windowSeconds) * windowSeconds;
+    await db.prepare(
+      "CREATE TABLE IF NOT EXISTS james_request_rate_limits (bucket_key TEXT PRIMARY KEY, window_started_at INTEGER NOT NULL, request_count INTEGER NOT NULL)"
+    ).run();
+    const row = await db.prepare(
+      "INSERT INTO james_request_rate_limits (bucket_key, window_started_at, request_count) VALUES (?, ?, 1) " +
+      "ON CONFLICT(bucket_key) DO UPDATE SET " +
+      "request_count = CASE WHEN window_started_at = excluded.window_started_at THEN request_count + 1 ELSE 1 END, " +
+      "window_started_at = excluded.window_started_at RETURNING request_count"
+    ).bind(bucketKey, windowStart).first();
+    const count = Number(row?.request_count || 1);
+    return { allowed: count <= maxRequests, count, remaining: Math.max(0, maxRequests - count) };
+  } catch (error) {
+    console.warn("D1 request rate limit unavailable; using isolate-local fallback:", error?.message || "D1 error");
+    return consumeInMemoryRateLimit(bucketKey, maxRequests, windowSeconds);
+  }
 }
 
 function errorMessage(payload, status) {
@@ -949,7 +972,6 @@ export default {
     const url = new URL(request.url);
     const postAction = url.searchParams.get("action") || "chat";
     if (postAction !== "live-token") {
-      if (!env.DB) return json({ error: "O controle de uso gratuito precisa do banco D1." }, 503, origin);
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const bucket = ip + ":" + (postAction === "live-tool" ? "live-tool" : postAction === "live-turn" ? "live-turn" : "chat");
       const maximum = postAction === "live-tool" ? 30 : postAction === "live-turn" ? 60 : 20;
