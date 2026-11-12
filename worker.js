@@ -79,6 +79,22 @@ function json(data, status, origin) {
   });
 }
 
+async function consumeRequestRateLimit(db, bucketKey, maxRequests, windowSeconds = 60) {
+  const now = Math.floor(Date.now() / 1000);
+  const windowStart = Math.floor(now / windowSeconds) * windowSeconds;
+  await db.prepare(
+    "CREATE TABLE IF NOT EXISTS james_request_rate_limits (bucket_key TEXT PRIMARY KEY, window_started_at INTEGER NOT NULL, request_count INTEGER NOT NULL)"
+  ).run();
+  const row = await db.prepare(
+    "INSERT INTO james_request_rate_limits (bucket_key, window_started_at, request_count) VALUES (?, ?, 1) " +
+    "ON CONFLICT(bucket_key) DO UPDATE SET " +
+    "request_count = CASE WHEN window_started_at = excluded.window_started_at THEN request_count + 1 ELSE 1 END, " +
+    "window_started_at = excluded.window_started_at RETURNING request_count"
+  ).bind(bucketKey, windowStart).first();
+  const count = Number(row?.request_count || 0);
+  return { allowed: count > 0 && count <= maxRequests, count, remaining: Math.max(0, maxRequests - count) };
+}
+
 function errorMessage(payload, status) {
   const message = payload?.error?.message;
   if (status === 429) return "O núcleo atingiu temporariamente o limite de solicitações. Tente novamente em instantes.";
@@ -930,6 +946,20 @@ export default {
     }
 
     const url = new URL(request.url);
+    const postAction = url.searchParams.get("action") || "chat";
+    if (postAction !== "live-token") {
+      if (!env.DB) return json({ error: "O controle de uso gratuito precisa do banco D1." }, 503, origin);
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const bucket = ip + ":" + (postAction === "live-tool" ? "live-tool" : postAction === "live-turn" ? "live-turn" : "chat");
+      const maximum = postAction === "live-tool" ? 30 : postAction === "live-turn" ? 60 : 20;
+      try {
+        const limit = await consumeRequestRateLimit(env.DB, bucket, maximum, 60);
+        if (!limit.allowed) return json({ error: "O limite de segurança desta sessão foi atingido. Aguarde um minuto antes de continuar." }, 429, origin);
+      } catch (rateError) {
+        console.error("Request rate-limit storage failed:", rateError);
+        return json({ error: "Não foi possível validar o limite de uso gratuito. Tente novamente em instantes." }, 503, origin);
+      }
+    }
     if (url.searchParams.get("action") === "live-turn") {
       let turnPayload;
       try { turnPayload = await request.json(); }
