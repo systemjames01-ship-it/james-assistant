@@ -36,7 +36,7 @@ async function streamAsk(env,message,history=[],origin=ORIGIN){
       body:JSON.stringify({
         systemInstruction:{parts:[{text:system}]},
         contents,
-        generationConfig:{thinkingConfig:{thinkingLevel:"low"}}
+        generationConfig:{thinkingConfig:{thinkingLevel:"medium"}}
       }),
       signal:AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
