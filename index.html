@@ -190,6 +190,37 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 <link rel="stylesheet" href="./interface-v27.css">
 <link rel="stylesheet" href="./james-v3.css">
  <link rel="stylesheet" href="./hologram-v24.css">
+<style id="james-three-mode">
+.three-mode-nav{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;padding:14px!important;border:1px solid rgba(98,232,255,.2);background:rgba(3,12,22,.94)!important}
+.three-mode-nav button{display:flex;align-items:center;justify-content:center;gap:12px;min-width:0!important;min-height:58px!important;font-size:11px!important;letter-spacing:.12em!important}
+.three-mode-nav button span{color:#7bdff0;font:10px 'DM Mono',monospace;opacity:.75}
+.control-hub{padding-top:16px}
+.control-intro{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:24px clamp(16px,3vw,34px);border:1px solid rgba(216,183,122,.24);background:linear-gradient(120deg,rgba(16,33,47,.96),rgba(5,14,24,.98));}
+.control-intro h2{margin:8px 0;color:#f0f7f8;font-size:clamp(25px,4vw,40px);letter-spacing:-.04em}
+.control-intro p{margin:0;color:#91a7b5;max-width:650px;line-height:1.7}
+.control-stamp{color:#d8b77a;font:10px 'DM Mono',monospace;letter-spacing:.16em;white-space:nowrap}
+.control-shortcuts{position:sticky;top:0;z-index:7;display:flex;gap:8px;overflow-x:auto;padding:12px 0;background:rgba(3,9,16,.94);backdrop-filter:blur(14px)}
+.control-shortcuts button{flex:0 0 auto;min-height:36px;padding:8px 13px;font-size:9px}
+.control-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:26px 0 12px;padding:0 0 10px;border-bottom:1px solid rgba(128,217,232,.18);color:#d8b77a;font:10px 'DM Mono',monospace;letter-spacing:.16em;scroll-margin-top:90px}
+.control-section-heading small{color:#7792a4;font:8px 'DM Mono',monospace;letter-spacing:.1em}
+.control-storage{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.control-storage .control-section-heading{grid-column:1/-1;margin-bottom:0}
+.control-storage .side-panel{min-width:0}
+.control-module{margin-top:12px}
+#intelligenceView .side-column{grid-template-columns:1fr}
+#chat{height:min(58vh,680px);min-height:360px}
+#chatAttach,#chatSendAttachment{background:rgba(17,34,48,.9)!important;color:#c4d3dc!important;border:1px solid rgba(128,174,198,.2)!important}
+@media(max-width:700px){
+ .three-mode-nav{gap:6px!important;padding:8px!important}
+ .three-mode-nav button{min-height:52px!important;gap:6px;padding:8px 5px!important;font-size:9px!important;letter-spacing:.04em!important}
+ .three-mode-nav button span{font-size:8px}
+ .control-intro{align-items:flex-start;flex-direction:column;padding:20px 15px}
+ .control-stamp{display:none}
+ .control-storage{grid-template-columns:1fr}
+ .control-storage .control-section-heading{grid-column:auto}
+ #chat{height:58vh;min-height:320px}
+}
+</style>
 </head>
 <body>
 <div class="app-shell">
@@ -253,24 +284,25 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
 </section>
 
-<nav class="view-nav module-nav" aria-label="Módulos do Jâmes">
- <button type="button" data-view-target="overview" aria-pressed="true">◉ NÚCLEO</button>
- <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
- <button type="button" data-view-target="intelligence" aria-pressed="false">▤ CHAT</button>
- <button type="button" data-view-target="voices" aria-pressed="false">♫ VOZES</button>
- <button type="button" data-view-target="perception" aria-pressed="false">◎ VISÃO</button>
- <button type="button" data-view-target="device" aria-pressed="false">▦ SISTEMA</button>
- <button type="button" data-view-target="world" aria-pressed="false">⌖ MUNDO</button>
+<nav class="view-nav module-nav three-mode-nav" aria-label="Três ambientes do Jâmes">
+ <button type="button" data-view-target="overview" aria-pressed="true"><span>01</span> NÚCLEO</button>
+ <button type="button" data-view-target="intelligence" aria-pressed="false"><span>02</span> CONVERSA</button>
+ <button type="button" data-view-target="control" aria-pressed="false"><span>03</span> PAINEL DE CONTROLE</button>
 </nav>
-<section id="controlView" class="view" hidden>
+<section id="controlView" class="view control-hub" hidden>
+ <div class="control-intro"><div><div class="eyebrow">JÂMES / CONFIGURAÇÃO E SISTEMAS</div><h2>Painel de controle</h2><p>Ferramentas, memória, percepção, voz, integrações e diagnóstico reunidos em um único ambiente.</p></div><span class="control-stamp">03 — SYSTEMS</span></div>
+ <div class="control-shortcuts" aria-label="Atalhos do painel">
+  <button type="button" data-control-scroll="controlVoice">VOZ</button><button type="button" data-control-scroll="controlVision">VISÃO</button><button type="button" data-control-scroll="controlDevice">DISPOSITIVO</button><button type="button" data-control-scroll="controlWorld">INTEGRAÇÕES</button><button type="button" data-control-scroll="controlStorage">MEMÓRIA E TAREFAS</button>
+ </div>
  <div class="overview-grid">
   <article class="overview-card wide"><h2>Núcleo de inteligência</h2><div class="metric" id="overviewCoreState">INICIALIZANDO</div><p id="overviewCoreDetail">Verificando a conexão com o serviço de inteligência e suas ferramentas.</p><div class="module-actions"><button type="button" data-view-target="intelligence">Abrir console de comando</button><button type="button" class="secondary" id="overviewVoice">Falar com Jâmes</button></div></article>
-  <article class="overview-card"><h2>Dispositivo</h2><div class="metric" id="overviewBattery">--</div><div class="metric-sub" id="overviewDeviceName">Dados do aparelho indisponíveis</div><div class="module-actions"><button type="button" class="secondary" data-view-target="device">Diagnóstico</button></div></article>
-  <article class="overview-card"><h2>Percepção</h2><p>Câmera sob solicitação, imagens e documentos enviados para análise. Nenhuma captura em segundo plano.</p><div class="module-actions"><button type="button" class="secondary" data-view-target="perception">Abrir percepção</button></div></article>
+  <article class="overview-card"><h2>Dispositivo</h2><div class="metric" id="overviewBattery">--</div><div class="metric-sub" id="overviewDeviceName">Dados do aparelho indisponíveis</div><div class="module-actions"><button type="button" class="secondary" data-view-target="control">Diagnóstico</button></div></article>
+  <article class="overview-card"><h2>Percepção</h2><p>Câmera sob solicitação, imagens e documentos enviados para análise. Nenhuma captura em segundo plano.</p><div class="module-actions"><button type="button" class="secondary" data-view-target="control">Abrir percepção</button></div></article>
   <article class="overview-card"><h2>Memória e contexto</h2><p>Histórico unificado entre conversa e ferramentas. Memórias explícitas permanecem controladas pelo usuário.</p><div class="module-actions"><button type="button" class="secondary" data-scroll-target="memoriesSection">Ver memória</button></div></article>
   <article class="overview-card"><h2>Execução</h2><p>Tarefas, abertura de aplicativos e lembretes locais, sujeitos à conexão e às permissões do Android.</p><div class="module-actions"><button type="button" class="secondary" data-scroll-target="tasksSection">Ver automações</button></div></article>
   <article class="overview-card full"><h2>Arquitetura ativa</h2><div class="module-grid"><div class="module-card"><strong>Raciocínio e planejamento</strong><span>Contexto compartilhado e ferramentas chamadas pelo núcleo de IA.</span></div><div class="module-card"><strong>Percepção multimodal</strong><span>Análise de imagens e PDFs; câmera ao vivo somente quando aberta e autorizada.</span></div><div class="module-card"><strong>Integração Android</strong><span>Voz nativa, informações básicas do aparelho e ações locais autorizadas.</span></div></div></article>
  </div>
+ <div class="control-storage" id="controlStorage"><div class="control-section-heading"><span>ARMAZENAMENTO E CONTEXTO</span><small>MEMÓRIA EXPLÍCITA · TAREFAS</small></div></div>
 </section>
 <div class="dashboard view" id="intelligenceView" hidden>
  <section class="panel conversation">
@@ -289,6 +321,8 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <div class="row">
     <button type="submit" id="send">ENVIAR COMANDO</button>
     <button type="button" class="secondary" id="voice">FALAR</button>
+    <button type="button" class="secondary" id="chatAttach" aria-label="Escolher imagens ou documentos">ANEXAR</button>
+    <button type="button" class="secondary" id="chatSendAttachment">ENVIAR ANEXO</button>
    </div>
   </form>
  </section>
@@ -307,7 +341,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </aside>
 </div>
 
-<section id="voicesView" class="view voice-view" hidden>
+<section id="voicesView" class="view voice-view control-module" hidden><div class="control-section-heading" id="controlVoice"><span>IDENTIDADE VOCAL</span><small>VOZ E CONVERSAÇÃO</small></div>
  <div class="voice-layout">
   <section class="panel voice-main">
    <div class="panel-head"><div><div class="panel-title">Identidade vocal</div><div class="panel-kicker">SÍNTESE DE VOZ · CONFIGURAÇÃO LOCAL</div></div></div>
@@ -336,7 +370,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
 </section>
 
-<section id="perceptionView" class="lower-grid view" hidden>
+<section id="perceptionView" class="lower-grid view control-module" hidden><div class="control-section-heading" id="controlVision"><span>PERCEPÇÃO E ARQUIVOS</span><small>CÂMERA · IMAGENS · PDF</small></div>
  <section class="panel lower-panel">
   <div class="panel-head"><div class="panel-title">Visão computacional</div><span class="panel-kicker">CÂMERA E ANEXOS</span></div>
   <p class="panel-description">A câmera só é ativada quando você solicita. Imagens e PDFs são enviados ao núcleo para análise multimodal.</p>
@@ -366,7 +400,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </section>
 </section>
 
-<section id="deviceView" class="view" hidden>
+<section id="deviceView" class="view control-module" hidden><div class="control-section-heading" id="controlDevice"><span>DISPOSITIVO E CONEXÃO</span><small>DIAGNÓSTICO E PERMISSÕES</small></div>
  <div class="overview-grid">
   <article class="overview-card wide"><h2>Diagnóstico do dispositivo</h2><p>Informações locais básicas, lidas no aparelho. Nenhum identificador exclusivo é coletado.</p><div id="deviceDiagnostics"><div class="device-line"><span>Plataforma</span><strong>Aguardando leitura</strong></div></div><div class="module-actions"><button type="button" id="refreshDevice">Atualizar diagnóstico</button></div></article>
   <article class="overview-card"><h2>Conexão com o núcleo</h2><div class="metric" id="deviceBackendState">--</div><p id="deviceBackendDetail">Aguardando verificação.</p><div class="module-actions"><button type="button" class="secondary" id="refreshBackend">Testar conexão</button></div></article>
@@ -374,7 +408,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
 </section>
 
-<section id="worldView" class="view world-view" hidden>
+<section id="worldView" class="view world-view control-module" hidden><div class="control-section-heading" id="controlWorld"><span>INTEGRAÇÕES EXTERNAS</span><small>APPS · SITES · COMPUTADORES</small></div>
  <div class="world-heading"><div><div class="eyebrow">INTELIGÊNCIA GEOESPACIAL · DADOS PÚBLICOS</div><h1>God’s Eye View</h1><p>Conecte o Jâmes ao observatório geoespacial open-source no Windows.</p></div><span class="world-license">OPEN SOURCE · MIT</span></div>
  <div class="world-grid">
   <article class="world-card world-primary">
@@ -401,6 +435,13 @@ const WORKER_URL="https://james-ai.systemjames01.workers.dev";
 const $=id=>document.getElementById(id);
 const chat=$("chat");
 const statusBox=$("status");
+// The same file picker is shared by the chat and the control panel.
+// Move it into the visible document form so it can be opened from the chat tab.
+const sharedAttachmentInput=$("imageFile");
+if(sharedAttachmentInput){
+ sharedAttachmentInput.style.display="none";
+ $("form").appendChild(sharedAttachmentInput);
+}
 
 let cameraStream=null;
 let capturedAttachments=[];
@@ -774,17 +815,29 @@ async function sendMessage(message,attachments=null){
  }
 }
 
-const viewIds={overview:"overviewView",control:"controlView",intelligence:"intelligenceView",voices:"voicesView",perception:"perceptionView",device:"deviceView",world:"worldView"};
+const viewIds={overview:"overviewView",intelligence:"intelligenceView",control:"controlView"};
+const controlExtraViews=["voicesView","perceptionView","deviceView","worldView"];
 function switchView(name){
  const active=viewIds[name]?name:"overview";
  for(const [key,id] of Object.entries(viewIds))$(id).hidden=key!==active;
+ for(const id of controlExtraViews)$(id).hidden=active!=="control";
+ const side=document.querySelector(".side-column");
+ const storage=$("controlStorage");
+ if(side&&storage){
+  const tasks=$("tasksSection"),memories=$("memoriesSection");
+  if(active==="control"){storage.append(tasks,memories);}
+  else{side.append(tasks,memories);}
+ }
  document.querySelectorAll("[data-view-target]").forEach(button=>{
   if(button.dataset.viewTarget)button.setAttribute("aria-pressed",String(button.dataset.viewTarget===active));
  });
  if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();}
- if(active==="device")refreshDeviceDiagnostics();
+ if(active==="control"){loadTasks();loadMemories();refreshDeviceDiagnostics();}
  window.scrollTo({top:0,behavior:"smooth"});
 }
+document.querySelectorAll("[data-control-scroll]").forEach(button=>button.addEventListener("click",()=>{
+ const target=$(button.dataset.controlScroll);if(target)target.scrollIntoView({behavior:"smooth",block:"start"});
+}));
 document.querySelectorAll("[data-view-target]").forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.viewTarget)));
 const launchWindowsWorld=action=>{window.location.href="james://world/"+action;statusBox.textContent="Enviando comando ao componente Windows. Se ainda não estiver instalado, execute primeiro o instalador desta aba no computador.";};
 $("openGodsEye").addEventListener("click",()=>launchWindowsWorld("open"));
@@ -837,6 +890,8 @@ $("form").addEventListener("submit",event=>{
  event.preventDefault();
  sendMessage($("prompt").value);
 });
+$("chatAttach").addEventListener("click",()=>$("imageFile").click());
+$("chatSendAttachment").addEventListener("click",()=>$("sendImage").click());
 
 $("save").addEventListener("click",()=>{
  try{
