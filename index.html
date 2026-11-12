@@ -86,6 +86,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .panel-kicker{color:#678397;font:9px 'DM Mono',monospace;letter-spacing:.1em}
 .conversation-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .conversation-tools button{min-height:32px;padding:6px 10px;font-size:9px}
+.conversation-picker{max-width:150px;min-height:32px;padding:6px 8px;border:1px solid rgba(104,228,242,.24);border-radius:7px;background:#071827;color:#bfeaf3;font:9px 'DM Mono',monospace}
 
 
 #chat{height:440px;min-height:300px;overflow:auto;padding:18px clamp(12px,2vw,24px);background:radial-gradient(ellipse at 50% 0%,rgba(18,66,88,.13),transparent 55%),rgba(2,9,16,.24);scrollbar-color:#28516a transparent;scrollbar-width:thin}
@@ -276,6 +277,8 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <div><div class="panel-title">Console do núcleo</div><div class="panel-kicker">COMUNICAÇÃO · RACIOCÍNIO · EXECUÇÃO</div></div>
    <div class="conversation-tools">
     <span class="panel-kicker">NÚCLEO ÚNICO · CONTEXTO E FERRAMENTAS INTEGRADOS</span>
+    <select id="conversationPicker" class="conversation-picker" aria-label="Conversas salvas"></select>
+    <button type="button" class="secondary" id="newConversation">+ NOVA CONVERSA</button>
     <button type="button" class="secondary" id="voiceOutput">VOZ: LIGADA</button>
     <button type="button" class="secondary" id="stopVoice">PARAR VOZ</button>
    </div>
@@ -634,15 +637,87 @@ function updateVoiceOutputButton(){
  $("voiceOutput").setAttribute("aria-pressed",String(voiceOutputEnabled));
 }
 
+function readConversationList(){
+ try{
+  const parsed=JSON.parse(localStorage.getItem("james_conversations")||"[]");
+  return Array.isArray(parsed)?parsed.filter(item=>item&&typeof item.id==="string"):[];
+ }catch{return [];}
+}
+function writeConversationList(items){
+ localStorage.setItem("james_conversations",JSON.stringify(items.slice(-40)));
+}
+function refreshConversationPicker(){
+ const picker=$("conversationPicker");
+ if(!picker)return;
+ const active=localStorage.getItem("james_active_session_id")||localStorage.getItem("james_session_id")||"";
+ const items=readConversationList().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+ picker.replaceChildren();
+ for(const item of items){
+  const option=document.createElement("option");
+  option.value=item.id;
+  option.textContent=item.title||"Conversa";
+  picker.appendChild(option);
+ }
+ if(active&&items.some(item=>item.id===active))picker.value=active;
+}
 function getSessionId(){
- let id=localStorage.getItem("james_session_id");
+ let id=localStorage.getItem("james_active_session_id")||localStorage.getItem("james_session_id");
  if(!id){
   id=window.crypto&&crypto.randomUUID
    ?crypto.randomUUID()
    :"james-"+Date.now()+"-"+Math.random().toString(36).slice(2);
-  localStorage.setItem("james_session_id",id);
  }
+ localStorage.setItem("james_active_session_id",id);
+ localStorage.setItem("james_session_id",id);
+ const items=readConversationList();
+ if(!items.some(item=>item.id===id)){
+  items.push({id,title:"Conversa atual",updatedAt:Date.now()});
+  writeConversationList(items);
+ }
+ refreshConversationPicker();
  return id;
+}
+function updateConversationMetadata(firstMessage){
+ const id=getSessionId();
+ const items=readConversationList();
+ const item=items.find(entry=>entry.id===id);
+ if(item){
+  if(!item.title||item.title==="Conversa atual"||item.title==="Nova conversa"){
+   item.title=(firstMessage||"Conversa").replace(/\\s+/g," ").trim().slice(0,46)||"Conversa";
+  }
+  item.updatedAt=Date.now();
+  writeConversationList(items);
+  refreshConversationPicker();
+ }
+}
+function createNewConversation(){
+ const power=$("jamesPower");
+ if(power?.getAttribute("aria-pressed")==="true")power.click();
+ const id=window.crypto&&crypto.randomUUID?crypto.randomUUID():"james-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+ localStorage.setItem("james_active_session_id",id);
+ localStorage.setItem("james_session_id",id);
+ const items=readConversationList();
+ items.push({id,title:"Nova conversa",updatedAt:Date.now()});
+ writeConversationList(items);
+ historyBefore=null;
+ historyHasMore=false;
+ refreshConversationPicker();
+ chat.replaceChildren();
+ loadHistory(false);
+ statusBox.textContent="Nova conversa criada.";
+}
+function selectConversation(id){
+ if(!id||id===getSessionId())return;
+ const power=$("jamesPower");
+ if(power?.getAttribute("aria-pressed")==="true")power.click();
+ localStorage.setItem("james_active_session_id",id);
+ localStorage.setItem("james_session_id",id);
+ historyBefore=null;
+ historyHasMore=false;
+ refreshConversationPicker();
+ chat.replaceChildren();
+ loadHistory(false);
+ statusBox.textContent="Conversa recuperada.";
 }
 
 let jamesVoiceStyle=localStorage.getItem("james_voice_style")||"jarvis";
@@ -705,6 +780,7 @@ async function sendMessage(message,attachments=null){
  const files=Array.isArray(attachments)?attachments:[];
  if(!text&&!files.length)return;
 
+ updateConversationMetadata(text||("Anexos: "+files.map(file=>file.name).join(", ")));
  if(text)addMessage(text,"user");
  if(files.length)addMessage("Anexos enviados: "+files.map(file=>file.name).join(", "),"user");
 
@@ -800,6 +876,9 @@ $("headOpenChat").addEventListener("click",()=>switchView("intelligence"));
 $("headOpenControl").addEventListener("click",()=>switchView("control"));
 switchView("overview");
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
+$("newConversation").addEventListener("click",createNewConversation);
+$("conversationPicker").addEventListener("change",event=>selectConversation(event.target.value));
+refreshConversationPicker();
 $("voiceOutput").addEventListener("click",()=>{
  voiceOutputEnabled=!voiceOutputEnabled;
  localStorage.setItem("james_voice_enabled",String(voiceOutputEnabled));
