@@ -226,6 +226,28 @@ test("live tool endpoint returns only allowlisted Windows protocol commands", as
   assert.equal((await deniedResponse.json()).result.error, "Ação Windows não permitida.");
 });
 
+test("open_url tool only returns allowlisted HTTP and HTTPS client actions", async () => {
+  const request = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "session_test_12345", name: "open_url", args: { url: "https://example.com/control" } })
+  });
+  const response = await worker.fetch(request, {});
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.result.clientAction.type, "open_url");
+  assert.equal(body.result.clientAction.url, "https://example.com/control");
+
+  const denied = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "session_test_12345", name: "open_url", args: { url: "javascript:alert(1)" } })
+  });
+  const deniedResponse = await worker.fetch(denied, {});
+  assert.equal(deniedResponse.status, 200);
+  assert.match((await deniedResponse.json()).result.error, /HTTP\/HTTPS/);
+});
+
 test("assistant creates a persistent task through the D1 tool", async () => {
   const originalFetch = globalThis.fetch;
   const executedSql = [];
