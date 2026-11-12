@@ -32,6 +32,7 @@ if (!windowsInstaller.includes("HKCU:\\Software\\Classes\\james") || !windowsAge
 }
 
 const androidMain = readFileSync(new URL("../android/app/src/main/java/com/james/assistant/MainActivity.kt", import.meta.url), "utf8");
+const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
 const serviceWorker = readFileSync(new URL("../service-worker.js", import.meta.url), "utf8");
 new vm.Script(serviceWorker, { filename: "service-worker.js" });
 
@@ -63,7 +64,6 @@ if (!workerCode.includes("profileId = sessionId") ||
 const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
 const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta.url), "utf8");
 const liveVoice = hologramJs;
-const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
 const appShell = serviceWorker;
 if (!androidMain.includes('put("responseModality", "AUDIO")')) {
   throw new Error("Native Android Live session must explicitly request an audio-mode token.");
