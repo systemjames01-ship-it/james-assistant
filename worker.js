@@ -30,7 +30,7 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - android_ui_action: atua pontualmente na interface VISÍVEL do Android (tocar em texto, digitar no campo focado, rolar, voltar ou ir à tela inicial). Somente quando o usuário pedir explicitamente. Exige ativação manual do Serviço de Acessibilidade do Jâmes. Nunca afirme execução sem confirmação do aparelho.
 - windows_gods_eye_view: abre, atualiza ou encerra o projeto God’s Eye View no Windows somente quando o usuário pedir explicitamente. Requer o componente Windows do Jâmes instalado uma vez.
 Memórias e tarefas ficam vinculadas ao perfil deste aparelho e são compartilhadas entre as conversas que usam esse perfil. Ainda não prometa sincronização entre aparelhos sem pareamento autorizado.
-Integração Android: android_open_app, android_schedule_reminder e android_open_settings enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
+Integração Android: android_open_app, android_schedule_reminder e android_open_settings enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo. Quando uma imagem realmente ajudar a explicar um objeto, lugar, pessoa histórica, processo ou conceito visual, use search_public_images para obter até seis imagens com origem/licença. Não busque imagens para respostas puramente textuais nem prometa que a imagem foi exibida antes da confirmação do cliente.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
 
 RACIOCÍNIO E EXECUÇÃO:
@@ -43,6 +43,7 @@ Nunca afirme que executou ações externas sem ferramenta autorizada e resultado
 const LIVE_FUNCTION_DECLARATIONS = [
   { name: "calculate", description: "Calcula uma expressão matemática solicitada pelo usuário.", parameters: { type: "OBJECT", properties: { expression: { type: "STRING" } }, required: ["expression"] } },
   { name: "search_public_web", description: "Pesquisa na web pública quando o usuário pedir pesquisa, notícias ou fatos atuais. Use 2 a 4 consultas.", parameters: { type: "OBJECT", properties: { queries: { type: "ARRAY", items: { type: "STRING" } } }, required: ["queries"] } },
+  { name: "search_public_images", description: "Busca imagens ilustrativas no Wikimedia Commons para mostrar durante uma explicação visual. Use quando o usuário pedir imagens ou quando uma imagem melhorar claramente a compreensão; limite a uma consulta curta.", parameters: { type: "OBJECT", properties: { query: { type: "STRING" } }, required: ["query"] } },
   { name: "fetch_public_page", description: "Lê uma página pública HTTPS encontrada durante pesquisa.", parameters: { type: "OBJECT", properties: { url: { type: "STRING" } }, required: ["url"] } },
   { name: "get_current_time", description: "Obtém a hora UTC atual.", parameters: { type: "OBJECT", properties: {} } },
   { name: "create_task", description: "Cria uma tarefa persistente somente quando o usuário pedir para guardar uma tarefa.", parameters: { type: "OBJECT", properties: { title: { type: "STRING" }, details: { type: "STRING" } }, required: ["title"] } },
@@ -296,6 +297,73 @@ async function fetchPublicPage(rawUrl) {
   }
 }
 
+async function searchPublicImages(rawQuery) {
+  const query = typeof rawQuery === "string" ? rawQuery.trim().slice(0, 180) : "";
+  if (query.length < 3) return { error: "Descreva o assunto visual que deseja ilustrar." };
+  const params = new URLSearchParams({
+    action: "query",
+    format: "json",
+    origin: "*",
+    generator: "search",
+    gsrsearch: query,
+    gsrnamespace: "6",
+    gsrlimit: "6",
+    prop: "imageinfo",
+    iiprop: "url|extmetadata",
+    iiurlwidth: "1200",
+    iiextmetadatalanguage: "pt-br",
+    iiextmetadatafilter: "LicenseShortName|Artist|Credit|LicenseUrl"
+  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch("https://commons.wikimedia.org/w/api.php?" + params.toString(), {
+      headers: { "Accept": "application/json", "User-Agent": "JamesAssistant/3.2 (https://github.com/systemjames01-ship-it/james-assistant)" },
+      signal: controller.signal
+    });
+    if (!response.ok) return { error: "A biblioteca de imagens não respondeu (HTTP " + response.status + ")." };
+    const data = await response.json();
+    const pages = Object.values(data?.query?.pages || {});
+    const visuals = [];
+    for (const page of pages) {
+      const info = page.imageinfo?.[0];
+      if (!info) continue;
+      const imageUrl = info.thumburl || info.url;
+      let image, source;
+      try {
+        image = new URL(imageUrl);
+        source = new URL(info.descriptionurl);
+      } catch { continue; }
+      if (image.protocol !== "https:" || image.hostname !== "upload.wikimedia.org" ||
+          source.protocol !== "https:" || source.hostname !== "commons.wikimedia.org") continue;
+      const mime = typeof info.mime === "string" ? info.mime : "";
+      if (!mime.startsWith("image/")) continue;
+      const metadata = info.extmetadata || {};
+      const clean = value => extractPageText(typeof value?.value === "string" ? value.value : "").slice(0, 180);
+      visuals.push({
+        title: String(page.title || "Imagem").replace(/^File:/, "").slice(0, 180),
+        imageUrl: image.href,
+        sourceUrl: source.href,
+        license: clean(metadata.LicenseShortName) || "Consulte a licença na fonte",
+        credit: clean(metadata.Artist) || clean(metadata.Credit) || "Wikimedia Commons"
+      });
+      if (visuals.length >= 6) break;
+    }
+    return {
+      success: visuals.length > 0,
+      provider: "Wikimedia Commons",
+      query,
+      count: visuals.length,
+      visuals,
+      notice: "Imagens com origem e licença indicadas. Verifique a licença da página de cada arquivo antes de reutilizar fora desta sessão."
+    };
+  } catch (error) {
+    return { error: error?.name === "AbortError" ? "A busca de imagens excedeu 9 segundos." : "Não foi possível consultar a biblioteca de imagens." };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function searchPublicWeb(rawQueries) {
   const queries = Array.isArray(rawQueries) ? rawQueries : [rawQueries];
   const unique = [...new Set(queries.filter(q => typeof q === "string").map(q => q.trim()).filter(q => q.length >= 3 && q.length <= 240))].slice(0, 4);
@@ -389,6 +457,9 @@ async function executeAssistantTool(env, sessionId, name, args = {}, profileId =
   }
   if (name === "search_public_web") {
     return await searchPublicWeb(args.queries);
+  }
+  if (name === "search_public_images") {
+    return await searchPublicImages(args.query);
   }
   if (name === "fetch_public_page") {
     return await fetchPublicPage(args.url);
@@ -567,6 +638,15 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
             queries: { type: "ARRAY", items: { type: "STRING" }, description: "Duas a quatro consultas de pesquisa complementares." }
           },
           required: ["queries"]
+        }
+      },
+      {
+        name: "search_public_images",
+        description: "Busca imagens ilustrativas no Wikimedia Commons para mostrar ao usuário. Use quando o usuário pedir imagens ou quando um recurso visual melhorar claramente uma explicação; faça uma consulta curta e relevante.",
+        parameters: {
+          type: "OBJECT",
+          properties: { query: { type: "STRING", description: "Assunto visual em poucas palavras." } },
+          required: ["query"]
         }
       },
       {
