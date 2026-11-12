@@ -797,10 +797,29 @@ class MainActivity : android.app.Activity() {
     private fun executeClientAction(action: JSONObject): Pair<Boolean, String> {
         return when (action.optString("type")) {
             "open_app" -> openApp(action.optString("appName"))
+            "open_url" -> openExternalUrl(action.optString("url"))
             "schedule_reminder" -> scheduleReminder(action.optString("title"), action.optString("at"))
             "open_settings" -> openSystemSettings(action.optString("section"))
             "ui_action" -> JamesAccessibilityService.execute(action)
             else -> false to "Ação Android não reconhecida."
+        }
+    }
+
+    private fun openExternalUrl(rawUrl: String): Pair<Boolean, String> {
+        return try {
+            val uri = android.net.Uri.parse(rawUrl)
+            if (uri.scheme !in setOf("http", "https") || uri.host.isNullOrBlank()) {
+                false to "Endereço recusado: somente HTTP/HTTPS são permitidos."
+            } else {
+                val intent = Intent(Intent.ACTION_VIEW, uri)
+                if (intent.resolveActivity(packageManager) == null) false to "Nenhum navegador ou app pode abrir este endereço."
+                else {
+                    startActivity(intent)
+                    true to "Endereço aberto no aplicativo compatível."
+                }
+            }
+        } catch (error: Exception) {
+            false to "Não foi possível abrir o endereço: " + (error.message ?: "erro")
         }
     }
 
