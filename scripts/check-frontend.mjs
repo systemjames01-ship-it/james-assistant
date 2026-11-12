@@ -71,7 +71,9 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
   throw new Error("Local Piper/Faber Brazilian Portuguese voice, original voice profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
 }
 
-const primaryNav = html.match(/<nav class="view-nav module-nav v4-nav"[\\s\\S]*?<\\/nav>/)?.[0] || "";
+const navStart = html.indexOf('<nav class="view-nav module-nav v4-nav"');
+const navEnd = html.indexOf("</nav>", navStart);
+const primaryNav = navStart >= 0 && navEnd >= 0 ? html.slice(navStart, navEnd + 6) : "";
 if ((primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
     !primaryNav.includes('data-view-target="overview"') ||
     !primaryNav.includes('data-view-target="intelligence"') ||
