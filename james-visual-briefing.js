@@ -27,7 +27,7 @@
  }
  async function show(userText,assistantText){
   const wordsFound=words(userText);
-  const sensitive=/\\b(?:senha|password|cpf|cnpj|cart[aã]o|conta banc[aá]ria|ag[eê]ncia|endereço|telefone|e-?mail|chave pix|token de acesso|api key|diagn[oó]stico pessoal|prontu[aá]rio)\\b/i;
+  const sensitive=/\b(?:senha|password|cpf|cnpj|cart[aã]o|conta banc[aá]ria|ag[eê]ncia|endereço|telefone|e-?mail|chave pix|token de acesso|api key|diagn[oó]stico pessoal|prontu[aá]rio)\b/i;
   if(sensitive.test(String(userText||""))){stop();panel.hidden=true;return;}
   const query=wordsFound.join(" ")||words(assistantText).join(" ");
   if(!query)return;
