@@ -7,6 +7,9 @@ permissions:
   contents: read
   pages: write
   id-token: write
+concurrency:
+  group: james-pages-production
+  cancel-in-progress: true
 jobs:
   deploy:
     environment:
