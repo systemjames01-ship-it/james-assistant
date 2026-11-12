@@ -200,6 +200,17 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 .chat-session.active{border-color:rgba(216,183,122,.7)!important;color:#f0e3ca!important;box-shadow:inset 0 -2px #d8b77a!important}
 @media(max-width:760px){.v4-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.v4-nav button{padding:8px 5px;font-size:8px!important;min-height:48px!important}#controlView .side-column{grid-template-columns:1fr}}
 
+
+/* JÂMES v4 — referências visuais temporizadas */
+.visual-briefing{margin:0 0 18px;padding:14px;border:1px solid rgba(98,232,255,.22);border-radius:8px;background:linear-gradient(145deg,rgba(8,25,40,.96),rgba(3,12,22,.98));box-shadow:0 16px 42px rgba(0,0,0,.24)}
+.visual-briefing-head,.visual-briefing-foot{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.visual-briefing-head strong{display:block;color:#e8fcff;font-size:13px;margin-top:3px}
+.visual-briefing-kicker,.visual-briefing-state{color:#80d9e8;font:8px 'DM Mono',monospace;letter-spacing:.14em}
+.visual-briefing-head button{min-height:30px;padding:5px 10px;font-size:8px}
+#visualBriefingImage{width:100%;max-height:340px;object-fit:contain;margin:12px 0 8px;border-radius:5px;background:#02060d}
+.visual-briefing-foot{align-items:flex-start;flex-direction:column;color:#d8e8ef;font-size:10px}
+#visualBriefingCredit{color:#7f9bab;font-size:9px}
+.visual-briefing-state{margin-top:8px;color:#6fa9bd}
 </style>
 <link rel="stylesheet" href="./interface-v27.css">
 <link rel="stylesheet" href="./james-v3.css">
@@ -265,6 +276,13 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
   <div class="projection-transcript" id="headTranscript" aria-live="polite">Aguardando ativação do sistema…</div>
   <div class="holo-activity"><div><span>ATIVIDADE DA SESSÃO</span><b>REAL-TIME</b></div><canvas id="jamesVisualCanvas" width="720" height="100" aria-label="Visualização animada da atividade de áudio"></canvas></div>
  </div>
+</section>
+
+<section id="visualBriefing" class="visual-briefing" hidden aria-live="polite" aria-label="Referências visuais da conversa">
+ <div class="visual-briefing-head"><div><span class="visual-briefing-kicker">JÂMES · PERCEPÇÃO VISUAL</span><strong>Referências do assunto</strong></div><button type="button" class="secondary" id="visualBriefingClose">FECHAR</button></div>
+ <img id="visualBriefingImage" alt="Imagem de referência pública do assunto" loading="lazy">
+ <div class="visual-briefing-foot"><span id="visualBriefingCaption">Aguardando assunto…</span><span id="visualBriefingCredit">Wikimedia Commons</span></div>
+ <div id="visualBriefingState" class="visual-briefing-state">As imagens mudam a cada 7 segundos.</div>
 </section>
 
 <nav class="view-nav module-nav v4-nav" aria-label="Áreas principais do Jâmes">
@@ -1068,5 +1086,6 @@ if("serviceWorker" in navigator && location.protocol==="https:"){
 </script>
  <script src="./hologram-v24.js" defer></script>
  <script type="module" src="./james-neural-voice.js"></script>
+<script src="./james-visual-briefing.js" defer></script>
 </body>
 </html>
