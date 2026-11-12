@@ -253,14 +253,10 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
 </section>
 
-<nav class="view-nav module-nav" aria-label="Módulos do Jâmes">
- <button type="button" data-view-target="overview" aria-pressed="true">◉ NÚCLEO</button>
- <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
+<nav class="view-nav module-nav" aria-label="Áreas principais do Jâmes">
+ <button type="button" data-view-target="overview" aria-pressed="true">◉ JÂMES</button>
  <button type="button" data-view-target="intelligence" aria-pressed="false">▤ CHAT</button>
- <button type="button" data-view-target="voices" aria-pressed="false">♫ VOZES</button>
- <button type="button" data-view-target="perception" aria-pressed="false">◎ VISÃO</button>
- <button type="button" data-view-target="device" aria-pressed="false">▦ SISTEMA</button>
- <button type="button" data-view-target="world" aria-pressed="false">⌖ MUNDO</button>
+ <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
 </nav>
 <section id="controlView" class="view" hidden>
  <div class="overview-grid">
@@ -778,8 +774,9 @@ const viewIds={overview:"overviewView",control:"controlView",intelligence:"intel
 function switchView(name){
  const active=viewIds[name]?name:"overview";
  for(const [key,id] of Object.entries(viewIds))$(id).hidden=key!==active;
- document.querySelectorAll("[data-view-target]").forEach(button=>{
-  if(button.dataset.viewTarget)button.setAttribute("aria-pressed",String(button.dataset.viewTarget===active));
+ const primary=active==="overview"?"overview":active==="intelligence"?"intelligence":"control";
+ document.querySelectorAll(".module-nav [data-view-target]").forEach(button=>{
+  button.setAttribute("aria-pressed",String(button.dataset.viewTarget===primary));
  });
  if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();}
  if(active==="device")refreshDeviceDiagnostics();
