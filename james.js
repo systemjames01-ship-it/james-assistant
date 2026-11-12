@@ -27,27 +27,57 @@ async function perms(){if(!navigator.mediaDevices?.getUserMedia){add("Este naveg
 async function send(t){
   t=String(t||"").trim(); if(!t||busy)return;
   add(t,"user"); busy=true;
-  const button=$("#form button"); button.disabled=true; button.innerHTML="PROCESSANDO <span>◌</span>";
-  setState("CORE / PROCESSING"); $("#liveText").textContent="Jâmes está processando…";
+  const button=$("#form button"); button.disabled=true; button.innerHTML="RECEBENDO <span>◌</span>";
+  setState("CORE / PROCESSING"); $("#liveText").textContent="Jâmes está preparando a resposta…";
   const started=performance.now();
-  // A mensagem atual já foi adicionada à interface; envie apenas o contexto anterior.
   const history=chat.slice(0,-1).slice(-20).map(x=>({role:x.role,text:x.text}));
-  const typing=document.createElement("div"); typing.className="msg bot typing"; typing.textContent="Jâmes está pensando…"; msgs.appendChild(typing); msgs.scrollTop=msgs.scrollHeight;
-  let responseData={};
+  const typing=document.createElement("div"); typing.className="msg bot typing"; typing.textContent="Jâmes está conectando…"; msgs.appendChild(typing); msgs.scrollTop=msgs.scrollHeight;
+  let bubble=null,fullText="",firstChunkAt=null,responseData={};
   try{
     const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:t,sessionId:session,mode:"text",history})});
-    responseData=await r.json().catch(()=>({}));
-    $("#latency").textContent=Math.round(performance.now()-started)+"ms";
+    const contentType=r.headers.get("content-type")||"";
+    if(!r.ok||!contentType.includes("text/event-stream")){
+      responseData=await r.json().catch(()=>({}));
+      throw Error(responseData.reply||responseData.error||"Falha no núcleo (HTTP "+r.status+").");
+    }
+    if(!r.body) throw Error("O navegador não disponibilizou o fluxo de resposta.");
+    typing.textContent="Jâmes está respondendo…";
+    const reader=r.body.getReader(),decoder=new TextDecoder();
+    let buffer="";
+    const consumeEvent=raw=>{
+      const data=raw.split("\n").filter(line=>line.startsWith("data:")).map(line=>line.slice(5).trim()).join("\n");
+      if(!data||data==="[DONE]")return;
+      let packet;try{packet=JSON.parse(data)}catch{return}
+      const parts=packet?.candidates?.[0]?.content?.parts||[];
+      const piece=parts.map(part=>part?.text||"").join("");
+      if(!piece)return;
+      if(firstChunkAt===null){firstChunkAt=performance.now();$("#latency").textContent="1º trecho "+Math.round(firstChunkAt-started)+"ms";$("#liveText").textContent="Jâmes está respondendo em tempo real."}
+      fullText+=piece;
+      if(!bubble){typing.remove();bubble=document.createElement("div");bubble.className="msg bot";msgs.appendChild(bubble)}
+      bubble.textContent=fullText;msgs.scrollTop=msgs.scrollHeight;
+    };
+    while(true){
+      const {value,done}=await reader.read();
+      if(done)break;
+      buffer+=decoder.decode(value,{stream:true}).replace(/\r\n/g,"\n");
+      const events=buffer.split("\n\n");buffer=events.pop()||"";
+      for(const event of events)consumeEvent(event);
+    }
+    buffer+=decoder.decode();
+    if(buffer.trim())consumeEvent(buffer);
     typing.remove();
-    if(!r.ok) throw Error(responseData.reply||responseData.error||"Falha no núcleo (HTTP "+r.status+").");
-    if(typeof responseData.reply!=="string"||!responseData.reply.trim()) throw Error("O núcleo respondeu sem conteúdo.");
-    add(responseData.reply);
-    $("#liveText").textContent="Resposta recebida.";
-    if(on){if(voiceMode)await speak(responseData.reply);else speak(responseData.reply);}
+    if(!fullText.trim()) throw Error("O fluxo terminou sem conteúdo de texto.");
+    chat.push({role:"model",text:fullText});chat=chat.slice(-40);localStorage.setItem(CHAT_KEY,JSON.stringify(chat));
+    $("#latency").textContent="1º trecho "+Math.round(firstChunkAt-started)+"ms · total "+Math.round(performance.now()-started)+"ms";
+    $("#liveText").textContent="Resposta concluída.";
+    if(on){if(voiceMode)await speak(fullText);else speak(fullText);}
   }catch(e){
     typing.remove();
-    const code=responseData.errorCode||responseData.code||"NETWORK_OR_SERVER_ERROR";
-    add("Falha no núcleo de IA: "+(e?.message||"erro de comunicação")+". Código: "+code+".","bot");
+    if(bubble&&fullText.trim()){
+      chat.push({role:"model",text:fullText});chat=chat.slice(-40);localStorage.setItem(CHAT_KEY,JSON.stringify(chat));
+    }
+    const code=responseData.errorCode||responseData.code||"STREAM_OR_NETWORK_ERROR";
+    add((fullText?"A conexão foi interrompida. Parte da resposta foi preservada. ":"")+"Falha no núcleo de IA: "+(e?.message||"erro de comunicação")+". Código: "+code+".","bot");
     $("#liveText").textContent="Falha no link neural.";
   }finally{
     busy=false; button.disabled=false; button.innerHTML="ENVIAR <span>↗</span>";
