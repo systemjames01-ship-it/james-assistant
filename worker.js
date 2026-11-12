@@ -146,7 +146,59 @@ async function loadConversation(db, sessionId) {
   return (result.results || []).reverse().map(row => ({ role: row.role, parts: [{ text: row.content }] }));
 }
 
-async function saveConversationTurn(db, sessionId, userContent, reply) {
+async function ensureProfileConversationTable(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS james_profile_conversations_v21 (
+      profile_id TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT 'Conversa',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (profile_id, session_id)
+    )
+  `).run();
+}
+
+function conversationTitleFromContent(content) {
+  let value = typeof content === "string" ? content : "";
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed?.parts)) value = parsed.parts.map(part => part?.text || "").join(" ");
+  } catch { }
+  value = value.replace(/\\s+/g, " ").trim();
+  return value.slice(0, 64) || "Conversa ao vivo";
+}
+
+async function registerProfileConversation(db, profileId, sessionId, userContent) {
+  await ensureProfileConversationTable(db);
+  const title = conversationTitleFromContent(userContent);
+  await db.prepare(`
+    INSERT INTO james_profile_conversations_v21 (profile_id, session_id, title)
+    VALUES (?, ?, ?)
+    ON CONFLICT(profile_id, session_id) DO UPDATE SET
+      title = CASE
+        WHEN james_profile_conversations_v21.title IN ('', 'Nova conversa', 'Conversa atual')
+        THEN excluded.title
+        ELSE james_profile_conversations_v21.title
+      END,
+      updated_at = datetime('now')
+  `).bind(profileId, sessionId, title).run();
+}
+
+async function fetchProfileConversations(db, profileId, limit = 50) {
+  await ensureProfileConversationTable(db);
+  const safeLimit = Math.max(1, Math.min(100, Number(limit) || 50));
+  const result = await db.prepare(`
+    SELECT session_id, title, created_at, updated_at
+    FROM james_profile_conversations_v21
+    WHERE profile_id = ?
+    ORDER BY updated_at DESC
+    LIMIT ?
+  `).bind(profileId, safeLimit).all();
+  return result.results || [];
+}
+
+async function saveConversationTurn(db, sessionId, userContent, reply, profileId = sessionId) {
   await db.batch([
     db.prepare(`
       INSERT INTO james_conversation_messages_v21 (session_id, role, content)
@@ -157,6 +209,11 @@ async function saveConversationTurn(db, sessionId, userContent, reply) {
       VALUES (?, 'model', ?)
     `).bind(sessionId, reply.slice(0, 30000))
   ]);
+  try {
+    await registerProfileConversation(db, profileId, sessionId, userContent);
+  } catch (error) {
+    console.warn("Profile conversation index unavailable:", error?.message || "D1 error");
+  }
 
   // O histórico completo permanece no D1. O contexto enviado ao modelo
   // continua limitado separadamente em loadConversation para controlar custos.
@@ -894,6 +951,21 @@ export default {
 
     if (request.method === "GET") {
       const url = new URL(request.url);
+      if (url.searchParams.get("action") === "conversations") {
+        const profileId = url.searchParams.get("profileId") || "";
+        if (!/^[A-Za-z0-9_-]{8,100}$/.test(profileId)) {
+          return json({ error: "Identificador de perfil inválido.", conversations: [] }, 400, origin);
+        }
+        if (!env.DB) return json({ error: "Índice de conversas indisponível.", conversations: [] }, 503, origin);
+        try {
+          const conversations = await fetchProfileConversations(env.DB, profileId, url.searchParams.get("limit"));
+          return json({ conversations }, 200, origin);
+        } catch (error) {
+          console.error("Profile conversation list failed:", error);
+          return json({ error: "Não foi possível listar as conversas deste perfil.", conversations: [] }, 503, origin);
+        }
+      }
+
       if (url.searchParams.get("action") === "tasks") {
         if (origin !== ALLOWED_ORIGIN) {
           return json({ error: "Origem não autorizada." }, 403, origin);
@@ -985,13 +1057,15 @@ export default {
       try { turnPayload = await request.json(); }
       catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
       const sessionId = typeof turnPayload?.sessionId === "string" ? turnPayload.sessionId : "";
+      const profileId = typeof turnPayload?.profileId === "string" ? turnPayload.profileId : sessionId;
       const userText = typeof turnPayload?.userText === "string" ? turnPayload.userText.trim().slice(0, MAX_TEXT_LENGTH) : "";
       const modelText = typeof turnPayload?.modelText === "string" ? turnPayload.modelText.trim().slice(0, 30000) : "";
       if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
+      if (!/^[A-Za-z0-9_-]{8,100}$/.test(profileId)) return json({ error: "Identificador de perfil inválido." }, 400, origin);
       if (!userText && !modelText) return json({ saved: false }, 200, origin);
       if (!env.DB) return json({ error: "Histórico persistente indisponível." }, 503, origin);
       try {
-        await saveConversationTurn(env.DB, sessionId, userText || "[Entrada de voz sem transcrição disponível]", modelText || "[Resposta de voz sem transcrição disponível]");
+        await saveConversationTurn(env.DB, sessionId, userText || "[Entrada de voz sem transcrição disponível]", modelText || "[Resposta de voz sem transcrição disponível]", profileId);
         return json({ saved: true }, 200, origin);
       } catch (error) {
         console.error("Live conversation history save failed:", error);
