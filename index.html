@@ -435,6 +435,13 @@ const WORKER_URL="https://james-ai.systemjames01.workers.dev";
 const $=id=>document.getElementById(id);
 const chat=$("chat");
 const statusBox=$("status");
+// The same file picker is shared by the chat and the control panel.
+// Move it into the visible document form so it can be opened from the chat tab.
+const sharedAttachmentInput=$("imageFile");
+if(sharedAttachmentInput){
+ sharedAttachmentInput.style.display="none";
+ $("form").appendChild(sharedAttachmentInput);
+}
 
 let cameraStream=null;
 let capturedAttachments=[];
