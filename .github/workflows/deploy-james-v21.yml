@@ -50,6 +50,12 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Falta o CLOUDFLARE_ACCOUNT_ID no ambiente do workflow."; exit 1; }
           echo "Credenciais presentes; valores ocultos."
 
+      - name: Aplicar migração aditiva do histórico de conversas no D1 remoto
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
+        run: npx --yes wrangler@4 d1 execute james-memory --remote --file=migrations/0001_james_conversation_messages_v21.sql
+
       - name: Aplicar migração aditiva de tarefas no D1 remoto
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -64,10 +70,10 @@ jobs:
 
       - name: Confirmar tabelas e índices no D1
         env:
-          CLODFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
         run: |
-          npx --yes wrangler@4 d1 execute james-memory --remote --command "SELECT name, type FROM sqlite_master WHERE name IN ('james_tasks_v21','idx_james_tasks_v21_session_status','james_memories_v21','idx_james_memories_v21_session') ORDER BY type, name;"
+          npx --yes wrangler@4 d1 execute james-memory --remote --command "SELECT name, type FROM sqlite_master WHERE name IN ('james_conversation_messages_v21','idx_james_conversation_messages_v21_session_id','james_tasks_v21','idx_james_tasks_v21_session_status','james_memories_v21','idx_james_memories_v21_session') ORDER BY type, name;"
 
       - name: Publicar Worker validado por testes
         env:
@@ -75,7 +81,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: f856fa8ecd90e4f82fb42d0732c7f723
         run: npx --yes wrangler@4 deploy
 
-      - name: Testar saúde do Worker e leitura das tarefas
+      - name: Testar saúde, histórico, tarefas e memórias do Worker
         env:
           WORKER_URL: https://james-ai.systemjames01.workers.dev
           APP_ORIGIN: https://systemjames01-ship-it.github.io
@@ -90,33 +96,32 @@ jobs:
           if (health.status !== "online" || health.service !== "Jâmes AI Worker") {
             throw new Error("Resposta de saúde inesperada: " + JSON.stringify(health));
           }
-          console.log("Health check confirmado:", JSON.stringify(health));
-
-          const tasksUrl = new URL(base);
-          tasksUrl.searchParams.set("action", "tasks");
-          tasksUrl.searchParams.set("sessionId", process.env.TEST_SESSION);
-          const tasksResponse = await fetch(tasksUrl, { headers });
-          const tasks = await tasksResponse.json();
-          if (!tasksResponse.ok || !Array.isArray(tasks.tasks)) {
-            throw new Error("Leitura D1 de tarefas falhou: HTTP " + tasksResponse.status + " " + JSON.stringify(tasks));
+          if (!health.databaseConfigured || !health.aiConfigured) {
+            throw new Error("Worker sem D1 ou chave Gemini configurados: " + JSON.stringify(health));
           }
-          console.log("Leitura D1 de tarefas confirmada; quantidade:", tasks.tasks.length);
+          console.log("Health check confirmado; D1 e IA configurados.");
 
-          const memoriesUrl = new URL(base);
-          memoriesUrl.searchParams.set("action", "memories");
-          memoriesUrl.searchParams.set("sessionId", process.env.TEST_SESSION);
-          const memoriesResponse = await fetch(memoriesUrl, { headers });
-          const memories = await memoriesResponse.json();
-          if (!memoriesResponse.ok || !Array.isArray(memories.memories)) {
-            throw new Error("Leitura D1 de memória falhou: HTTP " + memoriesResponse.status + " " + JSON.stringify(memories));
+          async function checkList(action, key) {
+            const url = new URL(base);
+            url.searchParams.set("action", action);
+            url.searchParams.set("sessionId", process.env.TEST_SESSION);
+            const response = await fetch(url, { headers });
+            const data = await response.json();
+            if (!response.ok || !Array.isArray(data[key])) {
+              throw new Error(`Leitura ${action} falhou: HTTP ${response.status} ` + JSON.stringify(data));
+            }
+            console.log(`Leitura ${action} confirmada.`);
           }
-          console.log("Leitura D1 de memória confirmada; quantidade:", memories.memories.length);
+
+          await checkList("history", "messages");
+          await checkList("tasks", "tasks");
+          await checkList("memories", "memories");
           NODE
 
       - name: Registrar resumo sem segredos
         if: always()
         run: |
           echo "Commit publicado: ${{ github.sha }}"
-          echo "Migrações: migrations/0002_james_tasks_v21.sql e migrations/0003_james_memories_v21.sql"
+          echo "Migrações: 0001 histórico, 0002 tarefas e 0003 memórias."
           echo "Worker: james-ai (commit validado em main)"
           echo "Nenhum segredo é exibido por este workflow."
