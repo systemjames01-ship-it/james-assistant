@@ -14,6 +14,17 @@ try {
   page.on("pageerror", error => pageErrors.push(error.message));
 
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded", timeout: 60000 });
+  const primaryTabs = page.locator(".module-nav [data-view-target]");
+  if (await primaryTabs.count() !== 3) throw new Error("A interface precisa apresentar exatamente três áreas principais.");
+  if (await page.locator("#jamesPower").getAttribute("aria-pressed") !== "false") {
+    throw new Error("O núcleo não pode ativar microfone/câmera automaticamente ao abrir a página.");
+  }
+  await page.locator('.module-nav [data-view-target="intelligence"]').click();
+  await page.locator("#intelligenceView").waitFor({ state: "visible" });
+  await page.locator('.module-nav [data-view-target="control"]').click();
+  await page.locator("#controlView").waitFor({ state: "visible" });
+  await page.locator('.module-nav [data-view-target="overview"]').click();
+  await page.locator("#overviewView").waitFor({ state: "visible" });
   await page.locator('.module-nav [data-view-target="control"]').click();
   await page.locator('#controlView [data-view-target="voices"]').click();
   await page.locator("#downloadNeuralVoice").waitFor({ state: "visible", timeout: 30000 });
