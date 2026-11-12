@@ -339,6 +339,48 @@ class MainActivity : android.app.Activity() {
         addButton(core, "ABRIR CONVERSA DE TEXTO", secondary = true) { showPage("intelligence") }
         page.addView(core)
 
+        val profile = card()
+        addText(profile, "PERFIL PESSOAL E SINCRONIZAÇÃO", 11f, COLOR_CYAN, true)
+        addText(profile, "Código deste perfil:", 10f, COLOR_MUTED, top = 7)
+        addText(profile, profileId, 11f, COLOR_TEXT, true, top = 4)
+        addText(profile, "Use o mesmo código nos aparelhos que deseja vincular. Memórias autorizadas e tarefas serão compartilhadas; o histórico de cada conversa permanece separado.", 10f, COLOR_MUTED, top = 7)
+        addButton(profile, "COPIAR CÓDIGO DE PERFIL") {
+            try {
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Jâmes profile", profileId))
+                Toast.makeText(this, "Código de perfil copiado.", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                Toast.makeText(this, "Não foi possível copiar o código.", Toast.LENGTH_LONG).show()
+            }
+        }
+        addButton(profile, "VINCULAR OUTRO APARELHO", secondary = true) {
+            val input = EditText(this).apply {
+                hint = "Cole o código do outro aparelho"
+                setSingleLine(true)
+                setTextColor(COLOR_TEXT)
+                setHintTextColor(COLOR_MUTED)
+            }
+            AlertDialog.Builder(this)
+                .setTitle("VINCULAR PERFIL")
+                .setMessage("Cole o código do aparelho que contém suas memórias e tarefas.")
+                .setView(input)
+                .setPositiveButton("VINCULAR") { _, _ ->
+                    val candidate = input.text?.toString()?.trim().orEmpty()
+                    if (Regex("[A-Za-z0-9_-]{8,100}").matches(candidate)) {
+                        profileId = candidate
+                        getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("profile_id", profileId).apply()
+                        showPage("control")
+                        setStatus("PERFIL VINCULADO NESTE APARELHO")
+                    } else {
+                        Toast.makeText(this, "Código de perfil inválido.", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("CANCELAR", null)
+                .show()
+        }
+        addText(profile, "Mantenha o código privado: quem o possuir poderá acessar as memórias e tarefas deste perfil.", 9f, COLOR_MUTED, top = 7)
+        page.addView(profile)
+
         val sensors = card()
         addText(sensors, "SENSORES E PERCEPÇÃO", 11f, COLOR_CYAN, true)
         addInfoLine(sensors, "Audição", if (liveConversationEnabled) "Sessão solicitada" else "Em espera")
