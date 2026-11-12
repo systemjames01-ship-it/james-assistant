@@ -233,7 +233,7 @@ class MainActivity : android.app.Activity() {
         }
         page.addView(subtitle, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
         val state = TextView(this).apply {
-            text = backendSummary + "\nSENSORES: DESLIGADOS ATÉ ATIVAÇÃO MANUAL"
+            text = backendSummary + "\n" + if (liveConversationEnabled) "SESSÃO AO VIVO ATIVA" else "SENSORES DESLIGADOS ATÉ ATIVAÇÃO MANUAL"
             textSize = 10f
             gravity = Gravity.CENTER
             setTextColor(COLOR_GREEN)
@@ -791,6 +791,7 @@ class MainActivity : android.app.Activity() {
             } catch (error: Exception) {
                 runOnUiThread {
                     liveConversationEnabled = false
+                    liveVisionPending = false
                     liveButton?.text = "LIGAR JÂMES"
                     setStatus("NÃO FOI POSSÍVEL INICIAR A VOZ")
                     addChatMessage(error.message ?: "Falha ao iniciar a sessão de voz.", true, true)
