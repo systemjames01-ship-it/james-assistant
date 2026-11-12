@@ -4,11 +4,6 @@ on:
   pull_request:
     paths:
       - 'android/**'
-      - 'worker.js'
-      - 'index.html'
-      - 'hologram-v24.js'
-      - 'scripts/**'
-      - 'tests/**'
       - '.github/workflows/build-android.yml'
   workflow_dispatch:
   push:
