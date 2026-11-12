@@ -653,6 +653,7 @@ test("browser Live sessions receive text-mode tokens for local neural speech", a
   const db = {
     prepare() {
       return {
+        run: async () => ({ success: true }),
         bind() {
           return {
             first: async () => null,
