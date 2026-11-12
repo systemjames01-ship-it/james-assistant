@@ -15,6 +15,7 @@ try {
   await page.route("https://upload.wikimedia.org/**", async route => {
     await route.fulfill({ status: 200, contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="#28a9c5"/></svg>' });
   });
+  let savedProfileInstructions = "";
   await page.route("https://james-ai.systemjames01.workers.dev/**", async route => {
     const origin = route.request().headers().origin || "*";
     const headers = {
@@ -28,10 +29,23 @@ try {
     }
     const url = new URL(route.request().url());
     const action = url.searchParams.get("action");
-    const body = action === "history" ? { messages: [], hasMore: false, nextBefore: null }
-      : action === "tasks" ? { tasks: [] }
-      : action === "memories" ? { memories: [] }
-      : { status: "online", aiConfigured: true, databaseConfigured: true };
+    let body;
+    if (route.request().method() === "POST" && action === "live-tool") {
+      const payload = route.request().postDataJSON();
+      if (payload.name === "save_memory") savedProfileInstructions = payload.args.value;
+      if (payload.name === "delete_memory") savedProfileInstructions = "";
+      body = { result: { success: true } };
+    } else if (action === "history") {
+      body = { messages: [], hasMore: false, nextBefore: null };
+    } else if (action === "tasks") {
+      body = { tasks: [] };
+    } else if (action === "memories") {
+      body = { memories: savedProfileInstructions ? [{ id: 1, key: "instrucoes_personalizadas", value: savedProfileInstructions }] : [] };
+    } else if (action === "conversations") {
+      body = { conversations: [] };
+    } else {
+      body = { status: "online", aiConfigured: true, databaseConfigured: true };
+    }
     await route.fulfill({ status: 200, contentType: "application/json", headers, body: JSON.stringify(body) });
   });
 
@@ -95,6 +109,12 @@ try {
   await page.waitForFunction(previous => localStorage.getItem("james_active_session_id") === previous, firstConversation);
   await page.locator('.module-nav [data-view-target="control"]').click();
   await page.locator("#controlView").waitFor({ state: "visible" });
+  await page.locator("#profileInstructions").fill("Responda em português brasileiro e explique ações importantes.");
+  await page.locator("#saveProfileInstructions").click();
+  await page.waitForFunction(() => document.getElementById("profileInstructions")?.value.includes("português brasileiro"));
+  if (!savedProfileInstructions.includes("português brasileiro")) {
+    throw new Error("As instruções personalizadas não foram persistidas no perfil.");
+  }
   await page.locator('.module-nav [data-view-target="overview"]').click();
   await page.locator("#overviewView").waitFor({ state: "visible" });
   await page.locator('.module-nav [data-view-target="control"]').click();
