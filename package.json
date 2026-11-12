@@ -7,7 +7,7 @@
     "check:frontend": "node scripts/check-frontend.mjs",
     "check:voice": "node --check james-neural-voice.js && node --check scripts/serve-static.mjs && node --check scripts/voice-smoke.mjs",
     "test": "npm run check:worker && npm run check:frontend && npm run check:voice && npm run check:wrangler && node --test tests/*.test.mjs",
-    "check:wrangler": "wrangler deploy --dry-run"
+    "check:wrangler": "npx --yes wrangler@4.135.0 deploy --dry-run"
   },
   "type": "module",
   "devDependencies": {
