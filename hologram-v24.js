@@ -26,7 +26,7 @@
    const dx=nodes[a].x-nodes[b].x,dy=nodes[a].y-nodes[b].y,dz=nodes[a].z-nodes[b].z;
    if(dx*dx+dy*dy+dz*dz<.31)edges.push([a,b]);
   }
-  let visualRaf=0,lastPaint=0,phase=0,viewW=0,viewH=0,dpr=1;
+  let visualRaf=0,lastPaint=0,phase=0,viewW=0,viewH=0,dpr=1,inViewport=true;
   const resize=()=>{
    const rect=visual.getBoundingClientRect();
    viewW=Math.max(1,rect.width);viewH=Math.max(1,rect.height);
@@ -96,10 +96,17 @@
    vctx.fillText("NEURAL MATRIX · JAMERSON RAMOS",12,h-10);
    visualRaf=requestAnimationFrame(paint);
   };
-  const startVisual=()=>{if(!visualRaf){lastPaint=0;visualRaf=requestAnimationFrame(paint);}};
+  const startVisual=()=>{if(!document.hidden&&inViewport&&!visualRaf){lastPaint=0;visualRaf=requestAnimationFrame(paint);}};
   const stopVisual=()=>{if(visualRaf)cancelAnimationFrame(visualRaf);visualRaf=0;};
   resize();
   if("ResizeObserver" in window){const observer=new ResizeObserver(resize);observer.observe(visual.parentElement||visual);}
+  if("IntersectionObserver" in window){
+   const visibilityObserver=new IntersectionObserver(entries=>{
+    inViewport=!!entries[0]?.isIntersecting;
+    if(inViewport)startVisual();else stopVisual();
+   });
+   visibilityObserver.observe(visual);
+  }
   window.addEventListener("resize",resize,{passive:true});
   document.addEventListener("visibilitychange",()=>{if(document.hidden)stopVisual();else startVisual();});
   startVisual();
