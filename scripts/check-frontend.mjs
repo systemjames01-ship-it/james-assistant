@@ -71,6 +71,7 @@ if (!html.includes('id="conversationPicker"') ||
   throw new Error("Browser chat sessions, profile-scoped memory, or stale-history protection is missing.");
 }
 if (!androidMain.includes("private fun createNewConversation()") ||
+    !androidMain.includes("Manifest.permission.POST_NOTIFICATIONS") ||
     !androidMain.includes("private fun showConversationPicker()") ||
     !androidMain.includes("private fun showLiveVisuals(items: JSONArray)") ||
     !androidMain.includes("liveVisualChatImage") ||
