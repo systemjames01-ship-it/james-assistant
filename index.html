@@ -543,14 +543,14 @@ async function loadMemories(){
  if(!container)return;
  container.textContent="Carregando memórias...";
  try{
-  const params=new URLSearchParams({action:"memories",sessionId:getSessionId()});
+  const params=new URLSearchParams({action:"memories",profileId:getProfileId()});
   const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||"Memória ainda não disponível no servidor.");
   const memories=Array.isArray(data.memories)?data.memories:[];
   container.replaceChildren();
   if(!memories.length){
-   container.textContent="Nenhuma memória permanente foi autorizada nesta sessão.";
+   container.textContent="Nenhuma memória permanente foi autorizada neste perfil.";
    return;
   }
   for(const memory of memories){
@@ -587,14 +587,14 @@ async function loadTasks(){
  if(!container)return;
  container.textContent="Carregando tarefas...";
  try{
-  const params=new URLSearchParams({action:"tasks",sessionId:getSessionId()});
+  const params=new URLSearchParams({action:"tasks",profileId:getProfileId()});
   const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||"Lista indisponível.");
   const tasks=Array.isArray(data.tasks)?data.tasks:[];
   container.replaceChildren();
   if(!tasks.length){
-   container.textContent="Nenhuma tarefa guardada nesta sessão.";
+   container.textContent="Nenhuma tarefa guardada neste perfil.";
    return;
   }
   for(const task of tasks){
@@ -667,6 +667,14 @@ function refreshConversationPicker(){
   picker.appendChild(option);
  }
  if(active&&items.some(item=>item.id===active))picker.value=active;
+}
+function getProfileId(){
+ let id=localStorage.getItem("james_profile_id");
+ if(!id){
+  id=localStorage.getItem("james_session_id")||getSessionId();
+  localStorage.setItem("james_profile_id",id);
+ }
+ return id;
 }
 function getSessionId(){
  let id=localStorage.getItem("james_active_session_id")||localStorage.getItem("james_session_id");
@@ -807,6 +815,7 @@ async function sendMessage(message,attachments=null){
   const payload={
    message:text||"Analise os anexos enviados.",
    sessionId:getSessionId(),
+   profileId:getProfileId(),
    deviceContext:{
     platform:window.JamesAndroid?"android":"web",
     timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"desconhecido",
