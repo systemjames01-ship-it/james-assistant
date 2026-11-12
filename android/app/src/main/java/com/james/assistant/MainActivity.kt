@@ -101,6 +101,9 @@ class MainActivity : android.app.Activity() {
     private var liveVisualPanel: LinearLayout? = null
     private var liveVisualImage: ImageView? = null
     private var liveVisualCredit: TextView? = null
+    private var liveVisualChatCard: LinearLayout? = null
+    private var liveVisualChatImage: ImageView? = null
+    private var liveVisualChatCredit: TextView? = null
     private val liveVisualHandler = Handler(Looper.getMainLooper())
     private var liveVisuals = emptyList<JSONObject>()
     private var liveVisualIndex = 0
@@ -466,6 +469,11 @@ class MainActivity : android.app.Activity() {
             setPadding(dp(10), dp(10), dp(10), dp(10))
         }
         chatScroll.addView(chatMessages)
+        if (liveVisuals.isNotEmpty()) {
+            val activeVisuals = JSONArray()
+            liveVisuals.forEach { activeVisuals.put(it) }
+            showLiveVisuals(activeVisuals)
+        }
         page.addView(chatScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val composer = card()
@@ -848,6 +856,35 @@ class MainActivity : android.app.Activity() {
         liveVisualRunnable?.let { liveVisualHandler.removeCallbacks(it) }
         liveVisuals = safe
         liveVisualIndex = 0
+        if (currentPage == "intelligence" && ::chatMessages.isInitialized) {
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+                background = background(0xFF071827.toInt(), COLOR_CYAN)
+            }
+            val image = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                contentDescription = "Imagem ilustrativa do Jâmes"
+            }
+            val credit = TextView(this).apply {
+                textSize = 9f
+                setTextColor(COLOR_MUTED)
+                gravity = Gravity.CENTER
+            }
+            card.addView(image, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(160)))
+            card.addView(credit, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5) })
+            chatMessages.addView(card, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(8); bottomMargin = dp(8)
+            })
+            liveVisualChatCard = card
+            liveVisualChatImage = image
+            liveVisualChatCredit = credit
+            chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
+        } else {
+            liveVisualChatCard = null
+            liveVisualChatImage = null
+            liveVisualChatCredit = null
+        }
         renderNextLiveVisual(requestId)
     }
 
@@ -875,11 +912,20 @@ class MainActivity : android.app.Activity() {
                 }
                 val decoded = bitmap
                 if (decoded != null) {
-                    liveVisualImage?.setImageBitmap(decoded)
-                    liveVisualCredit?.text = (item.optString("credit", "Wikimedia Commons") + " · " + item.optString("license", "Consulte a licença")).take(150)
-                    liveVisualPanel?.visibility = View.VISIBLE
-                    liveVisualPanel?.setOnClickListener {
-                        try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(item.optString("sourceUrl")))) } catch (_: Exception) { }
+                    val creditText = (item.optString("credit", "Wikimedia Commons") + " · " + item.optString("license", "Consulte a licença")).take(150)
+                    if (currentPage == "intelligence" && liveVisualChatImage != null) {
+                        liveVisualChatImage?.setImageBitmap(decoded)
+                        liveVisualChatCredit?.text = creditText
+                        liveVisualChatCard?.setOnClickListener {
+                            try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(item.optString("sourceUrl")))) } catch (_: Exception) { }
+                        }
+                    } else {
+                        liveVisualImage?.setImageBitmap(decoded)
+                        liveVisualCredit?.text = creditText
+                        liveVisualPanel?.visibility = View.VISIBLE
+                        liveVisualPanel?.setOnClickListener {
+                            try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(item.optString("sourceUrl")))) } catch (_: Exception) { }
+                        }
                     }
                 }
                 liveVisualIndex++
@@ -899,6 +945,9 @@ class MainActivity : android.app.Activity() {
         liveVisualPanel?.visibility = View.GONE
         liveVisualImage?.setImageDrawable(null)
         liveVisualCredit?.text = ""
+        liveVisualChatCard = null
+        liveVisualChatImage = null
+        liveVisualChatCredit = null
     }
 
     private fun handleLiveToolCall(callId: String, name: String, args: JSONObject) {
