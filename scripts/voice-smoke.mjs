@@ -47,7 +47,20 @@ try {
   if (await page.locator("#holoVisuals strong").textContent() !== "Imagem de teste") {
     throw new Error("A projeção holográfica não apresentou a imagem ilustrativa.");
   }
-  await page.evaluate(() => window.stopHoloVisuals());
+  await page.evaluate(() => {
+    window.showChatVisuals([{
+      title: "Imagem no chat",
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons/test-chat.jpg",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Test_chat.jpg",
+      credit: "Teste",
+      license: "CC0"
+    }]);
+    window.stopHoloVisuals();
+  });
+  await page.locator(".visual-message img").waitFor({ state: "visible" });
+  if (await page.locator(".visual-message strong").textContent() !== "Imagem no chat") {
+    throw new Error("A resposta visual não foi anexada à conversa de texto.");
+  }
   const primaryTabs = page.locator(".module-nav [data-view-target]");
   if (await primaryTabs.count() !== 3) throw new Error("A interface precisa apresentar exatamente três áreas principais.");
   if (await page.locator("#jamesPower").getAttribute("aria-pressed") !== "false") {
