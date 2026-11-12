@@ -787,11 +787,14 @@ function applyJamesVoiceStyle(){
  document.querySelectorAll("[data-voice-style]").forEach(button=>button.classList.toggle("active",button.dataset.voiceStyle===jamesVoiceStyle));
 }
 let holoVisualTimer=null;
+let holoVisualStopTimer=null;
 let holoVisualItems=[];
 let holoVisualIndex=0;
 function stopHoloVisuals(){
  if(holoVisualTimer)clearTimeout(holoVisualTimer);
+ if(holoVisualStopTimer)clearTimeout(holoVisualStopTimer);
  holoVisualTimer=null;
+ holoVisualStopTimer=null;
  holoVisualItems=[];
  holoVisualIndex=0;
  const container=$("holoVisuals");
@@ -800,7 +803,7 @@ function stopHoloVisuals(){
 function showHoloVisuals(items){
  if(!Array.isArray(items)||!items.length)return;
  const safe=items.filter(item=>{
-  try{return new URL(item.imageUrl).hostname==="upload.wikimedia.org"&&new URL(item.imageUrl).protocol==="https:"&&new URL(item.sourceUrl).hostname==="commons.wikimedia.org";}
+  try{return new URL(item.imageUrl).hostname==="upload.wikimedia.org"&&new URL(item.imageUrl).protocol==="https:"&&new URL(item.sourceUrl).hostname==="commons.wikimedia.org"&&new URL(item.sourceUrl).protocol==="https:";}
   catch{return false;}
  }).slice(0,6);
  if(!safe.length)return;
@@ -883,6 +886,7 @@ function executeAndroidActions(actions){
 }
 
 async function sendMessage(message,attachments=null){
+ stopHoloVisuals();
  const text=message.trim();
  const files=Array.isArray(attachments)?attachments:[];
  if(!text&&!files.length)return;
@@ -940,10 +944,10 @@ async function sendMessage(message,attachments=null){
    showHoloVisuals(data.visuals);
    if(voiceOutputEnabled){
     const playback=speak(data.reply);
-    if(playback&&typeof playback.finally==="function")playback.finally(stopHoloVisuals);
-    else holoVisualTimer=setTimeout(stopHoloVisuals,7000*data.visuals.length);
+    if(playback&&typeof playback.finally==="function")playback.then(stopHoloVisuals,stopHoloVisuals);
+    else holoVisualStopTimer=setTimeout(stopHoloVisuals,7000*data.visuals.length);
    }else{
-    holoVisualTimer=setTimeout(stopHoloVisuals,7000*data.visuals.length);
+    holoVisualStopTimer=setTimeout(stopHoloVisuals,7000*data.visuals.length);
    }
   }else if(voiceOutputEnabled)speak(data.reply);
   executeAndroidActions(data.clientActions);
