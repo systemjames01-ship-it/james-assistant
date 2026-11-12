@@ -277,6 +277,12 @@ class MainActivity : android.app.Activity() {
         liveVisualImage = visualImage
         liveVisualCredit = visualCredit
         page.addView(orbStage, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val visualsToRestore = if (liveVisuals.isNotEmpty()) liveVisuals else lastLiveVisuals
+        if (visualsToRestore.isNotEmpty()) {
+            val activeVisuals = JSONArray()
+            visualsToRestore.forEach { activeVisuals.put(it) }
+            showLiveVisuals(activeVisuals)
+        }
         val subtitle = TextView(this).apply {
             text = "NÚCLEO HOLOGRÁFICO  //  INTERFACE JÂMES"
             textSize = 10f
