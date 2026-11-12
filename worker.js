@@ -309,7 +309,7 @@ async function searchPublicImages(rawQuery) {
     gsrnamespace: "6",
     gsrlimit: "6",
     prop: "imageinfo",
-    iiprop: "url|extmetadata",
+    iiprop: "url|mime|extmetadata",
     iiurlwidth: "1200",
     iiextmetadatalanguage: "pt-br",
     iiextmetadatafilter: "LicenseShortName|Artist|Credit|LicenseUrl"
