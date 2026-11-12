@@ -1,10 +1,10 @@
-# Jâmes v4.0 — arquitetura e limites operacionais
+# Jâmes v4.1 — arquitetura e limites operacionais
 
 ## Identidade
 Jâmes é o assistente pessoal de Jamerson Ramos. Esta versão organiza a experiência em três áreas principais, mantendo o Worker e o banco existentes para não descartar conversas ou memórias.
 
 ## As três áreas
-1. **Central holográfica** — projeção neural animada, controle principal ON/OFF, voz ao vivo e câmera somente após ativação e concessão de permissões.
+1. **Central holográfica** — esfera neural holográfica 3D animada com malha de nós e conexões, controle principal ON/OFF, voz ao vivo e câmera somente após ativação e concessão de permissões.
 2. **Chat** — conversa por texto, histórico do servidor para a sessão selecionada, anexos aceitos pelo Worker e criação de múltiplas conversas locais. A lista de conversas é guardada no navegador deste aparelho; ainda não é uma conta sincronizada entre dispositivos.
 3. **Painel de controle** — voz e perfis, percepção/anexos, diagnóstico do dispositivo, tarefas, memórias e integração Windows existente.
 

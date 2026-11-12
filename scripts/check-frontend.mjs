@@ -40,6 +40,7 @@ if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)
 
 const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
 const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta.url), "utf8");
+const holographicBrain = neuralVoice.includes("const pointCount = 112") && neuralVoice.includes("const goldenAngle") && neuralVoice.includes("ctx.ellipse(cx, cy") && neuralVoice.includes("const edges = []");
 const liveVoice = hologramJs;
 const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
 const appShell = serviceWorker;
@@ -51,6 +52,7 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     !neuralCss.includes("#jamesNeuralCanvas") ||
     !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
     !neuralVoice.includes("falarEmFluxo") ||
+    !holographicBrain ||
     !neuralVoice.includes("Sintetizador") ||
     !neuralVoice.includes("VOZZ_SYNTH") ||
     !neuralVoice.includes("VOZZ_ASSETS") ||
@@ -93,7 +95,7 @@ if ((primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
     !hologramJs.includes("window.JamesVisualBriefing?.show(inputText,spoken)") ||
     !html.includes('const controlSectionIds=["controlView","voicesView","perceptionView","deviceView","worldView"]') ||
     !html.includes('const CHAT_SESSIONS_KEY="james_chat_sessions_v4"') ||
-    !serviceWorker.includes('james-shell-v4-0')) {
+    !serviceWorker.includes('james-shell-v4-1')) {
   throw new Error("Jâmes v4 must expose exactly three primary areas, a local multi-conversation manager, a unified control panel, and a refreshed PWA cache.");
 }
 
