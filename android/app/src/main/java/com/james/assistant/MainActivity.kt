@@ -740,7 +740,7 @@ class MainActivity : android.app.Activity() {
         setStatus("SOLICITANDO SESSÃO SEGURA DE VOZ")
         executor.execute {
             try {
-                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId).put("voiceProfile", selectedVoiceProfile))
+                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId).put("voiceProfile", selectedVoiceProfile).put("responseModality", "AUDIO"))
                 val token = tokenData.optString("token")
                 if (token.isBlank()) throw IOException("O núcleo não forneceu um token de sessão.")
                 runOnUiThread {
