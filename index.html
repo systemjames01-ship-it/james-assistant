@@ -87,6 +87,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .conversation-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .conversation-tools button{min-height:32px;padding:6px 10px;font-size:9px}
 .conversation-picker{max-width:150px;min-height:32px;padding:6px 8px;border:1px solid rgba(104,228,242,.24);border-radius:7px;background:#071827;color:#bfeaf3;font:9px 'DM Mono',monospace}
+.profile-pairing .profile-code-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.profile-pairing code{display:block;flex:1;min-width:180px;padding:10px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#9beaff;overflow-wrap:anywhere}
+.profile-pairing label{display:block;margin:10px 0 6px;color:#91b5c7;font-size:10px}
+.profile-pairing input{width:100%;min-height:38px;padding:9px 11px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#d8f4fa}
+.profile-pairing .profile-warning{font-size:10px;color:#c29a75}
 
 
 #chat{height:440px;min-height:300px;overflow:auto;padding:18px clamp(12px,2vw,24px);background:radial-gradient(ellipse at 50% 0%,rgba(18,66,88,.13),transparent 55%),rgba(2,9,16,.24);scrollbar-color:#28516a transparent;scrollbar-width:thin}
@@ -261,6 +266,15 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 </nav>
 <section id="controlView" class="view" hidden>
  <div class="overview-grid">
+  <article class="overview-card wide profile-pairing">
+   <h2>Perfil pessoal e sincronização</h2>
+   <p>Use o mesmo código de perfil nos aparelhos que você deseja vincular. Memórias autorizadas e tarefas passam a usar o mesmo espaço pessoal; cada conversa continua com seu próprio histórico.</p>
+   <div class="profile-code-line"><code id="profileCode">CARREGANDO PERFIL…</code><button type="button" class="secondary" id="copyProfileCode">COPIAR CÓDIGO</button></div>
+   <label for="profileCodeInput">Vincular este aparelho a outro perfil</label>
+   <input id="profileCodeInput" autocomplete="off" spellcheck="false" placeholder="Cole aqui o código do outro aparelho">
+   <div class="module-actions"><button type="button" id="applyProfileCode">VINCULAR PERFIL</button></div>
+   <p class="profile-warning">Mantenha este código privado: quem o possuir poderá acessar o mesmo espaço de memórias e tarefas. A sincronização de conversas completas entre aparelhos ainda é uma etapa separada.</p>
+  </article>
   <article class="overview-card wide"><h2>Núcleo de inteligência</h2><div class="metric" id="overviewCoreState">INICIALIZANDO</div><p id="overviewCoreDetail">Verificando a conexão com o serviço de inteligência e suas ferramentas.</p><div class="module-actions"><button type="button" data-view-target="intelligence">Abrir console de comando</button><button type="button" class="secondary" id="overviewVoice">Falar com Jâmes</button></div></article>
   <article class="overview-card"><h2>Dispositivo</h2><div class="metric" id="overviewBattery">--</div><div class="metric-sub" id="overviewDeviceName">Dados do aparelho indisponíveis</div><div class="module-actions"><button type="button" class="secondary" data-view-target="device">Diagnóstico</button></div></article>
   <article class="overview-card"><h2>Percepção</h2><p>Câmera sob solicitação, imagens e documentos enviados para análise. Nenhuma captura em segundo plano.</p><div class="module-actions"><button type="button" class="secondary" data-view-target="perception">Abrir percepção</button></div></article>
@@ -676,6 +690,31 @@ function getProfileId(){
  }
  return id;
 }
+function refreshProfileCode(){
+ const target=$("profileCode");
+ if(target)target.textContent=getProfileId();
+}
+async function copyProfileCode(){
+ try{
+  await navigator.clipboard.writeText(getProfileId());
+  statusBox.textContent="Código de perfil copiado.";
+ }catch(error){
+  statusBox.textContent="Não foi possível copiar automaticamente. Selecione o código exibido e copie manualmente.";
+ }
+}
+function applyProfileCode(){
+ const candidate=$("profileCodeInput").value.trim();
+ if(!/^[A-Za-z0-9_-]{8,100}$/.test(candidate)){
+  statusBox.textContent="Código inválido. Confira o texto recebido do outro aparelho.";
+  return;
+ }
+ localStorage.setItem("james_profile_id",candidate);
+ $("profileCodeInput").value="";
+ refreshProfileCode();
+ loadTasks();
+ loadMemories();
+ statusBox.textContent="Perfil vinculado neste aparelho. Memórias e tarefas usarão o perfil compartilhado.";
+}
 function getSessionId(){
  let id=localStorage.getItem("james_active_session_id")||localStorage.getItem("james_session_id");
  if(!id){
@@ -895,7 +934,10 @@ switchView("overview");
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
 $("newConversation").addEventListener("click",createNewConversation);
 $("conversationPicker").addEventListener("change",event=>selectConversation(event.target.value));
+$("copyProfileCode").addEventListener("click",copyProfileCode);
+$("applyProfileCode").addEventListener("click",applyProfileCode);
 refreshConversationPicker();
+refreshProfileCode();
 $("voiceOutput").addEventListener("click",()=>{
  voiceOutputEnabled=!voiceOutputEnabled;
  localStorage.setItem("james_voice_enabled",String(voiceOutputEnabled));
