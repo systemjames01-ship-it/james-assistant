@@ -53,6 +53,8 @@ if (!html.includes('id="conversationPicker"') ||
     !html.includes("async function syncConversationList()") ||
     !html.includes("window.syncConversationList=syncConversationList") ||
     !html.includes('id="profileCode"') ||
+    !html.includes('id="profileInstructions"') ||
+    !html.includes('id="saveProfileInstructions"') ||
     !html.includes('id="applyProfileCode"') ||
     !hologramJs.includes("profileId:profileId()")) {
   throw new Error("Browser chat sessions, profile-scoped memory, or stale-history protection is missing.");
@@ -62,6 +64,7 @@ if (!androidMain.includes("private fun createNewConversation()") ||
     !androidMain.includes("private fun showLiveVisuals(items: JSONArray)") ||
     !androidMain.includes("liveVisualChatImage") ||
     !androidMain.includes("private fun persistLiveTurn(userText: String, modelText: String)") ||
+    !androidMain.includes("private fun saveProfileInstructions()") ||
     !androidMain.includes("liveVisualHandler.postDelayed(next, 7000)") ||
     !androidMain.includes("conversations_json") ||
     !androidMain.includes("private lateinit var profileId: String") ||
@@ -74,6 +77,7 @@ if (!workerCode.includes("profileId = sessionId") ||
     !workerCode.includes("async function searchPublicImages") ||
     !workerCode.includes("async function fetchProfileConversations") ||
     !workerCode.includes("async function registerProfileConversation") ||
+    !workerCode.includes("PREFERÊNCIAS PERSONALIZADAS DO PROPRIETÁRIO") ||
     !workerCode.includes('url.searchParams.get("action") === "conversations"') ||
     !workerCode.includes('name: "search_public_images"') ||
     !workerCode.includes("visuals: visuals.slice(0, 6)") ||
