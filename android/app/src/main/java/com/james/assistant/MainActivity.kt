@@ -725,6 +725,8 @@ class MainActivity : android.app.Activity() {
             return
         }
         if (text.isEmpty() && pendingAttachments.isEmpty()) return
+        stopLiveVisuals()
+        lastLiveVisuals = emptyList()
         val outgoingAttachments = JSONArray()
         pendingAttachments.forEach { outgoingAttachments.put(it) }
         pendingAttachments.clear()
@@ -1175,7 +1177,13 @@ class MainActivity : android.app.Activity() {
                         }
                         override fun onUserTranscript(text: String) {
                             runOnUiThread {
-                                if (liveConversationEnabled) mergeLiveTranscript(liveUserTranscriptBuffer, text)
+                                if (liveConversationEnabled) {
+                                    if (liveUserTranscriptBuffer.isEmpty()) {
+                                        stopLiveVisuals()
+                                        lastLiveVisuals = emptyList()
+                                    }
+                                    mergeLiveTranscript(liveUserTranscriptBuffer, text)
+                                }
                             }
                         }
                         override fun onAssistantTranscript(text: String) {
