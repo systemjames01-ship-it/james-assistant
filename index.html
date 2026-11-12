@@ -97,6 +97,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .holo-visuals img{display:block;width:100%;height:128px;object-fit:cover;border-radius:5px}
 .holo-visuals strong{display:block;margin-top:6px;font:9px 'DM Mono',monospace;line-height:1.35}
 .holo-visuals small{display:block;margin-top:4px;color:#8fb7c7;font:8px 'DM Mono',monospace}
+.visual-message{display:block;max-width:min(520px,90%);margin:10px 0;padding:9px;border:1px solid rgba(104,228,242,.2);border-radius:10px;background:rgba(5,22,36,.92)}
+.visual-message a{display:block;color:#c9f6ff;text-decoration:none}
+.visual-message img{display:block;width:100%;max-height:230px;object-fit:contain;border-radius:6px;background:#020811}
+.visual-message strong{display:block;margin-top:7px;font:10px 'DM Mono',monospace}
+.visual-message small{display:block;margin-top:4px;color:#8fb7c7;font:8px 'DM Mono',monospace}
 @media(max-width:760px){.holo-visuals{right:7px;bottom:30px;width:42%;padding:5px}.holo-visuals img{height:88px}.holo-visuals strong{font-size:8px}}
 
 
@@ -827,6 +832,40 @@ function stopHoloVisuals(){
  const container=$("holoVisuals");
  if(container){container.hidden=true;container.replaceChildren();}
 }
+function showChatVisuals(items){
+ if(!Array.isArray(items)||!items.length)return;
+ const safe=items.filter(item=>{
+  try{return new URL(item.imageUrl).hostname==="upload.wikimedia.org"&&new URL(item.imageUrl).protocol==="https:"&&new URL(item.sourceUrl).hostname==="commons.wikimedia.org"&&new URL(item.sourceUrl).protocol==="https:";}
+  catch{return false;}
+ }).slice(0,6);
+ if(!safe.length)return;
+ const card=document.createElement("div");
+ card.className="message bot visual-message";
+ const link=document.createElement("a");
+ link.target="_blank";link.rel="noopener noreferrer";
+ const image=document.createElement("img");
+ image.alt="Imagem ilustrativa do Jâmes";
+ const title=document.createElement("strong");
+ const credit=document.createElement("small");
+ link.append(image,title,credit);
+ card.appendChild(link);
+ chat.appendChild(card);
+ let index=0;
+ const render=()=>{
+  const item=safe[index];
+  if(!item)return;
+  link.href=item.sourceUrl;
+  image.src=item.imageUrl;
+  image.alt=item.title||"Imagem ilustrativa";
+  title.textContent=item.title||"Imagem ilustrativa";
+  credit.textContent=(item.credit||"Wikimedia Commons")+" · "+(item.license||"Consulte a licença")+" · "+(index+1)+"/"+safe.length;
+  index++;
+  if(index<safe.length)setTimeout(render,7000);
+ };
+ render();
+ chat.scrollTop=chat.scrollHeight;
+}
+
 function showHoloVisuals(items){
  if(!Array.isArray(items)||!items.length)return;
  const safe=items.filter(item=>{
@@ -968,7 +1007,7 @@ async function sendMessage(message,attachments=null){
 
   addMessage(data.reply,"bot");
   const hasVisuals=Array.isArray(data.visuals)&&data.visuals.length>0;
-  if(hasVisuals)showHoloVisuals(data.visuals);
+  if(hasVisuals){showHoloVisuals(data.visuals);showChatVisuals(data.visuals);}
   executeAndroidActions(data.clientActions);
   if(eye){eye.dataset.state="idle";$("eyeState").textContent="NÚCLEO ÓPTICO // RESPOSTA CONCLUÍDA";}
   statusBox.textContent=data.reasoningLevel==="high"
