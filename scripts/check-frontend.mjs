@@ -44,6 +44,9 @@ if (!html.includes('id="conversationPicker"') ||
     !html.includes('id="newConversation"') ||
     !html.includes("function createNewConversation()") ||
     !html.includes("historyRequestVersion") ||
+    !html.includes('id="holoVisuals"') ||
+    !html.includes("function showHoloVisuals(items)") ||
+    !html.includes("setTimeout(render,7000)") ||
     !html.includes("function getProfileId()") ||
     !html.includes("profileId:getProfileId()") ||
     !html.includes('id="profileCode"') ||
@@ -53,6 +56,8 @@ if (!html.includes('id="conversationPicker"') ||
 }
 if (!androidMain.includes("private fun createNewConversation()") ||
     !androidMain.includes("private fun showConversationPicker()") ||
+    !androidMain.includes("private fun showLiveVisuals(items: JSONArray)") ||
+    !androidMain.includes("liveVisualHandler.postDelayed(next, 7000)") ||
     !androidMain.includes("conversations_json") ||
     !androidMain.includes("private lateinit var profileId: String") ||
     !androidMain.includes('put("profileId", profileId)') ||
@@ -60,7 +65,10 @@ if (!androidMain.includes("private fun createNewConversation()") ||
   throw new Error("Android persistent chat list or stable personal profile is missing.");
 }
 if (!workerCode.includes("profileId = sessionId") ||
-    !workerCode.includes("executeAssistantTool(env, sessionId, call.name, call.args || {}, profileId)")) {
+    !workerCode.includes("executeAssistantTool(env, sessionId, call.name, call.args || {}, profileId)") ||
+    !workerCode.includes("async function searchPublicImages") ||
+    !workerCode.includes('name: "search_public_images"') ||
+    !workerCode.includes("visuals: visuals.slice(0, 6)")) {
   throw new Error("Worker profile-scoped tools and memory context are missing.");
 }
 
