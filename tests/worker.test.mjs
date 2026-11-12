@@ -704,6 +704,53 @@ test("live tool endpoint executes allowlisted tools and rejects unknown tools", 
 });
 
 
+test("visual search returns only sourced Wikimedia Commons image URLs", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /^https:\/\/commons\.wikimedia\.org\/w\/api\.php\?/);
+    return new Response(JSON.stringify({
+      query: {
+        pages: {
+          1: {
+            title: "File:Solar System illustration.jpg",
+            imageinfo: [{
+              thumburl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Solar.jpg/1200px-Solar.jpg",
+              url: "https://upload.wikimedia.org/wikipedia/commons/a/a1/Solar.jpg",
+              descriptionurl: "https://commons.wikimedia.org/wiki/File:Solar_System_illustration.jpg",
+              mime: "image/jpeg",
+              extmetadata: {
+                LicenseShortName: { value: "CC BY-SA 4.0" },
+                Artist: { value: "Example Artist" }
+              }
+            }]
+          }
+        }
+      }
+    }), { status: 200 });
+  };
+  try {
+    const request = new Request("https://worker.test/?action=live-tool", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "session_visual_123",
+        profileId: "profile_visual_123",
+        name: "search_public_images",
+        args: { query: "solar system" }
+      })
+    });
+    const response = await worker.fetch(request, {});
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.result.visuals.length, 1);
+    assert.equal(body.result.visuals[0].license, "CC BY-SA 4.0");
+    assert.equal(new URL(body.result.visuals[0].imageUrl).hostname, "upload.wikimedia.org");
+    assert.equal(new URL(body.result.visuals[0].sourceUrl).hostname, "commons.wikimedia.org");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("personal memories are shared across independent chats inside one profile", async () => {
   const statements = [];
   const db = {
