@@ -96,7 +96,7 @@ jobs:
             def tap_text(label):
                 root = dump()
                 for node in root.iter("node"):
-                    if node.attrib.get("text", "").strip() == label:
+                    if node.attrib.get("text", "").strip() == label and node.attrib.get("clickable") == "true":
                         bounds = node.attrib.get("bounds", "")
                         numbers = [int(value) for value in re.findall(r"\d+", bounds)]
                         if len(numbers) != 4:
