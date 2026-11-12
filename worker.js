@@ -343,7 +343,7 @@ async function searchPublicWeb(rawQueries) {
   return { success: results.length > 0, provider: "DuckDuckGo HTML", queries: unique, resultCount: results.length, results, notice: "Resultados de pesquisa são pistas, não prova. Abra fontes oficiais e confira datas antes de concluir." };
 }
 
-async function executeAssistantTool(env, sessionId, name, args = {}) {
+async function executeAssistantTool(env, sessionId, name, args = {}, profileId = sessionId) {
   if (name === "windows_gods_eye_view") {
     const action = typeof args.action === "string" ? args.action : "";
     if (!["open", "update", "stop"].includes(action)) return { error: "Ação Windows não permitida." };
@@ -415,7 +415,7 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
   if (name === "list_tasks") {
     const result = await env.DB.prepare(
       "SELECT id, title, details, status, created_at FROM james_tasks_v21 WHERE session_id = ? ORDER BY id DESC LIMIT 50"
-    ).bind(sessionId).all();
+    ).bind(profileId).all();
     return { tasks: (result.results || []).map(row => ({
       id: row.id, title: row.title, details: row.details, status: row.status, createdAt: row.created_at
     })) };
@@ -439,7 +439,7 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
     }
     await env.DB.prepare(
       "INSERT INTO james_memories_v21 (session_id, memory_key, memory_value) VALUES (?, ?, ?) ON CONFLICT(session_id, memory_key) DO UPDATE SET memory_value = excluded.memory_value, updated_at = datetime('now')"
-    ).bind(sessionId, key, value).run();
+    ).bind(profileId, key, value).run();
     return { success: true, key, message: "Memória salva na sessão atual." };
   }
 
@@ -457,7 +457,7 @@ async function executeAssistantTool(env, sessionId, name, args = {}) {
     if (!Number.isSafeInteger(memoryId) || memoryId < 1) return { error: "Identificador de memória inválido." };
     const result = await env.DB.prepare(
       "DELETE FROM james_memories_v21 WHERE id = ? AND session_id = ?"
-    ).bind(memoryId, sessionId).run();
+    ).bind(memoryId, profileId).run();
     if (!result.meta?.changes) return { success: false, error: "Memória não encontrada nesta sessão." };
     return { success: true, memoryId, message: "Memória apagada." };
   }
@@ -472,7 +472,7 @@ async function loadPersistentMemories(db, sessionId) {
   return (result.results || []).map(row => ({ key: row.memory_key, value: row.memory_value }));
 }
 
-async function callGemini(env, contents, model = MODEL, sessionId = "", memories = [], deviceContext = {}) {
+async function callGemini(env, contents, model = MODEL, sessionId = "", memories = [], deviceContext = {}, profileId = sessionId) {
   const endpoint =
     "https://generativelanguage.googleapis.com/v1beta/models/" +
     model + ":generateContent";
@@ -728,7 +728,7 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
       const call = part.functionCall;
       let toolResult;
       try {
-        toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {});
+        toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {}, profileId);
         if (toolResult?.clientAction) clientActions.push(toolResult.clientAction);
       } catch (toolError) {
         console.error("Assistant tool failed:", call.name, toolError);
@@ -777,12 +777,12 @@ export default {
           return json({ error: "Origem não autorizada." }, 403, origin);
         }
         if (!env.DB) return json({ error: "Armazenamento de tarefas indisponível.", tasks: [] }, 503, origin);
-        const sessionId = url.searchParams.get("sessionId") || "";
-        if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
-          return json({ error: "Identificador de sessão inválido.", tasks: [] }, 400, origin);
+        const profileId = url.searchParams.get("profileId") || url.searchParams.get("sessionId") || "";
+        if (!/^[A-Za-z0-9_-]{8,100}$/.test(profileId)) {
+          return json({ error: "Identificador de perfil inválido.", tasks: [] }, 400, origin);
         }
         try {
-          const result = await executeAssistantTool(env, sessionId, "list_tasks");
+          const result = await executeAssistantTool(env, profileId, "list_tasks", {}, profileId);
           if (result.error) return json({ error: result.error, tasks: [] }, 503, origin);
           return json({ tasks: result.tasks || [] }, 200, origin);
         } catch (error) {
@@ -793,12 +793,12 @@ export default {
       if (url.searchParams.get("action") === "memories") {
         if (origin !== ALLOWED_ORIGIN) return json({ error: "Origem não autorizada." }, 403, origin);
         if (!env.DB) return json({ error: "Memória persistente indisponível.", memories: [] }, 503, origin);
-        const sessionId = url.searchParams.get("sessionId") || "";
-        if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
-          return json({ error: "Identificador de sessão inválido.", memories: [] }, 400, origin);
+        const profileId = url.searchParams.get("profileId") || url.searchParams.get("sessionId") || "";
+        if (!/^[A-Za-z0-9_-]{8,100}$/.test(profileId)) {
+          return json({ error: "Identificador de perfil inválido.", memories: [] }, 400, origin);
         }
         try {
-          const result = await executeAssistantTool(env, sessionId, "list_memories");
+          const result = await executeAssistantTool(env, profileId, "list_memories", {}, profileId);
           return json({ memories: result.memories || [] }, 200, origin);
         } catch (error) {
           console.error("D1 memory list read failed:", error);
@@ -872,13 +872,15 @@ export default {
       try { toolPayload = await request.json(); }
       catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
       const sessionId = typeof toolPayload?.sessionId === "string" ? toolPayload.sessionId : "";
+      const profileId = typeof toolPayload?.profileId === "string" ? toolPayload.profileId : sessionId;
       const name = typeof toolPayload?.name === "string" ? toolPayload.name : "";
       const args = toolPayload?.args && typeof toolPayload.args === "object" && !Array.isArray(toolPayload.args) ? toolPayload.args : {};
       const allowedTools = new Set(LIVE_FUNCTION_DECLARATIONS.map(tool => tool.name));
       if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
+      if (!/^[A-Za-z0-9_-]{8,100}$/.test(profileId)) return json({ error: "Identificador de perfil inválido." }, 400, origin);
       if (!allowedTools.has(name)) return json({ error: "Ferramenta não permitida nesta sessão." }, 400, origin);
       try {
-        const result = await executeAssistantTool(env, sessionId, name, args);
+        const result = await executeAssistantTool(env, sessionId, name, args, profileId);
         return json({ result }, 200, origin);
       } catch (error) {
         console.error("Live tool execution failed:", name, error);
@@ -893,9 +895,11 @@ export default {
       try { livePayload = await request.json(); }
       catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
       const sessionId = typeof livePayload?.sessionId === "string" ? livePayload.sessionId : "";
+      const profileId = typeof livePayload?.profileId === "string" ? livePayload.profileId : sessionId;
       const voiceProfile = Number.isInteger(livePayload?.voiceProfile) ? Math.max(0, Math.min(2, livePayload.voiceProfile)) : 0;
       const responseModality = livePayload?.responseModality === "TEXT" ? "TEXT" : "AUDIO";
       if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
+      if (!/^[A-Za-z0-9_-]{8,100}$/.test(profileId)) return json({ error: "Identificador de perfil inválido." }, 400, origin);
       const voiceDirections = [
         "PERFIL JARVIS: fale sempre em português brasileiro. Voz masculina adulta, grave, elegante, serena, precisa e articulada; ritmo moderado, dicção impecável, autoridade tranquila, humor discreto e polidez tecnológica. É uma interpretação original inspirada no assistente JARVIS e na tradição da dublagem brasileira; não imite nem alegue ser um dublador específico.",
         "PERFIL PATRICK JANE: fale sempre em português brasileiro. Voz masculina adulta, suave, aveludada, inteligente e persuasiva; ritmo conversacional, pausas calculadas, calor humano, observações espirituosas e ironia sutil. Interpretação original inspirada no personagem Patrick Jane e em sua dublagem brasileira; não imite nem alegue ser o ator ou dublador.",
@@ -917,7 +921,7 @@ export default {
       let liveContextText = "";
       try {
         const recentConversation = await loadConversation(env.DB, sessionId);
-        const recentMemories = await loadPersistentMemories(env.DB, sessionId);
+        const recentMemories = await loadPersistentMemories(env.DB, profileId);
         if (recentConversation.length) {
           const transcript = recentConversation.map(item => {
             const role = item.role === "model" ? "Jâmes" : "Usuário";
@@ -1009,9 +1013,13 @@ export default {
     const sessionId = typeof payload?.sessionId === "string"
       ? payload.sessionId
       : "";
+    const profileId = typeof payload?.profileId === "string" ? payload.profileId : sessionId;
 
     if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) {
       return json({ error: "Identificador de sessão inválido. Recarregue a página e tente novamente." }, 400, origin);
+    }
+    if (!/^[A-Za-z0-9_-]{8,100}$/.test(profileId)) {
+      return json({ error: "Identificador de perfil inválido. Recarregue a página e tente novamente." }, 400, origin);
     }
 
     if (message.length > MAX_TEXT_LENGTH) {
@@ -1081,7 +1089,7 @@ export default {
           console.error("D1 history load failed; continuing without stored context:", historyError);
         }
         try {
-          memories = await loadPersistentMemories(env.DB, sessionId);
+          memories = await loadPersistentMemories(env.DB, profileId);
         } catch (memoryError) {
           memoryAvailable = false;
           console.error("D1 persistent memory unavailable; continuing without it:", memoryError);
@@ -1093,7 +1101,7 @@ export default {
       let clientActions = [];
       let usedModel = MODEL;
       try {
-        const result = await callGemini(env, [...history, currentTurn], MODEL, sessionId, memories, payload?.deviceContext);
+        const result = await callGemini(env, [...history, currentTurn], MODEL, sessionId, memories, payload?.deviceContext, profileId);
         reply = result.text;
         clientActions = result.clientActions || [];
       } catch (primaryError) {
@@ -1102,7 +1110,7 @@ export default {
         if (!retryable) throw primaryError;
         console.warn("Primary Gemini model unavailable; trying fallback model:", primaryError.upstreamStatus);
         usedModel = FALLBACK_MODEL;
-        const result = await callGemini(env, [...history, currentTurn], FALLBACK_MODEL, sessionId, memories, payload?.deviceContext);
+        const result = await callGemini(env, [...history, currentTurn], FALLBACK_MODEL, sessionId, memories, payload?.deviceContext, profileId);
         reply = result.text;
         clientActions = result.clientActions || [];
       }
