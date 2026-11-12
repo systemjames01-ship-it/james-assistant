@@ -13,27 +13,110 @@ try {
   const pageErrors = [];
   page.on("pageerror", error => pageErrors.push(error.message));
 
-  await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.locator('.v4-nav [data-view-target="control"]').click();
-  await page.locator("#downloadNeuralVoice").waitFor({ state: "visible", timeout: 30000 });
-  await page.locator("#downloadNeuralVoice").click();
-
-  await page.waitForFunction(
-    () => Boolean(window.JamesNeuralVoice?.isReady?.()),
-    null,
-    { timeout: 240000 }
-  );
-
-  const spoke = await page.evaluate(async () => {
-    return await window.JamesNeuralVoice.speak(
-      "Olá. Eu sou Jâmes. Esta é uma verificação da voz neural masculina em português brasileiro."
-    );
+  // Browser APIs are deterministic in CI; this exercises the real UI flow,
+  // recognition callbacks, Worker request, spoken reply, and listening restart.
+  await page.addInitScript(() => {
+    window.__recognitions = [];
+    window.webkitSpeechRecognition = class {
+      constructor() {
+        this.lang = "";
+        this.continuous = false;
+        this.interimResults = false;
+        this.maxAlternatives = 1;
+        window.__recognitions.push(this);
+      }
+      start() { queueMicrotask(() => this.onstart?.()); }
+      stop() { queueMicrotask(() => this.onend?.()); }
+    };
+    window.SpeechRecognition = window.webkitSpeechRecognition;
+    window.SpeechSynthesisUtterance = class {
+      constructor(text) { this.text = text; this.lang = ""; this.rate = 1; }
+    };
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: {
+        speaking: false,
+        cancel() { this.speaking = false; },
+        speak(utterance) {
+          this.speaking = true;
+          window.__spoken = [...(window.__spoken || []), utterance.text];
+          queueMicrotask(() => {
+            this.speaking = false;
+            utterance.onend?.();
+          });
+        }
+      }
+    });
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const url = String(input);
+      if (url.includes("james-ai.systemjames01.workers.dev")) {
+        if (!init.method || init.method === "GET") {
+          return new Response(JSON.stringify({
+            status: "online", aiConfigured: true, databaseConfigured: false
+          }), { status: 200, headers: { "Content-Type": "application/json" } });
+        }
+        window.__workerRequest = JSON.parse(init.body || "{}");
+        return new Response(JSON.stringify({
+          reply: "Olá, Jamerson. Estou ouvindo você.", ok: true
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      return nativeFetch(input, init);
+    };
   });
 
-  if (!spoke) throw new Error("O motor Piper carregou, mas não concluiu a síntese e reprodução de áudio.");
-  if (pageErrors.length) throw new Error("Erros JavaScript na página: " + pageErrors.join(" | "));
+  await page.goto("http://127.0.0.1:4173/", {
+    waitUntil: "domcontentloaded",
+    timeout: 60000
+  });
 
-  process.stdout.write("VOICE SMOKE PASSED: Piper/Faber carregou, gerou áudio e reproduziu no Chromium mobile viewport.\n");
+  await page.locator("#power").click();
+  await page.locator("#listen").click();
+  await page.waitForFunction(() => window.__recognitions?.length === 1);
+  await page.waitForFunction(() => window.__recognitions[0]?.onstart !== undefined);
+
+  await page.evaluate(() => {
+    const recognition = window.__recognitions[0];
+    recognition.onresult?.({
+      results: [[{ transcript: "Jâmes, como você está?" }]]
+    });
+    recognition.onend?.();
+  });
+
+  await page.getByText("Olá, Jamerson. Estou ouvindo você.").waitFor({
+    state: "visible",
+    timeout: 15000
+  });
+  await page.waitForFunction(
+    () => window.__workerRequest?.message === "Jâmes, como você está?"
+  );
+  await page.waitForFunction(
+    () => window.__spoken?.some(text => text.includes("Estou ouvindo você"))
+  );
+  await page.waitForFunction(() => window.__recognitions?.length >= 2, {
+    timeout: 10000
+  });
+
+  const result = await page.evaluate(() => ({
+    request: window.__workerRequest,
+    spoken: window.__spoken,
+    recognitions: window.__recognitions.length,
+    voiceLabel: document.querySelector("#voiceModeLabel")?.textContent
+  }));
+
+  if (result.request.message !== "Jâmes, como você está?") {
+    throw new Error("A fala reconhecida não chegou ao Worker.");
+  }
+  if (result.recognitions < 2) {
+    throw new Error("O reconhecimento não foi reiniciado após a resposta.");
+  }
+  if (pageErrors.length) {
+    throw new Error("Erros JavaScript na página: " + pageErrors.join(" | "));
+  }
+
+  process.stdout.write(
+    "VOICE SMOKE PASSED: ativação única, reconhecimento pt-BR, envio ao Worker, resposta falada e retomada da escuta.\n"
+  );
 } finally {
   await browser.close();
 }
