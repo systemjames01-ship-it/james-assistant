@@ -36,6 +36,18 @@ try {
   });
 
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForFunction(() => {
+    const canvas = document.getElementById("jamesVisualCanvas");
+    return !!canvas && canvas.width > 0 && canvas.height > 0;
+  });
+  const hologramPixels = await page.evaluate(() => {
+    const canvas = document.getElementById("jamesVisualCanvas");
+    const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    let visible = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > 0) visible++;
+    return visible;
+  });
+  if (hologramPixels < 100) throw new Error("A esfera neural holográfica não desenhou conteúdo visível.");
   await page.evaluate(() => window.showHoloVisuals([{
     title: "Imagem de teste",
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/test.jpg",
