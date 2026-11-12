@@ -60,6 +60,7 @@ if (!html.includes('id="conversationPicker"') ||
 if (!androidMain.includes("private fun createNewConversation()") ||
     !androidMain.includes("private fun showConversationPicker()") ||
     !androidMain.includes("private fun showLiveVisuals(items: JSONArray)") ||
+    !androidMain.includes("liveVisualChatImage") ||
     !androidMain.includes("private fun persistLiveTurn(userText: String, modelText: String)") ||
     !androidMain.includes("liveVisualHandler.postDelayed(next, 7000)") ||
     !androidMain.includes("conversations_json") ||
