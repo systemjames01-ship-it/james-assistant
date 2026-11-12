@@ -1,7 +1,7 @@
 /* Jâmes v4 — Gemini fast response path */
 const ORIGIN="https://systemjames01-ship-it.github.io";
 const MODEL="gemini-3.8-flash";
-const REQUEST_TIMEOUT_MS=25000;
+const REQUEST_TIMEOUT_MS=90000;
 
 const headers=o=>({
   "Access-Control-Allow-Origin":o||ORIGIN,
@@ -21,14 +21,14 @@ function cleanHistory(history){
   })).filter(x=>x.parts[0].text.trim());
 }
 
-async function ask(env,message,history=[]){
-  if(!env.GEMINI_API_KEY) return {text:"O núcleo de IA ainda não está configurado no Worker.",ok:false,code:"NO_API_KEY"};
+async function streamAsk(env,message,history=[],origin=ORIGIN){
+  if(!env.GEMINI_API_KEY) return out({reply:"O núcleo de IA ainda não está configurado no Worker.",ok:false,errorCode:"NO_API_KEY"},503,origin);
   const contents=[
     ...cleanHistory(history),
     {role:"user",parts:[{text:message}]}
   ];
   const system="Você é Jâmes, o assistente pessoal de Jamerson Ramos. Responda em português do Brasil por padrão. Seja natural, inteligente, objetivo e útil. Não invente capacidades que ainda não foram implementadas. Quando não souber algo, diga isso claramente.";
-  const url="https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent";
+  const url="https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":streamGenerateContent?alt=sse";
   try{
     const r=await fetch(url,{
       method:"POST",
@@ -40,18 +40,30 @@ async function ask(env,message,history=[]){
       }),
       signal:AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
-    const d=await r.json().catch(()=>({}));
     if(!r.ok){
+      const d=await r.json().catch(()=>({}));
       const code=String(d?.error?.status||d?.error?.code||r.status);
-      return {text:"Não consegui responder agora. O serviço de IA retornou "+code+". Tente novamente em instantes.",ok:false,code};
+      return out({
+        reply:"Não consegui responder agora. O serviço de IA retornou "+code+". Tente novamente em instantes.",
+        ok:false,errorCode:code,model:MODEL
+      },r.status,origin);
     }
-    const parts=d?.candidates?.[0]?.content?.parts||[];
-    const text=parts.map(p=>p.text||"").filter(Boolean).join("\n").trim();
-    if(!text) return {text:"A IA retornou uma resposta vazia. Tente novamente.",ok:false,code:"EMPTY_RESPONSE"};
-    return {text,ok:true,model:MODEL};
+    if(!r.body) return out({reply:"O serviço de IA não iniciou o fluxo de resposta.",ok:false,errorCode:"EMPTY_STREAM"},502,origin);
+    return new Response(r.body,{
+      status:200,
+      headers:{
+        ...headers(origin),
+        "Content-Type":"text/event-stream; charset=utf-8",
+        "Cache-Control":"no-cache, no-transform",
+        "X-Accel-Buffering":"no"
+      }
+    });
   }catch(e){
     const timeout=e?.name==="TimeoutError"||e?.name==="AbortError";
-    return {text:timeout?"A resposta demorou mais que o limite de 25 segundos. Tente novamente.":"Não consegui conectar ao serviço de IA. Verifique a conexão e tente novamente.",ok:false,code:timeout?"AI_TIMEOUT":"NETWORK_ERROR"};
+    return out({
+      reply:timeout?"A conexão com a IA excedeu o limite de 90 segundos. Tente novamente.":"Não consegui conectar ao serviço de IA. Verifique a conexão e tente novamente.",
+      ok:false,errorCode:timeout?"AI_TIMEOUT":"NETWORK_ERROR"
+    },timeout?504:502,origin);
   }
 }
 
@@ -70,13 +82,5 @@ export default {async fetch(request,env){
   try{b=await request.json()}catch{return out({error:"JSON inválido."},400,origin)}
   const message=String(b.message||"").trim();
   if(!message) return out({error:"Mensagem vazia."},400,origin);
-  const started=Date.now();
-  const r=await ask(env,message,b.history);
-  return out({
-    reply:r.text,
-    ok:r.ok,
-    model:r.model||MODEL,
-    latencyMs:Date.now()-started,
-    errorCode:r.ok?null:r.code
-  },r.ok?200:503,origin);
+  return streamAsk(env,message,b.history,origin);
 }};
