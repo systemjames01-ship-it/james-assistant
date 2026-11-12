@@ -43,6 +43,11 @@ const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta
 const liveVoice = hologramJs;
 const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
 const appShell = serviceWorker;
+const androidMain = readFileSync(new URL("../android/app/src/main/java/com/james/assistant/MainActivity.kt", import.meta.url), "utf8");
+if (!androidMain.includes('put("responseModality", "AUDIO")')) {
+  throw new Error("Native Android Live session must explicitly request an audio-mode token.");
+}
+
 if (!html.includes('id="jamesNeuralCanvas"') ||
     !html.includes('id="downloadNeuralVoice"') ||
     !html.includes('type="module" src="./james-neural-voice.js"') ||
@@ -62,10 +67,13 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     html.includes("SpeechSynthesisUtterance") ||
     html.includes("JamesAndroid.speak") ||
     !liveVoice.includes('responseModalities:["TEXT"]') ||
+    !liveVoice.includes('responseModality:"TEXT"') ||
     !liveVoice.includes("window.JamesNeuralVoice?.speak") ||
+    !workerCode.includes('responseModality === "AUDIO"') ||
+    !workerCode.includes('responseModalities: ["AUDIO"]') ||
     !workerCode.includes('responseModalities: ["TEXT"]') ||
-    workerCode.includes('responseModalities: ["AUDIO"]') ||
-    workerCode.includes("voiceName: [\"Charon\", \"Algieba\", \"Algenib\"]") ||
+    !workerCode.includes("voiceName: [\"Charon\", \"Algieba\", \"Algenib\"]") ||
+    !workerCode.includes("outputAudioTranscription: {}") ||
     !appShell.includes("./james-neural-voice.js") ||
     !appShell.includes("./james-v3.css")) {
   throw new Error("Local Piper/Faber Brazilian Portuguese voice, original voice profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
