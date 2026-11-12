@@ -92,6 +92,12 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .profile-pairing label{display:block;margin:10px 0 6px;color:#91b5c7;font-size:10px}
 .profile-pairing input,.profile-pairing textarea{width:100%;min-height:38px;padding:9px 11px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#d8f4fa}
 .profile-pairing textarea{resize:vertical;min-height:110px;font:11px/1.5 'DM Mono',monospace}
+.connection-list{display:grid;gap:8px;margin-top:12px}
+.connection-item{display:grid;grid-template-columns:1fr auto auto;gap:7px;align-items:center;padding:9px;border:1px solid rgba(104,228,242,.14);border-radius:8px;background:rgba(4,18,30,.75)}
+.connection-item strong{display:block;font:10px 'DM Mono',monospace;color:#d7f6ff}
+.connection-item small{display:block;margin-top:3px;color:#8fb7c7;font:8px 'DM Mono',monospace;overflow-wrap:anywhere}
+.connection-item button{padding:6px 9px;font-size:9px}
+@media(max-width:520px){.connection-item{grid-template-columns:1fr 1fr}.connection-item>div{grid-column:1/-1}}
 .profile-pairing .profile-warning{font-size:10px;color:#c29a75}
 .holo-visuals{position:absolute;z-index:8;right:12px;bottom:38px;width:min(38%,250px);padding:7px;border:1px solid rgba(110,231,255,.5);border-radius:9px;background:rgba(2,14,27,.9);box-shadow:0 0 22px rgba(38,191,255,.2);backdrop-filter:blur(8px)}
 .holo-visuals a{display:block;color:#c9f6ff;text-decoration:none}
@@ -287,6 +293,23 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <input id="profileCodeInput" autocomplete="off" spellcheck="false" placeholder="Cole aqui o código do outro aparelho">
    <div class="module-actions"><button type="button" id="applyProfileCode">VINCULAR PERFIL</button></div>
    <p class="profile-warning">Mantenha este código privado: quem o possuir poderá acessar as memórias, tarefas e o histórico de conversas deste perfil.</p>
+  </article>
+  <article class="overview-card wide profile-pairing">
+   <h2>Conexões manuais</h2>
+   <p>Cadastre atalhos para aplicativos Android, sites e dispositivos acessíveis pela rede. Isso permite ao Jâmes reconhecê-los e abri-los quando você pedir. Acesso a dados privados exige uma integração e autorização próprias de cada serviço.</p>
+   <label for="connectionName">Nome da conexão</label>
+   <input id="connectionName" maxlength="60" placeholder="Ex.: WhatsApp, câmera IP, painel da casa">
+   <label for="connectionType">Tipo</label>
+   <select id="connectionType">
+    <option value="app">Aplicativo Android</option>
+    <option value="site">Site HTTPS</option>
+    <option value="device">Dispositivo ou painel de rede</option>
+   </select>
+   <label for="connectionTarget">Nome do app ou endereço</label>
+   <input id="connectionTarget" maxlength="2048" placeholder="Nome do aplicativo ou URL http(s)://">
+   <div class="module-actions"><button type="button" id="saveConnection">ADICIONAR CONEXÃO</button></div>
+   <div id="connectionsList" class="connection-list"></div>
+   <p class="profile-warning">Estas conexões rápidas ficam salvas neste aparelho/navegador. Não armazene senhas ou chaves de API neste cadastro.</p>
   </article>
   <article class="overview-card wide profile-pairing">
    <h2>Personalização do Jâmes</h2>
@@ -724,6 +747,72 @@ async function copyProfileCode(){
   statusBox.textContent="Não foi possível copiar automaticamente. Selecione o código exibido e copie manualmente.";
  }
 }
+function readConnections(){
+ try{const value=JSON.parse(localStorage.getItem("james_connections")||"[]");return Array.isArray(value)?value:[];}
+ catch{return [];}
+}
+function writeConnections(items){
+ localStorage.setItem("james_connections",JSON.stringify(items.slice(0,60)));
+}
+function renderConnections(){
+ const container=$("connectionsList");
+ if(!container)return;
+ container.replaceChildren();
+ const items=readConnections();
+ if(!items.length){const empty=document.createElement("p");empty.className="profile-warning";empty.textContent="Nenhuma conexão manual cadastrada.";container.appendChild(empty);return;}
+ for(const item of items){
+  const row=document.createElement("div");row.className="connection-item";
+  const info=document.createElement("div");
+  const name=document.createElement("strong");name.textContent=item.name;
+  const target=document.createElement("small");target.textContent=item.type==="app"?"APP · "+item.target:item.type==="device"?"DISPOSITIVO · "+item.target:"SITE · "+item.target;
+  info.append(name,target);
+  const open=document.createElement("button");open.type="button";open.textContent="ABRIR";open.addEventListener("click",()=>openConnection(item.id));
+  const remove=document.createElement("button");remove.type="button";remove.textContent="REMOVER";remove.addEventListener("click",()=>deleteConnection(item.id));
+  row.append(info,open,remove);container.appendChild(row);
+ }
+}
+function saveConnection(){
+ const name=$("connectionName").value.trim().slice(0,60);
+ const type=$("connectionType").value;
+ const target=$("connectionTarget").value.trim().slice(0,2048);
+ if(name.length<2||!target){statusBox.textContent="Informe um nome e um destino para a conexão.";return;}
+ if(type==="site"||type==="device"){
+  try{
+   const url=new URL(target);
+   if(!["https:","http:"].includes(url.protocol)||(type==="site"&&url.protocol!=="https:"))throw new Error("Use um endereço HTTPS para sites e HTTP/HTTPS para dispositivos.");
+  }catch(error){statusBox.textContent=error.message||"Endereço inválido.";return;}
+ }
+ const items=readConnections();
+ const existing=items.find(item=>item.name.toLowerCase()===name.toLowerCase());
+ const entry={id:existing?.id||crypto.randomUUID(),name,type,target};
+ const next=existing?items.map(item=>item.id===existing.id?entry:item):[entry,...items];
+ writeConnections(next);renderConnections();
+ $("connectionName").value="";$("connectionTarget").value="";
+ statusBox.textContent="Conexão salva neste aparelho. O Jâmes poderá reconhecê-la nos próximos comandos.";
+}
+function deleteConnection(id){
+ writeConnections(readConnections().filter(item=>item.id!==id));renderConnections();
+ statusBox.textContent="Conexão removida deste aparelho.";
+}
+function openConnection(id){
+ const item=readConnections().find(entry=>entry.id===id);
+ if(!item)return;
+ if(item.type==="app"){
+  if(window.JamesAndroid?.openApp){
+   try{
+    const result=JSON.parse(window.JamesAndroid.openApp(item.target)||"{}");
+    statusBox.textContent=result.success?"Android confirmou: "+(result.message||"aplicativo aberto"):"Android não concluiu: "+(result.message||"aplicativo não encontrado");
+   }catch(error){statusBox.textContent="Não foi possível abrir o aplicativo: "+(error.message||"erro");}
+  }else statusBox.textContent="A abertura de aplicativos está disponível na versão Android do Jâmes.";
+  return;
+ }
+ try{
+  const url=new URL(item.target);
+  const opened=window.open(url.href,"_blank","noopener,noreferrer");
+  if(!opened)statusBox.textContent="O navegador bloqueou a abertura automática. Permita pop-ups ou copie o endereço: "+url.href;
+  else statusBox.textContent="Conexão aberta em outra aba.";
+ }catch(error){statusBox.textContent="Endereço inválido."; }
+}
 async function saveProfileInstructions(){
  const value=$("profileInstructions").value.trim().slice(0,1200);
  try{
@@ -1020,7 +1109,7 @@ async function sendMessage(message,attachments=null){
     platform:window.JamesAndroid?"android":"web",
     timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"desconhecido",
     localNow,
-    device:readNativeDeviceInfo()
+    device:readNativeDeviceInfo(),\n    connections:readConnections().map(({name,type,target})=>({name,type,target}))
    }
   };
 
@@ -1083,7 +1172,7 @@ function switchView(name){
   button.setAttribute("aria-pressed",String(button.dataset.viewTarget===primary));
  });
  if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();syncConversationList();}
- if(active==="control"){loadTasks();loadMemories();refreshProfileCode();}
+ if(active==="control"){loadTasks();loadMemories();refreshProfileCode();renderConnections();}
  if(active==="device")refreshDeviceDiagnostics();
  window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -1108,6 +1197,8 @@ $("conversationPicker").addEventListener("change",event=>selectConversation(even
 $("copyProfileCode").addEventListener("click",copyProfileCode);
 $("applyProfileCode").addEventListener("click",applyProfileCode);
 $("saveProfileInstructions").addEventListener("click",saveProfileInstructions);
+$("saveConnection").addEventListener("click",saveConnection);
+renderConnections();
 refreshConversationPicker();
 refreshProfileCode();
 $("voiceOutput").addEventListener("click",()=>{
