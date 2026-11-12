@@ -734,6 +734,7 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
   const MAX_AGENT_STEPS = 7;
   let latestResponse = null;
   const clientActions = [];
+  const visuals = [];
 
   for (let step = 0; step <= MAX_AGENT_STEPS; step++) {
     const body = {
@@ -793,11 +794,11 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
           status: 502
         });
       }
-      return { text: reply.slice(0, 30000), clientActions };
+      return { text: reply.slice(0, 30000), clientActions, visuals: visuals.slice(0, 6) };
     }
 
     if (step === MAX_AGENT_STEPS) {
-      return { text: "Analisei o pedido, mas atingi o limite de etapas de execução disponíveis nesta versão. Posso continuar assim que houver uma ferramenta ou etapa adicional disponível.", clientActions };
+      return { text: "Analisei o pedido, mas atingi o limite de etapas de execução disponíveis nesta versão. Posso continuar assim que houver uma ferramenta ou etapa adicional disponível.", clientActions, visuals: visuals.slice(0, 6) };
     }
 
     transcript.push(modelContent);
@@ -810,6 +811,7 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
       try {
         toolResult = await executeAssistantTool(env, sessionId, call.name, call.args || {}, profileId);
         if (toolResult?.clientAction) clientActions.push(toolResult.clientAction);
+        if (Array.isArray(toolResult?.visuals)) visuals.push(...toolResult.visuals);
       } catch (toolError) {
         console.error("Assistant tool failed:", call.name, toolError);
         toolResult = { error: "A ferramenta falhou ao executar. Nenhuma conclusão deve ser presumida." };
@@ -835,7 +837,7 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
     .join("")
     .trim();
 
-  if (finalText) return { text: finalText.slice(0, 30000), clientActions };
+  if (finalText) return { text: finalText.slice(0, 30000), clientActions, visuals: visuals.slice(0, 6) };
   throw Object.assign(new Error("O Jâmes atingiu o limite de etapas internas sem produzir uma resposta final."), {
     status: 502
   });
@@ -1179,11 +1181,13 @@ export default {
       const currentTurn = { role: "user", parts };
       let reply;
       let clientActions = [];
+      let visuals = [];
       let usedModel = MODEL;
       try {
         const result = await callGemini(env, [...history, currentTurn], MODEL, sessionId, memories, payload?.deviceContext, profileId);
         reply = result.text;
         clientActions = result.clientActions || [];
+        visuals = result.visuals || [];
       } catch (primaryError) {
         const retryable = primaryError?.kind === "gemini" &&
           [429, 503].includes(primaryError.status);
@@ -1193,6 +1197,7 @@ export default {
         const result = await callGemini(env, [...history, currentTurn], FALLBACK_MODEL, sessionId, memories, payload?.deviceContext, profileId);
         reply = result.text;
         clientActions = result.clientActions || [];
+        visuals = result.visuals || [];
       }
 
       if (env.DB) {
@@ -1209,6 +1214,7 @@ export default {
       return json({
         reply,
         clientActions,
+        visuals,
         reasoningLevel: selectThinkingLevel([...history, currentTurn]),
         savedMemories: memories.length,
         memory: memoryAvailable ? "available" : "temporarily_unavailable"
