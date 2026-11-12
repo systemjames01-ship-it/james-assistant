@@ -1,1 +1,1 @@
-{"name":"james-assistant","private":true,"type":"module","scripts":{"test":"node --check worker.js","check":"node scripts/check-frontend.mjs"}}
+{"name":"james-assistant","private":true,"type":"module","scripts":{"test":"node --check worker.js && node --check james.js","check":"node scripts/check-frontend.mjs"}}

@@ -27,20 +27,24 @@ async function send(t){
   const button=$("#form button"); button.disabled=true; button.innerHTML="PROCESSANDO <span>◌</span>";
   setState("CORE / PROCESSING"); $("#liveText").textContent="Jâmes está processando…";
   const started=performance.now();
-  const history=chat.slice(-20).map(x=>({role:x.role,text:x.text}));
+  // A mensagem atual já foi adicionada à interface; envie apenas o contexto anterior.
+  const history=chat.slice(0,-1).slice(-20).map(x=>({role:x.role,text:x.text}));
   const typing=document.createElement("div"); typing.className="msg bot typing"; typing.textContent="Jâmes está pensando…"; msgs.appendChild(typing); msgs.scrollTop=msgs.scrollHeight;
+  let responseData={};
   try{
     const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:t,sessionId:session,mode:"text",history})});
-    const x=await r.json().catch(()=>({}));
+    responseData=await r.json().catch(()=>({}));
     $("#latency").textContent=Math.round(performance.now()-started)+"ms";
     typing.remove();
-    if(!r.ok) throw Error(x.reply||x.error||"Falha no núcleo");
-    add(x.reply||"Sem resposta");
+    if(!r.ok) throw Error(responseData.reply||responseData.error||"Falha no núcleo (HTTP "+r.status+").");
+    if(typeof responseData.reply!=="string"||!responseData.reply.trim()) throw Error("O núcleo respondeu sem conteúdo.");
+    add(responseData.reply);
     $("#liveText").textContent="Resposta recebida.";
-    if(on)speak(x.reply||"");
+    if(on)speak(responseData.reply);
   }catch(e){
     typing.remove();
-    add("Falha no núcleo de IA. Código: "+(x?.errorCode||"UNKNOWN")+".");
+    const code=responseData.errorCode||responseData.code||"NETWORK_OR_SERVER_ERROR";
+    add("Falha no núcleo de IA: "+(e?.message||"erro de comunicação")+". Código: "+code+".","bot");
     $("#liveText").textContent="Falha no link neural.";
   }finally{
     busy=false; button.disabled=false; button.innerHTML="ENVIAR <span>↗</span>";
