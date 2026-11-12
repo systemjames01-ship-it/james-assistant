@@ -593,9 +593,44 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun showConversationPicker() {
+        setStatus("SINCRONIZANDO HISTÓRICO DO PERFIL")
+        executor.execute {
+            try {
+                val encoded = java.net.URLEncoder.encode(profileId, "UTF-8")
+                val connection = URL("$WORKER_URL/?action=conversations&profileId=$encoded&limit=50").openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                connection.setRequestProperty("Origin", APP_ORIGIN)
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                connection.disconnect()
+                val remote = JSONObject(responseText).optJSONArray("conversations") ?: JSONArray()
+                val list = conversationList()
+                for (index in 0 until remote.length()) {
+                    val item = remote.optJSONObject(index) ?: continue
+                    val id = item.optString("session_id")
+                    if (!Regex("[A-Za-z0-9_-]{8,100}").matches(id)) continue
+                    val existing = (0 until list.length()).mapNotNull { list.optJSONObject(it) }.firstOrNull { it.optString("id") == id }
+                    if (existing == null) {
+                        list.put(JSONObject().put("id", id).put("title", item.optString("title", "Conversa"))
+                            .put("updatedAt", System.currentTimeMillis() - index))
+                    } else {
+                        existing.put("title", item.optString("title", existing.optString("title", "Conversa")))
+                        existing.put("updatedAt", System.currentTimeMillis() - index)
+                    }
+                }
+                saveConversationList(list)
+            } catch (error: Exception) {
+                android.util.Log.w("JamesConversations", "Remote conversation list unavailable", error)
+            }
+            runOnUiThread { displayConversationPicker() }
+        }
+    }
+
+    private fun displayConversationPicker() {
         val list = conversationList()
         if (list.length() == 0) {
-            Toast.makeText(this, "Nenhuma conversa salva neste aparelho.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Nenhuma conversa salva neste perfil.", Toast.LENGTH_SHORT).show()
             return
         }
         val entries = (0 until list.length()).mapNotNull { list.optJSONObject(it) }
@@ -611,6 +646,7 @@ class MainActivity : android.app.Activity() {
                 val selected = entries.getOrNull(index)?.optString("id").orEmpty()
                 if (selected.isNotBlank() && selected != sessionId) {
                     if (liveConversationEnabled) stopLiveConversation()
+                    stopLiveVisuals()
                     sessionId = selected
                     getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", sessionId).apply()
                     showPage("intelligence")
