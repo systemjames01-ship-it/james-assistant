@@ -397,7 +397,7 @@ class MainActivity : android.app.Activity() {
         addText(profile, "PERFIL PESSOAL E SINCRONIZAÇÃO", 11f, COLOR_CYAN, true)
         addText(profile, "Código deste perfil:", 10f, COLOR_MUTED, top = 7)
         addText(profile, profileId, 11f, COLOR_TEXT, true, top = 4)
-        addText(profile, "Use o mesmo código nos aparelhos que deseja vincular. Memórias autorizadas e tarefas serão compartilhadas; o histórico de cada conversa permanece separado.", 10f, COLOR_MUTED, top = 7)
+        addText(profile, "Use o mesmo código nos aparelhos que deseja vincular. Memórias autorizadas, tarefas e histórico de conversas serão compartilhados entre eles.", 10f, COLOR_MUTED, top = 7)
         addButton(profile, "COPIAR CÓDIGO DE PERFIL") {
             try {
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
