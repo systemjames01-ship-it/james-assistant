@@ -125,6 +125,8 @@ jobs:
                 raise SystemExit("Control view did not expose profile pairing.")
             if "INSTRUÇÕES PERSONALIZADAS" not in texts(root):
                 raise SystemExit("Control view did not expose persistent personalization.")
+            if "CONEXÕES MANUAIS" not in texts(root):
+                raise SystemExit("Control view did not expose manual app/site/device connections.")
 
             root = tap_text("JÂMES")
             if "LIGAR JÂMES" not in texts(root):
