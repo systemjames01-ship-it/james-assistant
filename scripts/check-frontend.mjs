@@ -33,6 +33,8 @@ if (!windowsInstaller.includes("HKCU:\\Software\\Classes\\james") || !windowsAge
 
 const androidMain = readFileSync(new URL("../android/app/src/main/java/com/james/assistant/MainActivity.kt", import.meta.url), "utf8");
 const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
+const deployWorkflow = readFileSync(new URL("../.github/workflows/deploy-james-v21.yml", import.meta.url), "utf8");
+const profileMigration = readFileSync(new URL("../migrations/0004_james_profile_conversations_v21.sql", import.meta.url), "utf8");
 const serviceWorker = readFileSync(new URL("../service-worker.js", import.meta.url), "utf8");
 new vm.Script(serviceWorker, { filename: "service-worker.js" });
 
@@ -107,12 +109,12 @@ if (!androidManifest.includes("FOREGROUND_SERVICE_MICROPHONE") ||
   throw new Error("Android voice/vision foreground session service or explicit start/stop lifecycle is missing.");
 }
 
-if (!html.includes('id="jamesNeuralCanvas"') ||
+if (!html.includes('id="jamesVisualCanvas"') ||
     !html.includes('id="downloadNeuralVoice"') ||
     !html.includes('type="module" src="./james-neural-voice.js"') ||
     !html.includes('href="./james-v3.css"') ||
     !neuralCss.includes(".hero.head-view") ||
-    !neuralCss.includes("#jamesNeuralCanvas") ||
+    !neuralCss.includes(".holo-figure") ||
     !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
     !neuralVoice.includes("falarEmFluxo") ||
     !neuralVoice.includes("Sintetizador") ||
@@ -136,6 +138,14 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     !appShell.includes("./james-neural-voice.js") ||
     !appShell.includes("./james-v3.css")) {
   throw new Error("Local Piper/Faber Brazilian Portuguese voice, original voice profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
+}
+
+if (!profileMigration.includes("james_profile_conversations_v21") ||
+    !profileMigration.includes("james_request_rate_limits") ||
+    !deployWorkflow.includes("migrations/0004_james_profile_conversations_v21.sql") ||
+    !deployWorkflow.includes("secrets.CLOUDFLARE_API_TOKEN") ||
+    deployWorkflow.includes("CLODFLARE_API_TOKEN")) {
+  throw new Error("Production deployment must apply the additive profile migration with the correct Cloudflare secret.");
 }
 
 console.log("Validated Jâmes v3 command interface, local Piper/Faber pt-BR TTS, voice profiles, live text-to-neural-speech, PWA, and legacy integrations.");
