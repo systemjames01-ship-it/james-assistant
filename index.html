@@ -92,6 +92,12 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .profile-pairing label{display:block;margin:10px 0 6px;color:#91b5c7;font-size:10px}
 .profile-pairing input{width:100%;min-height:38px;padding:9px 11px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#d8f4fa}
 .profile-pairing .profile-warning{font-size:10px;color:#c29a75}
+.holo-visuals{position:absolute;z-index:8;right:12px;bottom:38px;width:min(38%,250px);padding:7px;border:1px solid rgba(110,231,255,.5);border-radius:9px;background:rgba(2,14,27,.9);box-shadow:0 0 22px rgba(38,191,255,.2);backdrop-filter:blur(8px)}
+.holo-visuals a{display:block;color:#c9f6ff;text-decoration:none}
+.holo-visuals img{display:block;width:100%;height:128px;object-fit:cover;border-radius:5px}
+.holo-visuals strong{display:block;margin-top:6px;font:9px 'DM Mono',monospace;line-height:1.35}
+.holo-visuals small{display:block;margin-top:4px;color:#8fb7c7;font:8px 'DM Mono',monospace}
+@media(max-width:760px){.holo-visuals{right:7px;bottom:30px;width:42%;padding:5px}.holo-visuals img{height:88px}.holo-visuals strong{font-size:8px}}
 
 
 #chat{height:440px;min-height:300px;overflow:auto;padding:18px clamp(12px,2vw,24px);background:radial-gradient(ellipse at 50% 0%,rgba(18,66,88,.13),transparent 55%),rgba(2,9,16,.24);scrollbar-color:#28516a transparent;scrollbar-width:thin}
@@ -238,6 +244,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <div class="projection-readout left">SENSORIAL<br><b>NEURAL MESH</b><br>PT-BR / LIVE</div>
    <div class="projection-readout right">LINK<br><b id="holoLink">STANDBY</b><br>SECURE SESSION</div>
    <div class="projection-caption bottom">HOLOGRAPHIC INTERFACE <span id="neuralActivityLabel">EM ESPERA</span></div>
+   <div id="holoVisuals" class="holo-visuals" hidden aria-live="polite"></div>
   </div>
  </div>
  <div class="head-control-stack">
@@ -779,6 +786,51 @@ let jamesVoiceStyle=localStorage.getItem("james_voice_style")||"jarvis";
 function applyJamesVoiceStyle(){
  document.querySelectorAll("[data-voice-style]").forEach(button=>button.classList.toggle("active",button.dataset.voiceStyle===jamesVoiceStyle));
 }
+let holoVisualTimer=null;
+let holoVisualItems=[];
+let holoVisualIndex=0;
+function stopHoloVisuals(){
+ if(holoVisualTimer)clearTimeout(holoVisualTimer);
+ holoVisualTimer=null;
+ holoVisualItems=[];
+ holoVisualIndex=0;
+ const container=$("holoVisuals");
+ if(container){container.hidden=true;container.replaceChildren();}
+}
+function showHoloVisuals(items){
+ if(!Array.isArray(items)||!items.length)return;
+ const safe=items.filter(item=>{
+  try{return new URL(item.imageUrl).hostname==="upload.wikimedia.org"&&new URL(item.imageUrl).protocol==="https:"&&new URL(item.sourceUrl).hostname==="commons.wikimedia.org";}
+  catch{return false;}
+ }).slice(0,6);
+ if(!safe.length)return;
+ stopHoloVisuals();
+ holoVisualItems=safe;
+ const container=$("holoVisuals");
+ if(!container)return;
+ container.hidden=false;
+ const render=()=>{
+  const item=holoVisualItems[holoVisualIndex%holoVisualItems.length];
+  const link=document.createElement("a");
+  link.href=item.sourceUrl;
+  link.target="_blank";
+  link.rel="noopener noreferrer";
+  const image=document.createElement("img");
+  image.src=item.imageUrl;
+  image.alt=item.title||"Imagem ilustrativa";
+  image.loading="eager";
+  const title=document.createElement("strong");
+  title.textContent=item.title||"Imagem ilustrativa";
+  const credit=document.createElement("small");
+  credit.textContent=(item.credit||"Wikimedia Commons")+" · "+(item.license||"Consulte a licença");
+  link.append(image,title,credit);
+  container.replaceChildren(link);
+  holoVisualIndex++;
+  holoVisualTimer=setTimeout(render,7000);
+ };
+ render();
+}
+
 function speak(text){
  if(!voiceOutputEnabled)return;
  const engine=window.JamesNeuralVoice;
@@ -786,7 +838,7 @@ function speak(text){
   statusBox.textContent="A voz neural ainda não foi carregada. Abra VOZES e toque em CARREGAR VOZ NEURAL. O Jâmes não usará a voz do Google como substituta.";
   return;
  }
- engine.speak(text);
+ return engine.speak(text);
 }
 
 function executeAndroidActions(actions){
@@ -884,6 +936,16 @@ async function sendMessage(message,attachments=null){
   }
 
   addMessage(data.reply,"bot");
+  if(Array.isArray(data.visuals)&&data.visuals.length){
+   showHoloVisuals(data.visuals);
+   if(voiceOutputEnabled){
+    const playback=speak(data.reply);
+    if(playback&&typeof playback.finally==="function")playback.finally(stopHoloVisuals);
+    else holoVisualTimer=setTimeout(stopHoloVisuals,7000*data.visuals.length);
+   }else{
+    holoVisualTimer=setTimeout(stopHoloVisuals,7000*data.visuals.length);
+   }
+  }else if(voiceOutputEnabled)speak(data.reply);
   executeAndroidActions(data.clientActions);
   if(eye){eye.dataset.state="idle";$("eyeState").textContent="NÚCLEO ÓPTICO // RESPOSTA CONCLUÍDA";}
   statusBox.textContent=data.reasoningLevel==="high"
