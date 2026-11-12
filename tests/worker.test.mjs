@@ -704,6 +704,54 @@ test("live tool endpoint executes allowlisted tools and rejects unknown tools", 
 });
 
 
+test("paired devices can list and reopen conversations stored under the same profile", async () => {
+  const registered = [];
+  const db = {
+    async batch() { return []; },
+    prepare(sql) {
+      return {
+        run: async () => ({ success: true }),
+        bind(...values) {
+          return {
+            run: async () => {
+              if (sql.includes("INSERT INTO james_profile_conversations_v21")) {
+                registered.push({ profile_id: values[0], session_id: values[1], title: values[2] });
+              }
+              return { success: true };
+            },
+            first: async () => null,
+            all: async () => ({
+              results: sql.includes("FROM james_profile_conversations_v21")
+                ? registered.filter(item => item.profile_id === values[0]).map(item => ({
+                    session_id: item.session_id, title: item.title, created_at: "2026-11-11 10:00:00", updated_at: "2026-11-11 10:01:00"
+                  }))
+                : []
+            })
+          };
+        }
+      };
+    }
+  };
+  const save = await worker.fetch(new Request("https://worker.test/?action=live-turn", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "session_chat_pair",
+      profileId: "profile_owner_pair",
+      userText: "Explique os motores de foguete",
+      modelText: "Um motor de foguete gera empuxo."
+    })
+  }), { DB: db });
+  assert.equal(save.status, 200);
+  const list = await worker.fetch(new Request("https://worker.test/?action=conversations&profileId=profile_owner_pair", {
+    headers: { Origin: origin }
+  }), { DB: db });
+  const body = await list.json();
+  assert.equal(list.status, 200);
+  assert.equal(body.conversations[0].session_id, "session_chat_pair");
+  assert.equal(body.conversations[0].title, "Explique os motores de foguete");
+});
+
 test("Worker applies a per-IP safety limit to repeated live tool requests", async () => {
   const ip = "198.51.100.77";
   let lastStatus = 0;
