@@ -704,6 +704,66 @@ test("live tool endpoint executes allowlisted tools and rejects unknown tools", 
 });
 
 
+test("text agent returns Commons visuals to the holographic client", async () => {
+  const originalFetch = globalThis.fetch;
+  let geminiCalls = 0;
+  const db = {
+    prepare() {
+      return {
+        run: async () => ({ meta: { changes: 1, last_row_id: 1 } }),
+        bind() {
+          return {
+            run: async () => ({ meta: { changes: 1, last_row_id: 1 } }),
+            all: async () => ({ results: [] }),
+            first: async () => null
+          };
+        }
+      };
+    }
+  };
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.includes("generativelanguage.googleapis.com")) {
+      geminiCalls++;
+      const body = geminiCalls === 1
+        ? { candidates: [{ content: { role: "model", parts: [{ functionCall: { name: "search_public_images", args: { query: "solar system" }, id: "image-call-1" } }] } }] }
+        : { candidates: [{ content: { role: "model", parts: [{ text: "Aqui está uma imagem ilustrativa do sistema solar." }] } }] };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }
+    if (target.startsWith("https://commons.wikimedia.org/w/api.php?")) {
+      return new Response(JSON.stringify({
+        query: { pages: { 1: { title: "File:Solar.jpg", imageinfo: [{
+          thumburl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Solar.jpg/1200px-Solar.jpg",
+          url: "https://upload.wikimedia.org/wikipedia/commons/a/a1/Solar.jpg",
+          descriptionurl: "https://commons.wikimedia.org/wiki/File:Solar.jpg",
+          mime: "image/jpeg",
+          extmetadata: { LicenseShortName: { value: "CC0" }, Artist: { value: "Commons author" } }
+        }] } } }
+      }), { status: 200 });
+    }
+    throw new Error("Unexpected mocked URL: " + target);
+  };
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Mostre o sistema solar",
+        sessionId: "session_visual_chat",
+        profileId: "profile_visual_chat"
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "secret-test-key", DB: db });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Aqui está uma imagem ilustrativa do sistema solar.");
+    assert.equal(body.visuals.length, 1);
+    assert.equal(geminiCalls, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("visual search returns only sourced Wikimedia Commons image URLs", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
