@@ -61,3 +61,7 @@
 
 /* v2.6 responsive neural-core power states */
 .power-button:disabled{opacity:.55;filter:saturate(.65);cursor:progress}.power-button.is-on{animation:powerPulse 2.8s ease-in-out infinite}.neural-stage .globe-label{font-weight:700;text-shadow:0 0 16px rgba(0,207,255,.8)}@keyframes powerPulse{0%,100%{box-shadow:0 0 18px rgba(44,197,244,.18)}50%{box-shadow:0 0 34px rgba(44,197,244,.42)}}
+
+/* v4.0: keep the primary navigation to exactly three areas on every viewport */
+.view-nav.module-nav.v4-nav{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+@media(max-width:760px){.view-nav.module-nav.v4-nav{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
