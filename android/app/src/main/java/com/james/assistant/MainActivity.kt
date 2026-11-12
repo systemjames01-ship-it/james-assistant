@@ -75,6 +75,7 @@ class MainActivity : android.app.Activity() {
     private lateinit var statusText: TextView
     private lateinit var navButtons: MutableMap<String, Button>
     private lateinit var sessionId: String
+    private lateinit var profileId: String
     private lateinit var chatMessages: LinearLayout
     private lateinit var chatScroll: ScrollView
     private lateinit var prompt: EditText
@@ -105,6 +106,10 @@ class MainActivity : android.app.Activity() {
         sessionId = getSharedPreferences("james_core", MODE_PRIVATE)
             .getString("session_id", null) ?: UUID.randomUUID().toString().also {
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", it).apply()
+            }
+        profileId = getSharedPreferences("james_core", MODE_PRIVATE)
+            .getString("profile_id", null) ?: sessionId.also {
+                getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("profile_id", it).apply()
             }
         registerCurrentConversation()
         createNotificationChannel()
@@ -593,6 +598,7 @@ class MainActivity : android.app.Activity() {
         val payload = JSONObject()
             .put("message", if (text.isEmpty()) "Analise os anexos enviados." else text)
             .put("sessionId", sessionId)
+            .put("profileId", profileId)
             .put("mode", "assistant")
             .put("deviceContext", deviceContext())
             .put("attachments", outgoingAttachments)
@@ -609,7 +615,7 @@ class MainActivity : android.app.Activity() {
                     executeClientActions(actions)
                 }
                 executor.execute {
-                    try { request(WORKER_URL + "/?action=tasks&sessionId=" + sessionId) } catch (_: Exception) {}
+                    try { request(WORKER_URL + "/?action=tasks&profileId=" + profileId) } catch (_: Exception) {}
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -643,7 +649,7 @@ class MainActivity : android.app.Activity() {
     private fun handleLiveToolCall(callId: String, name: String, args: JSONObject) {
         executor.execute {
             try {
-                val payload = JSONObject().put("sessionId", sessionId).put("name", name).put("args", args)
+                val payload = JSONObject().put("sessionId", sessionId).put("profileId", profileId).put("name", name).put("args", args)
                 val response = request(WORKER_URL + "/?action=live-tool", "POST", payload)
                 val result = response.optJSONObject("result") ?: JSONObject().put("error", "A ferramenta não retornou resultado.")
                 val clientAction = result.optJSONObject("clientAction")
@@ -687,7 +693,7 @@ class MainActivity : android.app.Activity() {
         panel.removeViews(3, (panel.childCount - 3).coerceAtLeast(0))
         executor.execute {
             try {
-                val result = request(WORKER_URL + "/?action=memories&sessionId=" + sessionId)
+                val result = request(WORKER_URL + "/?action=memories&profileId=" + profileId)
                 val memories = result.optJSONArray("memories") ?: JSONArray()
                 runOnUiThread {
                     if (memories.length() == 0) addText(panel, "Nenhuma memória foi guardada explicitamente nesta sessão.", 11f, COLOR_MUTED, top = 10)
@@ -832,7 +838,7 @@ class MainActivity : android.app.Activity() {
         setStatus("SOLICITANDO SESSÃO SEGURA DE VOZ")
         executor.execute {
             try {
-                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId).put("voiceProfile", selectedVoiceProfile).put("responseModality", "AUDIO"))
+                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId).put("profileId", profileId).put("voiceProfile", selectedVoiceProfile).put("responseModality", "AUDIO"))
                 val token = tokenData.optString("token")
                 if (token.isBlank()) throw IOException("O núcleo não forneceu um token de sessão.")
                 runOnUiThread {
