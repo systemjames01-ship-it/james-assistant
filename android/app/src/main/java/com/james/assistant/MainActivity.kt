@@ -94,6 +94,7 @@ class MainActivity : android.app.Activity() {
     private var orbView: JamesHologramView? = null
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
+    private var cameraPermissionRequested = false
     private var pendingVoicePreview = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -744,6 +745,14 @@ class MainActivity : android.app.Activity() {
             return
         }
         liveConversationEnabled = true
+        if (liveVisionPending) {
+            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                try { JamesSessionService.setCameraEnabled(this, true) } catch (_: Exception) { }
+            } else if (!cameraPermissionRequested) {
+                cameraPermissionRequested = true
+                requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA_PERMISSION)
+            }
+        }
         liveButton?.text = "INICIANDO JÂMES..."
         setStatus("SOLICITANDO SESSÃO SEGURA DE VOZ")
         executor.execute {
@@ -827,6 +836,7 @@ class MainActivity : android.app.Activity() {
             try { JamesSessionService.setCameraEnabled(this, false) } catch (_: Exception) { }
         }
         liveVisionPending = false
+        cameraPermissionRequested = false
         visionButton?.text = "ATIVAR VISÃO AO VIVO"
         setStatus("VISÃO AO VIVO DESATIVADA")
     }
@@ -838,8 +848,12 @@ class MainActivity : android.app.Activity() {
         }
         liveVisionPending = true
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            cameraPermissionRequested = true
             requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA_PERMISSION)
             return
+        }
+        if (liveConversationEnabled) {
+            try { JamesSessionService.setCameraEnabled(this, true) } catch (_: Exception) { }
         }
         if (liveVoiceSession == null) {
             if (!liveConversationEnabled) startLiveConversation()
@@ -1300,8 +1314,14 @@ class MainActivity : android.app.Activity() {
                 setStatus("MICROFONE NÃO AUTORIZADO")
             }
         } else if (requestCode == REQ_CAMERA_PERMISSION) {
+            cameraPermissionRequested = false
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (liveVoiceSession != null) startLiveVision() else startLiveConversation()
+                if (liveVisionPending && liveConversationEnabled) {
+                    try { JamesSessionService.setCameraEnabled(this, true) } catch (_: Exception) { }
+                }
+                if (liveVisionPending) {
+                    if (liveVoiceSession != null) startLiveVision() else if (!liveConversationEnabled) startLiveConversation()
+                }
             } else {
                 liveVisionPending = false
                 visionButton?.text = "ATIVAR VISÃO AO VIVO"
