@@ -751,6 +751,7 @@ function readConnections(){
  try{const value=JSON.parse(localStorage.getItem("james_connections")||"[]");return Array.isArray(value)?value:[];}
  catch{return [];}
 }
+window.readJamesConnections=readConnections;
 function writeConnections(items){
  localStorage.setItem("james_connections",JSON.stringify(items.slice(0,60)));
 }
