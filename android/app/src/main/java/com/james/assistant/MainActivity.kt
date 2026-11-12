@@ -1160,7 +1160,7 @@ class MainActivity : android.app.Activity() {
         val action = if (kind == "app") JSONObject().put("type", "open_app").put("appName", item.optString("target"))
             else JSONObject().put("type", "open_url").put("url", item.optString("target"))
         val result = executeClientAction(action)
-        addChatMessage((if (result.first) "ANDROID CONFIRMOU: " else "ANDROID NÃO CONCLUIU: ") + result.second, result.first, !result.first)
+        setStatus((if (result.first) "ANDROID CONFIRMOU: " else "ANDROID NÃO CONCLUIU: ") + result.second)
     }
 
     private fun loadProfileInstructions() {
