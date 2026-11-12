@@ -83,10 +83,9 @@ try {
     recognition.onend?.();
   });
 
-  await page.getByText("Olá, Jamerson. Estou ouvindo você.").waitFor({
-    state: "visible",
-    timeout: 15000
-  });
+  await page.locator("#messages .msg.bot").filter({
+    hasText: "Olá, Jamerson. Estou ouvindo você."
+  }).waitFor({ state: "attached", timeout: 15000 });
   await page.waitForFunction(
     () => window.__workerRequest?.message === "Jâmes, como você está?"
   );
