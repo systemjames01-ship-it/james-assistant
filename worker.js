@@ -894,6 +894,7 @@ export default {
       catch { return json({ error: "O corpo precisa ser JSON válido." }, 400, origin); }
       const sessionId = typeof livePayload?.sessionId === "string" ? livePayload.sessionId : "";
       const voiceProfile = Number.isInteger(livePayload?.voiceProfile) ? Math.max(0, Math.min(2, livePayload.voiceProfile)) : 0;
+      const responseModality = livePayload?.responseModality === "TEXT" ? "TEXT" : "AUDIO";
       if (!/^[A-Za-z0-9_-]{8,100}$/.test(sessionId)) return json({ error: "Identificador de sessão inválido." }, 400, origin);
       const voiceDirections = [
         "PERFIL JARVIS: fale sempre em português brasileiro. Voz masculina adulta, grave, elegante, serena, precisa e articulada; ritmo moderado, dicção impecável, autoridade tranquila, humor discreto e polidez tecnológica. É uma interpretação original inspirada no assistente JARVIS e na tradição da dublagem brasileira; não imite nem alegue ser um dublador específico.",
@@ -947,7 +948,7 @@ export default {
             liveConnectConstraints: {
               model: "models/gemini-3.8-live",
               config: {
-                generationConfig: {
+                generationConfig: responseModality === "AUDIO" ? {
                   responseModalities: ["AUDIO"],
                   speechConfig: {
                     languageCode: "pt-BR",
@@ -957,9 +958,11 @@ export default {
                       }
                     }
                   }
+                } : {
+                  responseModalities: ["TEXT"]
                 },
                 inputAudioTranscription: {},
-                outputAudioTranscription: {},
+                ...(responseModality === "AUDIO" ? { outputAudioTranscription: {} } : {}),
                 realtimeInputConfig: {
                   automaticActivityDetection: { disabled: false }
                 },
