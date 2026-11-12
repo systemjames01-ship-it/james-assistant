@@ -653,9 +653,14 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
     model + ":generateContent";
 
   const baseInstruction = SYSTEM_INSTRUCTION;
-  const memoryContext = memories.length
+  const personalInstructions = memories.find(item => item.key === "instrucoes_personalizadas")?.value || "";
+  const personalizationContext = personalInstructions
+    ? "\n\nPREFERÊNCIAS PERSONALIZADAS DO PROPRIETÁRIO (siga quando forem compatíveis com as regras de segurança e instruções superiores):\n" + personalInstructions
+    : "";
+  const otherMemories = memories.filter(item => item.key !== "instrucoes_personalizadas");
+  const memoryContext = otherMemories.length
     ? "\n\nMEMÓRIAS EXPLICITAMENTE AUTORIZADAS PELO USUÁRIO (use somente quando relevantes):\n" +
-      memories.map(item => "- " + item.key + ": " + item.value).join("\n")
+      otherMemories.map(item => "- " + item.key + ": " + item.value).join("\n")
     : "";
   let deviceInfo = "";
   if (deviceContext && typeof deviceContext === "object") {
@@ -693,7 +698,7 @@ async function callGemini(env, contents, model = MODEL, sessionId = "", memories
       "Bateria: " + battery + " · Carregando: " + charging + "\n" +
       "Conectividade validada: " + network;
   }
-  const activeInstruction = baseInstruction + memoryContext + deviceInfo;
+  const activeInstruction = baseInstruction + personalizationContext + memoryContext + deviceInfo;
   const tools = [{
     functionDeclarations: [
       {
@@ -1143,8 +1148,13 @@ export default {
           }).filter(Boolean).join("\n");
           if (transcript) liveContextText += "\n\nCONTEXTO RECENTE DA CONVERSA COMPARTILHADA COM O CHAT DE TEXTO:\n" + transcript;
         }
-        if (recentMemories.length) {
-          liveContextText += "\n\nMEMÓRIAS AUTORIZADAS PELO USUÁRIO:\n" + recentMemories.map(item => "- " + item.key + ": " + item.value).join("\n");
+        const personalInstructions = recentMemories.find(item => item.key === "instrucoes_personalizadas")?.value || "";
+        if (personalInstructions) {
+          liveContextText += "\n\nPREFERÊNCIAS PERSONALIZADAS DO PROPRIETÁRIO (siga quando forem compatíveis com as regras de segurança e instruções superiores):\n" + personalInstructions;
+        }
+        const otherMemories = recentMemories.filter(item => item.key !== "instrucoes_personalizadas");
+        if (otherMemories.length) {
+          liveContextText += "\n\nMEMÓRIAS AUTORIZADAS PELO USUÁRIO:\n" + otherMemories.map(item => "- " + item.key + ": " + item.value).join("\n");
         }
       } catch (contextError) {
         console.warn("Live session context unavailable:", contextError);
