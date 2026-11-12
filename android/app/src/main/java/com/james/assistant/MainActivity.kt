@@ -974,6 +974,7 @@ class MainActivity : android.app.Activity() {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MICROPHONE)
             return
         }
+        stopLiveVisuals()
         try {
             JamesSessionService.start(this)
         } catch (error: Exception) {
