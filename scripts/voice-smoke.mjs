@@ -12,6 +12,20 @@ try {
   });
   const pageErrors = [];
   page.on("pageerror", error => pageErrors.push(error.message));
+  await page.route("https://james-ai.systemjames01.workers.dev/**", async route => {
+    const url = new URL(route.request().url());
+    const action = url.searchParams.get("action");
+    const body = action === "history" ? { messages: [], hasMore: false, nextBefore: null }
+      : action === "tasks" ? { tasks: [] }
+      : action === "memories" ? { memories: [] }
+      : { status: "online", aiConfigured: true, databaseConfigured: true };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "Access-Control-Allow-Origin": "https://systemjames01-ship-it.github.io" },
+      body: JSON.stringify(body)
+    });
+  });
 
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded", timeout: 60000 });
   const primaryTabs = page.locator(".module-nav [data-view-target]");
@@ -21,6 +35,15 @@ try {
   }
   await page.locator('.module-nav [data-view-target="intelligence"]').click();
   await page.locator("#intelligenceView").waitFor({ state: "visible" });
+  const firstConversation = await page.evaluate(() => localStorage.getItem("james_active_session_id"));
+  await page.locator("#newConversation").click();
+  await page.waitForFunction(previous => localStorage.getItem("james_active_session_id") !== previous, firstConversation);
+  const secondConversation = await page.evaluate(() => localStorage.getItem("james_active_session_id"));
+  if (!firstConversation || !secondConversation || firstConversation === secondConversation) {
+    throw new Error("Criar conversa não gerou uma sessão independente.");
+  }
+  await page.locator("#conversationPicker").selectOption(firstConversation);
+  await page.waitForFunction(previous => localStorage.getItem("james_active_session_id") === previous, firstConversation);
   await page.locator('.module-nav [data-view-target="control"]').click();
   await page.locator("#controlView").waitFor({ state: "visible" });
   await page.locator('.module-nav [data-view-target="overview"]').click();
