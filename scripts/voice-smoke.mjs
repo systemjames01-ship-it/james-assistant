@@ -38,7 +38,11 @@ try {
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction(() => {
     const canvas = document.getElementById("jamesVisualCanvas");
-    return !!canvas && canvas.width > 0 && canvas.height > 0;
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return false;
+    const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    let visible = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > 0) visible++;
+    return visible > 100;
   });
   const hologramPixels = await page.evaluate(() => {
     const canvas = document.getElementById("jamesVisualCanvas");
