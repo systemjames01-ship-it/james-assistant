@@ -13,7 +13,104 @@
   neuralTarget=value==="LIVE"?.94:value==="CONNECTING"?.56:.12;
  };
  const visual=document.getElementById("jamesVisualCanvas");
- if(visual){const vctx=visual.getContext("2d");let phase=0,visualRaf=0;const paint=()=>{const w=visual.width,h=visual.height;vctx.clearRect(0,0,w,h);neuralActivity+=(neuralTarget-neuralActivity)*.025;phase+=.035+neuralActivity*.09;vctx.strokeStyle="rgba(86,225,255,.78)";vctx.lineWidth=1.5;vctx.beginPath();for(let x=0;x<=w;x+=4){const envelope=.2+Math.sin(x/w*Math.PI)*.8,y=h/2+Math.sin(x*.035+phase)*17*envelope*neuralActivity+Math.sin(x*.012-phase*.7)*8*neuralActivity;if(x===0)vctx.moveTo(x,y);else vctx.lineTo(x,y);}vctx.stroke();vctx.strokeStyle="rgba(86,160,255,.2)";vctx.beginPath();vctx.moveTo(0,h/2);vctx.lineTo(w,h/2);vctx.stroke();visualRaf=requestAnimationFrame(paint);};paint();document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelAnimationFrame(visualRaf);else paint();});}
+ if(visual){
+  const vctx=visual.getContext("2d");
+  const nodes=[];
+  const nodeCount=76,goldenAngle=Math.PI*(3-Math.sqrt(5));
+  for(let n=0;n<nodeCount;n++){
+   const y=1-(n/(nodeCount-1))*2,radius=Math.sqrt(1-y*y),angle=goldenAngle*n;
+   nodes.push({x:Math.cos(angle)*radius,y,z:Math.sin(angle)*radius});
+  }
+  const edges=[];
+  for(let a=0;a<nodes.length;a++)for(let b=a+1;b<nodes.length;b++){
+   const dx=nodes[a].x-nodes[b].x,dy=nodes[a].y-nodes[b].y,dz=nodes[a].z-nodes[b].z;
+   if(dx*dx+dy*dy+dz*dz<.31)edges.push([a,b]);
+  }
+  let visualRaf=0,lastPaint=0,phase=0,viewW=0,viewH=0,dpr=1,inViewport=true;
+  const resize=()=>{
+   const rect=visual.getBoundingClientRect();
+   viewW=Math.max(1,rect.width);viewH=Math.max(1,rect.height);
+   dpr=Math.min(window.devicePixelRatio||1,2);
+   visual.width=Math.round(viewW*dpr);visual.height=Math.round(viewH*dpr);
+   vctx.setTransform(dpr,0,0,dpr,0,0);
+  };
+  const paint=now=>{
+   if(document.hidden){visualRaf=0;return;}
+   if(now-lastPaint<32){visualRaf=requestAnimationFrame(paint);return;}
+   lastPaint=now;
+   const w=viewW,h=viewH;
+   if(w<2||h<2){visualRaf=requestAnimationFrame(paint);return;}
+   vctx.clearRect(0,0,w,h);
+   phase+=.0035+neuralActivity*.006;
+   const cx=w*.5,cy=h*.47,r=Math.min(w,h)*.34;
+   const pulse=1+(.008+neuralActivity*.026)*Math.sin(phase*2.1);
+   const glow=vctx.createRadialGradient(cx,cy,0,cx,cy,r*2.1);
+   glow.addColorStop(0,"rgba(40,190,255,.22)");
+   glow.addColorStop(.55,"rgba(28,128,220,.09)");
+   glow.addColorStop(1,"rgba(2,10,24,0)");
+   vctx.fillStyle=glow;vctx.fillRect(0,0,w,h);
+   vctx.save();vctx.translate(cx,cy);vctx.rotate(phase*.12);vctx.scale(1,.28);
+   vctx.strokeStyle="rgba(91,224,255,.48)";vctx.lineWidth=1.1;vctx.beginPath();vctx.ellipse(0,0,r*1.55,r*.54,0,0,Math.PI*2);vctx.stroke();vctx.restore();
+   vctx.save();vctx.translate(cx,cy);vctx.rotate(-phase*.09);vctx.scale(.43,1);
+   vctx.strokeStyle="rgba(116,183,255,.25)";vctx.lineWidth=.9;vctx.beginPath();vctx.ellipse(0,0,r*1.65,r*1.12,0,0,Math.PI*2);vctx.stroke();vctx.restore();
+   const rot=phase*.18,tilt=.22,projected=nodes.map(node=>{
+    const x1=node.x*Math.cos(rot)-node.z*Math.sin(rot);
+    const z1=node.x*Math.sin(rot)+node.z*Math.cos(rot);
+    const y1=node.y*Math.cos(tilt)-z1*Math.sin(tilt);
+    const z2=node.y*Math.sin(tilt)+z1*Math.cos(tilt);
+    const perspective=.84+z2*.16;
+    return {x:cx+x1*r*pulse*perspective,y:cy+y1*r*pulse*perspective,z:z2};
+   });
+   vctx.lineCap="round";
+   for(const [a,b] of edges){
+    const p=projected[a],q=projected[b],depth=(p.z+q.z)*.5;
+    if(depth<-.38)continue;
+    vctx.strokeStyle="rgba(87,222,255,"+(.12+(depth+1)*.12)+")";
+    vctx.lineWidth=depth>.55?1.35:.85;
+    vctx.beginPath();vctx.moveTo(p.x,p.y);vctx.lineTo(q.x,q.y);vctx.stroke();
+   }
+   for(let n=0;n<projected.length;n++){
+    const p=projected[n];if(p.z<-.48)continue;
+    const bright=n%7===0||p.z>.62;
+    vctx.fillStyle=bright?"rgba(222,252,255,.96)":"rgba(83,218,255,"+(.35+(p.z+1)*.2)+")";
+    vctx.shadowColor="#39dfff";vctx.shadowBlur=bright?9:3;
+    vctx.beginPath();vctx.arc(p.x,p.y,(bright?2.2:1.25)*(dpr>1?1:1),0,Math.PI*2);vctx.fill();
+   }
+   vctx.shadowBlur=0;
+   const coreR=r*.19*(1+.07*Math.sin(phase*2.8));
+   const core=vctx.createRadialGradient(cx,cy,0,cx,cy,coreR*2.5);
+   core.addColorStop(0,"rgba(225,255,255,.98)");
+   core.addColorStop(.22,"rgba(80,226,255,.85)");
+   core.addColorStop(.62,"rgba(33,157,255,.28)");
+   core.addColorStop(1,"rgba(30,140,255,0)");
+   vctx.fillStyle=core;vctx.beginPath();vctx.arc(cx,cy,coreR*2.5,0,Math.PI*2);vctx.fill();
+   const heart=coreR*.36;
+   vctx.beginPath();vctx.moveTo(cx,cy+heart*.72);
+   vctx.bezierCurveTo(cx-heart*1.45,cy-heart*.05,cx-heart*.78,cy-heart*1.12,cx,cy-heart*.42);
+   vctx.bezierCurveTo(cx+heart*.78,cy-heart*1.12,cx+heart*1.45,cy-heart*.05,cx,cy+heart*.72);
+   vctx.fillStyle="rgba(210,252,255,.95)";vctx.shadowColor="#50eaff";vctx.shadowBlur=12;vctx.fill();vctx.shadowBlur=0;
+   vctx.font="bold 9px monospace";vctx.fillStyle="rgba(133,234,255,.8)";
+   vctx.textAlign="left";vctx.fillText("JÂMES // NEURAL CORE",12,17);
+   vctx.textAlign="right";vctx.fillText(projection?.dataset.state==="live"?"LISTENING / LIVE":projection?.dataset.state==="connecting"?"INITIALIZING":"STANDBY",w-12,17);
+   vctx.textAlign="left";vctx.font="8px monospace";vctx.fillStyle="rgba(128,190,215,.65)";
+   vctx.fillText("NEURAL MATRIX · JAMERSON RAMOS",12,h-10);
+   visualRaf=requestAnimationFrame(paint);
+  };
+  const startVisual=()=>{if(!document.hidden&&inViewport&&!visualRaf){lastPaint=0;visualRaf=requestAnimationFrame(paint);}};
+  const stopVisual=()=>{if(visualRaf)cancelAnimationFrame(visualRaf);visualRaf=0;};
+  resize();
+  if("ResizeObserver" in window){const observer=new ResizeObserver(resize);observer.observe(visual.parentElement||visual);}
+  if("IntersectionObserver" in window){
+   const visibilityObserver=new IntersectionObserver(entries=>{
+    inViewport=!!entries[0]?.isIntersecting;
+    if(inViewport)startVisual();else stopVisual();
+   });
+   visibilityObserver.observe(visual);
+  }
+  window.addEventListener("resize",resize,{passive:true});
+  document.addEventListener("visibilitychange",()=>{if(document.hidden)stopVisual();else startVisual();});
+  startVisual();
+ }
  const mic=document.getElementById("headMic"),visionButton=document.getElementById("headVision"),micState=document.getElementById("headMicState"),transcript=document.getElementById("headTranscript"),globeState=document.getElementById("globeState");
  const powerButton=document.getElementById("jamesPower"),powerLabel=document.getElementById("jamesPowerLabel"),powerState=document.getElementById("jamesPowerState"),powerHelp=document.getElementById("jamesPowerHelp"),cameraFlip=document.getElementById("headCameraFlip");
  const visionVideo=document.getElementById("headVisionVideo"),visionCanvas=document.getElementById("headVisionCanvas");
@@ -24,6 +121,7 @@
  const status=text=>{const el=document.getElementById("status");if(el)el.textContent=text;};
  const setCoreState=value=>neuralState(value);
  const sessionId=()=>{let id=localStorage.getItem("james_session_id");if(!id){id=crypto.randomUUID?crypto.randomUUID():"james-"+Date.now()+"-"+Math.random().toString(36).slice(2);localStorage.setItem("james_session_id",id);}return id;};
+ const profileId=()=>{let id=localStorage.getItem("james_profile_id");if(!id){id=localStorage.getItem("james_session_id")||sessionId();localStorage.setItem("james_profile_id",id);}return id;};
  const voiceProfile=()=>({jarvis:0,patrick:1,demon:2}[localStorage.getItem("james_voice_style")||"jarvis"]??0);
  const b64=bytes=>{let binary="";const chunk=0x8000;for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));return btoa(binary);};
  function downsampleTo16k(samples,inputRate){if(inputRate===16000){const out=new Int16Array(samples.length);for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));out[i]=s<0?s*32768:s*32767;}return new Uint8Array(out.buffer);}const ratio=inputRate/16000,length=Math.floor(samples.length/ratio),out=new Int16Array(length);for(let i=0;i<length;i++){const start=Math.floor(i*ratio),end=Math.min(Math.floor((i+1)*ratio),samples.length);let sum=0;for(let j=start;j<end;j++)sum+=samples[j];const sample=Math.max(-1,Math.min(1,sum/Math.max(1,end-start)));out[i]=sample<0?sample*32768:sample*32767;}return new Uint8Array(out.buffer);}
@@ -31,15 +129,15 @@
  async function playPcm(base64){if(!audioContext||localStorage.getItem("james_voice_enabled")==="false")return;const raw=atob(base64),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);const pcm=new Int16Array(bytes.buffer,0,Math.floor(bytes.byteLength/2));const buffer=audioContext.createBuffer(1,pcm.length,24000),channel=buffer.getChannelData(0);for(let i=0;i<pcm.length;i++)channel[i]=pcm[i]/32768;const source=audioContext.createBufferSource();source.buffer=buffer;source.connect(audioContext.destination);const start=Math.max(audioContext.currentTime,playbackAt);source.start(start);playbackAt=start+buffer.duration;activeAudio.add(source);source.onended=()=>{activeAudio.delete(source);source.disconnect();};}
  function sendMicAudio(event){if(!liveReady||!socket||socket.readyState!==WebSocket.OPEN)return;const samples=event.inputBuffer.getChannelData(0);let energy=0;for(let i=0;i<samples.length;i+=4)energy+=samples[i]*samples[i];const rms=Math.sqrt(energy/Math.max(1,Math.ceil(samples.length/4)));neuralTarget=Math.max(.34,Math.min(1,.3+rms*5));const bytes=downsampleTo16k(samples,audioContext.sampleRate);socket.send(JSON.stringify({realtimeInput:{audio:{data:b64(bytes),mimeType:"audio/pcm;rate=16000"}}}));}
  function startMicPipeline(){if(!micStream||!audioContext)return;micSource=audioContext.createMediaStreamSource(micStream);processor=audioContext.createScriptProcessor(4096,1,1);silentGain=audioContext.createGain();silentGain.gain.value=0;processor.onaudioprocess=sendMicAudio;micSource.connect(processor);processor.connect(silentGain);silentGain.connect(audioContext.destination);}
- async function saveLiveTurn(){const user=inputText.trim(),assistant=outputText.trim();inputText="";outputText="";if(!user&&!assistant)return;try{await fetch(WORKER+"?action=live-turn",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sessionId(),userText:user,modelText:assistant})});}catch(error){status("Conversa ao vivo concluída; histórico não sincronizado.");}}
- async function executeLiveTools(toolCall){const functionResponses=await Promise.all((toolCall.functionCalls||[]).map(async call=>{let result;try{const response=await fetch(WORKER+"?action=live-tool",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sessionId(),name:call.name,args:call.args||{}})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Ferramenta indisponível");result=data.result||data;if(result.clientAction&&typeof window.executeAndroidActions==="function")window.executeAndroidActions([result.clientAction]);}catch(error){result={error:error.message||"Falha ao executar ferramenta."};}return{name:call.name,id:call.id,response:{result}};}));if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({toolResponse:{functionResponses}}));}
+ async function saveLiveTurn(){const user=inputText.trim(),assistant=outputText.trim();inputText="";outputText="";if(!user&&!assistant)return;try{const response=await fetch(WORKER+"?action=live-turn",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sessionId(),profileId:profileId(),userText:user,modelText:assistant})});if(response.ok)window.syncConversationList?.();else status("Conversa ao vivo concluída; histórico não sincronizado.");}catch(error){status("Conversa ao vivo concluída; histórico não sincronizado.");}}
+ async function executeLiveTools(toolCall){const functionResponses=await Promise.all((toolCall.functionCalls||[]).map(async call=>{let result;try{const response=await fetch(WORKER+"?action=live-tool",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sessionId(),profileId:profileId(),name:call.name,args:call.args||{}})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Ferramenta indisponível");result=data.result||data;if(Array.isArray(result.visuals)){if(typeof window.showHoloVisuals==="function")window.showHoloVisuals(result.visuals);if(typeof window.showChatVisuals==="function")window.showChatVisuals(result.visuals);}if(result.clientAction&&typeof window.executeAndroidActions==="function")window.executeAndroidActions([result.clientAction]);}catch(error){result={error:error.message||"Falha ao executar ferramenta."};}return{name:call.name,id:call.id,response:{result}};}));if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({toolResponse:{functionResponses}}));}
  function handleLiveMessage(event){let message;try{message=JSON.parse(event.data);}catch(error){return;}if(message.setupComplete){liveReady=true;listening=true;mic.setAttribute("aria-pressed","true");mic.textContent="■";if(visionButton)visionButton.disabled=false;if(cameraFlip)cameraFlip.disabled=false;setCoreState("LIVE");if(powerButton){powerButton.setAttribute("aria-pressed","true");powerButton.classList.add("is-on");powerLabel.textContent="DESLIGAR JÂMES";powerState.textContent="NÚCLEO AO VIVO ATIVO";powerHelp.textContent=visionStream?"Voz e câmera ativas. O botão desliga os dois módulos.":"Voz ativa; câmera indisponível ou desligada.";}if(micState)micState.textContent=visionStream?"Conectado. Voz e câmera autorizadas estão ativas.":"Conectado. Fale naturalmente; a câmera não está ativa.";status("Jâmes está ativo e ouvindo.");if(document.getElementById("holoLink"))document.getElementById("holoLink").textContent="CONNECTED";startMicPipeline();if(visionStream){visionVideo.srcObject=visionStream;visionVideo.hidden=false;visionVideo.play().then(()=>{visionButton.setAttribute("aria-pressed","true");visionButton.textContent="●";lastFrameAt=0;visionRaf=requestAnimationFrame(sendVisionFrame);}).catch(()=>{cleanupVision();});}return;}if(message.error){status("Falha na sessão ao vivo: "+(message.error.message||"erro do serviço"));stopLive();return;}if(message.toolCall){executeLiveTools(message.toolCall);return;}const content=message.serverContent;if(!content)return;if(content.interrupted){stopAudio();window.JamesNeuralVoice?.stop();}if(content.inputTranscription?.text){inputText+=content.inputTranscription.text;if(transcript)transcript.textContent="Você: "+inputText;}if(content.outputTranscription?.text){outputText+=content.outputTranscription.text;if(transcript)transcript.textContent=(inputText?"Você: "+inputText+"\n":"")+"Jâmes: "+outputText;}for(const part of content.modelTurn?.parts||[]){if(typeof part.text==="string"){outputText+=part.text;if(transcript)transcript.textContent=(inputText?"Você: "+inputText+"\n":"")+"Jâmes: "+outputText;}}if(content.turnComplete){const spoken=outputText.trim();if(voiceOutputEnabled&&spoken)window.JamesNeuralVoice?.speak(spoken);saveLiveTurn();status("Jâmes concluiu a resposta e continua disponível.");}}
  function cleanupVision(){if(visionRaf)cancelAnimationFrame(visionRaf);visionRaf=0;if(visionStream){visionStream.getTracks().forEach(track=>track.stop());visionStream=null;}if(visionVideo){visionVideo.pause();visionVideo.srcObject=null;visionVideo.hidden=true;}if(visionButton){visionButton.setAttribute("aria-pressed","false");visionButton.textContent="◎";}}
  function sendVisionFrame(now){if(!visionStream||!liveReady||!socket||socket.readyState!==WebSocket.OPEN)return;if(now-lastFrameAt>=1000&&visionVideo.videoWidth){lastFrameAt=now;const maxWidth=640,scale=Math.min(1,maxWidth/visionVideo.videoWidth),w=Math.max(1,Math.round(visionVideo.videoWidth*scale)),h=Math.max(1,Math.round(visionVideo.videoHeight*scale));visionCanvas.width=w;visionCanvas.height=h;visionCanvas.getContext("2d").drawImage(visionVideo,0,0,w,h);const data=visionCanvas.toDataURL("image/jpeg",.62).split(",")[1];socket.send(JSON.stringify({realtimeInput:{video:{data,mimeType:"image/jpeg"}}}));}visionRaf=requestAnimationFrame(sendVisionFrame);}
  async function toggleVision(){if(visionStream){cleanupVision();if(micState)micState.textContent="Câmera desligada. O microfone continua ativo.";if(powerHelp)powerHelp.textContent="Voz ativa; câmera desligada.";return;}if(!liveReady){status("Inicie primeiro a conversa ao vivo.");return;}try{visionStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:640},height:{ideal:480}},audio:false});visionVideo.srcObject=visionStream;visionVideo.hidden=false;await visionVideo.play();visionButton.setAttribute("aria-pressed","true");visionButton.textContent="●";lastFrameAt=0;visionRaf=requestAnimationFrame(sendVisionFrame);if(micState)micState.textContent="Visão ao vivo ativa. O Jâmes recebe até um quadro por segundo da câmera traseira.";if(powerHelp)powerHelp.textContent="Voz e câmera ativas. O botão principal desliga os dois módulos.";status("Câmera ativa sob sua autorização.");}catch(error){cleanupVision();status("Não foi possível ativar a câmera. Verifique a permissão do navegador.");}}
  async function switchCamera(){if(!liveReady)return;const next=cameraFacing==="environment"?"user":"environment";try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:next},width:{ideal:640},height:{ideal:480}},audio:false});if(visionStream)visionStream.getTracks().forEach(track=>track.stop());visionStream=stream;cameraFacing=next;visionVideo.srcObject=visionStream;visionVideo.hidden=false;await visionVideo.play();if(visionButton){visionButton.setAttribute("aria-pressed","true");visionButton.textContent="●";}lastFrameAt=0;if(visionRaf)cancelAnimationFrame(visionRaf);visionRaf=requestAnimationFrame(sendVisionFrame);if(micState)micState.textContent=next==="user"?"Câmera frontal ativa.":"Câmera traseira ativa.";status(next==="user"?"Câmera frontal ativada.":"Câmera traseira ativada.");}catch(error){status("Não foi possível alternar a câmera. Verifique a disponibilidade e a permissão.");}}
- function stopLive(){liveReady=false;listening=false;stopAudio();window.JamesNeuralVoice?.stop();cleanupVision();if(processor){processor.onaudioprocess=null;processor.disconnect();processor=null;}if(micSource){micSource.disconnect();micSource=null;}if(silentGain){silentGain.disconnect();silentGain=null;}if(micStream){micStream.getTracks().forEach(track=>track.stop());micStream=null;}if(socket){const old=socket;socket=null;try{old.close(1000,"User ended session");}catch(e){}}if(audioContext){const old=audioContext;audioContext=null;old.close().catch(()=>{});}mic.setAttribute("aria-pressed","false");mic.textContent="🎙";if(visionButton)visionButton.disabled=true;if(cameraFlip)cameraFlip.disabled=true;if(powerButton){powerButton.setAttribute("aria-pressed","false");powerButton.classList.remove("is-on");powerLabel.textContent="LIGAR JÂMES";powerState.textContent="NÚCLEO AO VIVO DESLIGADO";powerHelp.textContent="A sessão de voz e câmera está encerrada. O chat permanece disponível.";}setCoreState("STANDBY");if(micState)micState.textContent="Sessão encerrada. Toque no botão principal para ligar novamente.";status("Jâmes desligado.");if(document.getElementById("holoLink"))document.getElementById("holoLink").textContent="STANDBY";}
- async function startLive(options={}){mic.disabled=true;if(powerButton)powerButton.disabled=true;if(micState)micState.textContent="Preparando sessão segura de voz ao vivo…";status("Solicitando permissões necessárias ao sistema…");setCoreState("CONNECTING");try{if(!navigator.mediaDevices?.getUserMedia)throw new Error("Este navegador não oferece acesso seguro a microfone e câmera.");if(options.withVision){try{micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:{facingMode:{ideal:"environment"},width:{ideal:640},height:{ideal:480}}});const tracks=micStream.getVideoTracks();if(tracks.length)visionStream=new MediaStream(tracks);}catch(cameraError){micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});if(micState)micState.textContent="Microfone autorizado. A câmera não foi autorizada ou está indisponível; você pode tentar ativá-la separadamente.";}}else{micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});}const tokenResponse=await fetch(WORKER+"?action=live-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sessionId(),voiceProfile:voiceProfile()})});const tokenData=await tokenResponse.json().catch(()=>({}));if(!tokenResponse.ok||!tokenData.token)throw new Error(tokenData.error||"O núcleo não forneceu um token de voz.");const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)throw new Error("Áudio ao vivo não suportado neste navegador.");audioContext=new AudioContextClass();await audioContext.resume();const url="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token="+encodeURIComponent(tokenData.token);socket=new WebSocket(url);socket.onopen=()=>{socket.send(JSON.stringify({setup:{model:"models/gemini-3.8-live",generationConfig:{responseModalities:["TEXT"]},inputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{disabled:false}},sessionResumption:{}}}));};socket.onmessage=handleLiveMessage;socket.onerror=()=>{status("A conexão de voz ao vivo falhou.");};socket.onclose=()=>{if(socket)stopLive();};}catch(error){stopLive();if(micState)micState.textContent="Voz ao vivo indisponível: "+(error.message||"falha de conexão");status("Não foi possível iniciar voz ao vivo. O chat por texto continua disponível.");}finally{mic.disabled=false;if(powerButton)powerButton.disabled=false;}}
+ function stopLive(){if(typeof window.stopHoloVisuals==="function")window.stopHoloVisuals();liveReady=false;listening=false;stopAudio();window.JamesNeuralVoice?.stop();cleanupVision();if(processor){processor.onaudioprocess=null;processor.disconnect();processor=null;}if(micSource){micSource.disconnect();micSource=null;}if(silentGain){silentGain.disconnect();silentGain=null;}if(micStream){micStream.getTracks().forEach(track=>track.stop());micStream=null;}if(socket){const old=socket;socket=null;try{old.close(1000,"User ended session");}catch(e){}}if(audioContext){const old=audioContext;audioContext=null;old.close().catch(()=>{});}mic.setAttribute("aria-pressed","false");mic.textContent="🎙";if(visionButton)visionButton.disabled=true;if(cameraFlip)cameraFlip.disabled=true;if(powerButton){powerButton.setAttribute("aria-pressed","false");powerButton.classList.remove("is-on");powerLabel.textContent="LIGAR JÂMES";powerState.textContent="NÚCLEO AO VIVO DESLIGADO";powerHelp.textContent="A sessão de voz e câmera está encerrada. O chat permanece disponível.";}setCoreState("STANDBY");if(micState)micState.textContent="Sessão encerrada. Toque no botão principal para ligar novamente.";status("Jâmes desligado.");if(document.getElementById("holoLink"))document.getElementById("holoLink").textContent="STANDBY";}
+ async function startLive(options={}){if(typeof window.stopHoloVisuals==="function")window.stopHoloVisuals();mic.disabled=true;if(powerButton)powerButton.disabled=true;if(micState)micState.textContent="Preparando sessão segura de voz ao vivo…";status("Solicitando permissões necessárias ao sistema…");setCoreState("CONNECTING");try{if(!navigator.mediaDevices?.getUserMedia)throw new Error("Este navegador não oferece acesso seguro a microfone e câmera.");if(options.withVision){try{micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:{facingMode:{ideal:"environment"},width:{ideal:640},height:{ideal:480}}});const tracks=micStream.getVideoTracks();if(tracks.length)visionStream=new MediaStream(tracks);}catch(cameraError){micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});if(micState)micState.textContent="Microfone autorizado. A câmera não foi autorizada ou está indisponível; você pode tentar ativá-la separadamente.";}}else{micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});}const tokenResponse=await fetch(WORKER+"?action=live-token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sessionId(),profileId:profileId(),voiceProfile:voiceProfile(),responseModality:"TEXT",deviceContext:{platform:"web",timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"unknown",localNow:new Date().toISOString(),connections:window.readJamesConnections?.()||[]}})});const tokenData=await tokenResponse.json().catch(()=>({}));if(!tokenResponse.ok||!tokenData.token)throw new Error(tokenData.error||"O núcleo não forneceu um token de voz.");const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)throw new Error("Áudio ao vivo não suportado neste navegador.");audioContext=new AudioContextClass();await audioContext.resume();const url="wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token="+encodeURIComponent(tokenData.token);socket=new WebSocket(url);socket.onopen=()=>{socket.send(JSON.stringify({setup:{model:"models/gemini-3.8-live",generationConfig:{responseModalities:["TEXT"]},inputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{disabled:false}},sessionResumption:{}}}));};socket.onmessage=handleLiveMessage;socket.onerror=()=>{status("A conexão de voz ao vivo falhou.");};socket.onclose=()=>{if(socket)stopLive();};}catch(error){stopLive();if(micState)micState.textContent="Voz ao vivo indisponível: "+(error.message||"falha de conexão");status("Não foi possível iniciar voz ao vivo. O chat por texto continua disponível.");}finally{mic.disabled=false;if(powerButton)powerButton.disabled=false;}}
  mic.addEventListener("click",()=>{if(liveReady||socket){stopLive();return;}startLive({withVision:false});});
  if(powerButton)powerButton.addEventListener("click",()=>{if(liveReady||socket){stopLive();return;}startLive({withVision:true});});
  if(visionButton)visionButton.addEventListener("click",toggleVision);

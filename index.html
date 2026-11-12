@@ -86,6 +86,30 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .panel-kicker{color:#678397;font:9px 'DM Mono',monospace;letter-spacing:.1em}
 .conversation-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .conversation-tools button{min-height:32px;padding:6px 10px;font-size:9px}
+.conversation-picker{max-width:150px;min-height:32px;padding:6px 8px;border:1px solid rgba(104,228,242,.24);border-radius:7px;background:#071827;color:#bfeaf3;font:9px 'DM Mono',monospace}
+.profile-pairing .profile-code-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.profile-pairing code{display:block;flex:1;min-width:180px;padding:10px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#9beaff;overflow-wrap:anywhere}
+.profile-pairing label{display:block;margin:10px 0 6px;color:#91b5c7;font-size:10px}
+.profile-pairing input,.profile-pairing textarea{width:100%;min-height:38px;padding:9px 11px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#d8f4fa}
+.profile-pairing textarea{resize:vertical;min-height:110px;font:11px/1.5 'DM Mono',monospace}
+.connection-list{display:grid;gap:8px;margin-top:12px}
+.connection-item{display:grid;grid-template-columns:1fr auto auto;gap:7px;align-items:center;padding:9px;border:1px solid rgba(104,228,242,.14);border-radius:8px;background:rgba(4,18,30,.75)}
+.connection-item strong{display:block;font:10px 'DM Mono',monospace;color:#d7f6ff}
+.connection-item small{display:block;margin-top:3px;color:#8fb7c7;font:8px 'DM Mono',monospace;overflow-wrap:anywhere}
+.connection-item button{padding:6px 9px;font-size:9px}
+@media(max-width:520px){.connection-item{grid-template-columns:1fr 1fr}.connection-item>div{grid-column:1/-1}}
+.profile-pairing .profile-warning{font-size:10px;color:#c29a75}
+.holo-visuals{position:absolute;z-index:8;right:12px;bottom:38px;width:min(38%,250px);padding:7px;border:1px solid rgba(110,231,255,.5);border-radius:9px;background:rgba(2,14,27,.9);box-shadow:0 0 22px rgba(38,191,255,.2);backdrop-filter:blur(8px)}
+.holo-visuals a{display:block;color:#c9f6ff;text-decoration:none}
+.holo-visuals img{display:block;width:100%;height:128px;object-fit:cover;border-radius:5px}
+.holo-visuals strong{display:block;margin-top:6px;font:9px 'DM Mono',monospace;line-height:1.35}
+.holo-visuals small{display:block;margin-top:4px;color:#8fb7c7;font:8px 'DM Mono',monospace}
+.visual-message{display:block;max-width:min(520px,90%);margin:10px 0;padding:9px;border:1px solid rgba(104,228,242,.2);border-radius:10px;background:rgba(5,22,36,.92)}
+.visual-message a{display:block;color:#c9f6ff;text-decoration:none}
+.visual-message img{display:block;width:100%;max-height:230px;object-fit:contain;border-radius:6px;background:#020811}
+.visual-message strong{display:block;margin-top:7px;font:10px 'DM Mono',monospace}
+.visual-message small{display:block;margin-top:4px;color:#8fb7c7;font:8px 'DM Mono',monospace}
+@media(max-width:760px){.holo-visuals{right:7px;bottom:30px;width:42%;padding:5px}.holo-visuals img{height:88px}.holo-visuals strong{font-size:8px}}
 
 
 #chat{height:440px;min-height:300px;overflow:auto;padding:18px clamp(12px,2vw,24px);background:radial-gradient(ellipse at 50% 0%,rgba(18,66,88,.13),transparent 55%),rgba(2,9,16,.24);scrollbar-color:#28516a transparent;scrollbar-width:thin}
@@ -225,13 +249,14 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <div class="projection-caption top">PROJEÇÃO NEURAL <span>JÂMES / 01</span></div>
    <div class="projection-beam"></div>
    <div class="holo-entity">
-    <canvas id="jamesNeuralCanvas" aria-label="Campo neural animado do Jâmes"></canvas>
+    <canvas id="jamesVisualCanvas" class="holo-figure" aria-label="Esfera holográfica neural animada do Jâmes"></canvas>
    </div>
    <div class="projection-scan"></div><div class="projection-grid"></div>
    <div class="projection-base"><i></i><i></i><i></i></div>
    <div class="projection-readout left">SENSORIAL<br><b>NEURAL MESH</b><br>PT-BR / LIVE</div>
    <div class="projection-readout right">LINK<br><b id="holoLink">STANDBY</b><br>SECURE SESSION</div>
    <div class="projection-caption bottom">HOLOGRAPHIC INTERFACE <span id="neuralActivityLabel">EM ESPERA</span></div>
+   <div id="holoVisuals" class="holo-visuals" hidden aria-live="polite"></div>
   </div>
  </div>
  <div class="head-control-stack">
@@ -253,20 +278,51 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
 </section>
 
-<nav class="view-nav module-nav" aria-label="Módulos do Jâmes">
- <button type="button" data-view-target="overview" aria-pressed="true">◉ NÚCLEO</button>
- <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
+<nav class="view-nav module-nav" aria-label="Áreas principais do Jâmes">
+ <button type="button" data-view-target="overview" aria-pressed="true">◉ JÂMES</button>
  <button type="button" data-view-target="intelligence" aria-pressed="false">▤ CHAT</button>
- <button type="button" data-view-target="voices" aria-pressed="false">♫ VOZES</button>
- <button type="button" data-view-target="perception" aria-pressed="false">◎ VISÃO</button>
- <button type="button" data-view-target="device" aria-pressed="false">▦ SISTEMA</button>
- <button type="button" data-view-target="world" aria-pressed="false">⌖ MUNDO</button>
+ <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
 </nav>
 <section id="controlView" class="view" hidden>
  <div class="overview-grid">
+  <article class="overview-card wide profile-pairing">
+   <h2>Perfil pessoal e sincronização</h2>
+   <p>Use o mesmo código de perfil nos aparelhos que você deseja vincular. Memórias autorizadas e tarefas passam a usar o mesmo espaço pessoal; cada conversa continua com seu próprio histórico.</p>
+   <div class="profile-code-line"><code id="profileCode">CARREGANDO PERFIL…</code><button type="button" class="secondary" id="copyProfileCode">COPIAR CÓDIGO</button></div>
+   <label for="profileCodeInput">Vincular este aparelho a outro perfil</label>
+   <input id="profileCodeInput" autocomplete="off" spellcheck="false" placeholder="Cole aqui o código do outro aparelho">
+   <div class="module-actions"><button type="button" id="applyProfileCode">VINCULAR PERFIL</button></div>
+   <p class="profile-warning">Mantenha este código privado: quem o possuir poderá acessar as memórias, tarefas e o histórico de conversas deste perfil.</p>
+  </article>
+  <article class="overview-card wide profile-pairing">
+   <h2>Conexões manuais</h2>
+   <p>Cadastre atalhos para aplicativos Android, sites e dispositivos acessíveis pela rede. Isso permite ao Jâmes reconhecê-los e abri-los quando você pedir. No navegador, sites e painéis abrem em outra aba; atalhos de aplicativos são executados no cliente Android. Acesso a dados privados exige uma integração e autorização próprias de cada serviço.</p>
+   <label for="connectionName">Nome da conexão</label>
+   <input id="connectionName" maxlength="60" placeholder="Ex.: WhatsApp, câmera IP, painel da casa">
+   <label for="connectionType">Tipo</label>
+   <select id="connectionType">
+    <option value="app">Aplicativo Android</option>
+    <option value="site">Site HTTPS</option>
+    <option value="device">Dispositivo ou painel de rede</option>
+   </select>
+   <label for="connectionTarget">Nome do app ou endereço</label>
+   <input id="connectionTarget" maxlength="2048" placeholder="Nome do aplicativo ou URL http(s)://">
+   <div class="module-actions"><button type="button" id="saveConnection">ADICIONAR CONEXÃO</button></div>
+   <div id="connectionsList" class="connection-list"></div>
+   <p class="profile-warning">Estas conexões rápidas ficam salvas neste aparelho/navegador. Não armazene senhas ou chaves de API neste cadastro.</p>
+  </article>
+  <article class="overview-card wide profile-pairing">
+   <h2>Personalização do Jâmes</h2>
+   <p>Defina orientações permanentes para o comportamento, o estilo de resposta e as prioridades do seu assistente. Essas instruções serão aplicadas em todas as conversas vinculadas ao mesmo perfil.</p>
+   <label for="profileInstructions">Instruções personalizadas</label>
+   <textarea id="profileInstructions" rows="5" maxlength="1200" placeholder="Ex.: responda em português brasileiro, explique decisões importantes e peça confirmação antes de ações sensíveis."></textarea>
+   <div class="module-actions"><button type="button" id="saveProfileInstructions">SALVAR PERSONALIZAÇÃO</button></div>
+  </article>
   <article class="overview-card wide"><h2>Núcleo de inteligência</h2><div class="metric" id="overviewCoreState">INICIALIZANDO</div><p id="overviewCoreDetail">Verificando a conexão com o serviço de inteligência e suas ferramentas.</p><div class="module-actions"><button type="button" data-view-target="intelligence">Abrir console de comando</button><button type="button" class="secondary" id="overviewVoice">Falar com Jâmes</button></div></article>
   <article class="overview-card"><h2>Dispositivo</h2><div class="metric" id="overviewBattery">--</div><div class="metric-sub" id="overviewDeviceName">Dados do aparelho indisponíveis</div><div class="module-actions"><button type="button" class="secondary" data-view-target="device">Diagnóstico</button></div></article>
   <article class="overview-card"><h2>Percepção</h2><p>Câmera sob solicitação, imagens e documentos enviados para análise. Nenhuma captura em segundo plano.</p><div class="module-actions"><button type="button" class="secondary" data-view-target="perception">Abrir percepção</button></div></article>
+  <article class="overview-card"><h2>Voz e fala</h2><p>Perfis vocais, motor neural local e controles de saída de voz.</p><div class="module-actions"><button type="button" class="secondary" data-view-target="voices">Configurar voz</button></div></article>
+  <article class="overview-card"><h2>Integração com outros sistemas</h2><p>Ferramentas e componente Windows, quando instalados e autorizados.</p><div class="module-actions"><button type="button" class="secondary" data-view-target="world">Abrir integrações</button></div></article>
   <article class="overview-card"><h2>Memória e contexto</h2><p>Histórico unificado entre conversa e ferramentas. Memórias explícitas permanecem controladas pelo usuário.</p><div class="module-actions"><button type="button" class="secondary" data-scroll-target="memoriesSection">Ver memória</button></div></article>
   <article class="overview-card"><h2>Execução</h2><p>Tarefas, abertura de aplicativos e lembretes locais, sujeitos à conexão e às permissões do Android.</p><div class="module-actions"><button type="button" class="secondary" data-scroll-target="tasksSection">Ver automações</button></div></article>
   <article class="overview-card full"><h2>Arquitetura ativa</h2><div class="module-grid"><div class="module-card"><strong>Raciocínio e planejamento</strong><span>Contexto compartilhado e ferramentas chamadas pelo núcleo de IA.</span></div><div class="module-card"><strong>Percepção multimodal</strong><span>Análise de imagens e PDFs; câmera ao vivo somente quando aberta e autorizada.</span></div><div class="module-card"><strong>Integração Android</strong><span>Voz nativa, informações básicas do aparelho e ações locais autorizadas.</span></div></div></article>
@@ -278,6 +334,8 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <div><div class="panel-title">Console do núcleo</div><div class="panel-kicker">COMUNICAÇÃO · RACIOCÍNIO · EXECUÇÃO</div></div>
    <div class="conversation-tools">
     <span class="panel-kicker">NÚCLEO ÚNICO · CONTEXTO E FERRAMENTAS INTEGRADOS</span>
+    <select id="conversationPicker" class="conversation-picker" aria-label="Conversas salvas"></select>
+    <button type="button" class="secondary" id="newConversation">+ NOVA CONVERSA</button>
     <button type="button" class="secondary" id="voiceOutput">VOZ: LIGADA</button>
     <button type="button" class="secondary" id="stopVoice">PARAR VOZ</button>
    </div>
@@ -411,6 +469,7 @@ let voiceOutputEnabled=localStorage.getItem("james_voice_enabled")!=="false";
 let historyBefore=null;
 let historyHasMore=false;
 let historyLoading=false;
+let historyRequestVersion=0;
 
 function readNativeDeviceInfo(){
  if(!window.JamesAndroid||typeof window.JamesAndroid.getDeviceInfo!=="function")return null;
@@ -483,19 +542,23 @@ function renderHistoryMessage(message,prepend=false){
 }
 
 async function loadHistory(older=false){
- if(historyLoading)return;
+ if(older&&historyLoading)return;
+ if(!older)historyRequestVersion++;
+ const requestVersion=historyRequestVersion;
+ const requestedSession=getSessionId();
  historyLoading=true;
  const button=$("loadOlder");
  button.disabled=true;
  try{
   const params=new URLSearchParams({
    action:"history",
-   sessionId:getSessionId(),
+   sessionId:requestedSession,
    limit:"30"
   });
   if(older&&historyBefore)params.set("before",String(historyBefore));
   const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
   const data=await response.json().catch(()=>({}));
+  if(requestVersion!==historyRequestVersion||requestedSession!==getSessionId())return;
   if(!response.ok)throw new Error(data.error||"Não foi possível recuperar o histórico.");
   const messages=Array.isArray(data.messages)?data.messages:[];
   if(older){
@@ -520,11 +583,14 @@ async function loadHistory(older=false){
   button.hidden=!historyHasMore;
   button.textContent="Carregar mensagens anteriores";
  }catch(error){
+  if(requestVersion!==historyRequestVersion)return;
   if(!older&&chat.childElementCount===0)addMessage("Olá! Sou o Jâmes. Vamos conversar?","bot");
   statusBox.textContent="Histórico indisponível: "+(error.message||"falha de conexão");
  }finally{
-  historyLoading=false;
-  button.disabled=false;
+  if(requestVersion===historyRequestVersion){
+   historyLoading=false;
+   button.disabled=false;
+  }
  }
 }
 
@@ -534,14 +600,16 @@ async function loadMemories(){
  if(!container)return;
  container.textContent="Carregando memórias...";
  try{
-  const params=new URLSearchParams({action:"memories",sessionId:getSessionId()});
+  const params=new URLSearchParams({action:"memories",profileId:getProfileId()});
   const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||"Memória ainda não disponível no servidor.");
   const memories=Array.isArray(data.memories)?data.memories:[];
+  const instructions=memories.find(memory=>memory.key==="instrucoes_personalizadas");
+  if($("profileInstructions"))$("profileInstructions").value=instructions?.value||"";
   container.replaceChildren();
   if(!memories.length){
-   container.textContent="Nenhuma memória permanente foi autorizada nesta sessão.";
+   container.textContent="Nenhuma memória permanente foi autorizada neste perfil.";
    return;
   }
   for(const memory of memories){
@@ -578,14 +646,14 @@ async function loadTasks(){
  if(!container)return;
  container.textContent="Carregando tarefas...";
  try{
-  const params=new URLSearchParams({action:"tasks",sessionId:getSessionId()});
+  const params=new URLSearchParams({action:"tasks",profileId:getProfileId()});
   const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||"Lista indisponível.");
   const tasks=Array.isArray(data.tasks)?data.tasks:[];
   container.replaceChildren();
   if(!tasks.length){
-   container.textContent="Nenhuma tarefa guardada nesta sessão.";
+   container.textContent="Nenhuma tarefa guardada neste perfil.";
    return;
   }
   for(const task of tasks){
@@ -636,21 +704,331 @@ function updateVoiceOutputButton(){
  $("voiceOutput").setAttribute("aria-pressed",String(voiceOutputEnabled));
 }
 
+function readConversationList(){
+ try{
+  const parsed=JSON.parse(localStorage.getItem("james_conversations")||"[]");
+  return Array.isArray(parsed)?parsed.filter(item=>item&&typeof item.id==="string"):[];
+ }catch{return [];}
+}
+function writeConversationList(items){
+ localStorage.setItem("james_conversations",JSON.stringify(items.slice(-40)));
+}
+function refreshConversationPicker(){
+ const picker=$("conversationPicker");
+ if(!picker)return;
+ const active=localStorage.getItem("james_active_session_id")||localStorage.getItem("james_session_id")||"";
+ const items=readConversationList().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+ picker.replaceChildren();
+ for(const item of items){
+  const option=document.createElement("option");
+  option.value=item.id;
+  option.textContent=item.title||"Conversa";
+  picker.appendChild(option);
+ }
+ if(active&&items.some(item=>item.id===active))picker.value=active;
+}
+function getProfileId(){
+ let id=localStorage.getItem("james_profile_id");
+ if(!id){
+  id=localStorage.getItem("james_session_id")||getSessionId();
+  localStorage.setItem("james_profile_id",id);
+ }
+ return id;
+}
+function refreshProfileCode(){
+ const target=$("profileCode");
+ if(target)target.textContent=getProfileId();
+}
+async function copyProfileCode(){
+ try{
+  await navigator.clipboard.writeText(getProfileId());
+  statusBox.textContent="Código de perfil copiado.";
+ }catch(error){
+  statusBox.textContent="Não foi possível copiar automaticamente. Selecione o código exibido e copie manualmente.";
+ }
+}
+function readConnections(){
+ try{const value=JSON.parse(localStorage.getItem("james_connections")||"[]");return Array.isArray(value)?value:[];}
+ catch{return [];}
+}
+window.readJamesConnections=readConnections;
+function writeConnections(items){
+ localStorage.setItem("james_connections",JSON.stringify(items.slice(0,60)));
+}
+function renderConnections(){
+ const container=$("connectionsList");
+ if(!container)return;
+ container.replaceChildren();
+ const items=readConnections();
+ if(!items.length){const empty=document.createElement("p");empty.className="profile-warning";empty.textContent="Nenhuma conexão manual cadastrada.";container.appendChild(empty);return;}
+ for(const item of items){
+  const row=document.createElement("div");row.className="connection-item";
+  const info=document.createElement("div");
+  const name=document.createElement("strong");name.textContent=item.name;
+  const target=document.createElement("small");target.textContent=item.type==="app"?"APP · "+item.target:item.type==="device"?"DISPOSITIVO · "+item.target:"SITE · "+item.target;
+  info.append(name,target);
+  const open=document.createElement("button");open.type="button";open.textContent="ABRIR";open.addEventListener("click",()=>openConnection(item.id));
+  const remove=document.createElement("button");remove.type="button";remove.textContent="REMOVER";remove.addEventListener("click",()=>deleteConnection(item.id));
+  row.append(info,open,remove);container.appendChild(row);
+ }
+}
+function saveConnection(){
+ const name=$("connectionName").value.trim().slice(0,60);
+ const type=$("connectionType").value;
+ const target=$("connectionTarget").value.trim().slice(0,2048);
+ if(name.length<2||!target){statusBox.textContent="Informe um nome e um destino para a conexão.";return;}
+ if(type==="site"||type==="device"){
+  try{
+   const url=new URL(target);
+   if(!["https:","http:"].includes(url.protocol)||(type==="site"&&url.protocol!=="https:"))throw new Error("Use um endereço HTTPS para sites e HTTP/HTTPS para dispositivos.");
+  }catch(error){statusBox.textContent=error.message||"Endereço inválido.";return;}
+ }
+ const items=readConnections();
+ const existing=items.find(item=>item.name.toLowerCase()===name.toLowerCase());
+ const entry={id:existing?.id||crypto.randomUUID(),name,type,target};
+ const next=existing?items.map(item=>item.id===existing.id?entry:item):[entry,...items];
+ writeConnections(next);renderConnections();
+ $("connectionName").value="";$("connectionTarget").value="";
+ statusBox.textContent="Conexão salva neste aparelho. O Jâmes poderá reconhecê-la nos próximos comandos.";
+}
+function deleteConnection(id){
+ writeConnections(readConnections().filter(item=>item.id!==id));renderConnections();
+ statusBox.textContent="Conexão removida deste aparelho.";
+}
+function openConnection(id){
+ const item=readConnections().find(entry=>entry.id===id);
+ if(!item)return;
+ if(item.type==="app"){
+  if(window.JamesAndroid?.openApp){
+   try{
+    const result=JSON.parse(window.JamesAndroid.openApp(item.target)||"{}");
+    statusBox.textContent=result.success?"Android confirmou: "+(result.message||"aplicativo aberto"):"Android não concluiu: "+(result.message||"aplicativo não encontrado");
+   }catch(error){statusBox.textContent="Não foi possível abrir o aplicativo: "+(error.message||"erro");}
+  }else statusBox.textContent="A abertura de aplicativos está disponível na versão Android do Jâmes.";
+  return;
+ }
+ try{
+  const url=new URL(item.target);
+  const opened=window.open(url.href,"_blank","noopener,noreferrer");
+  if(!opened)statusBox.textContent="O navegador bloqueou a abertura automática. Permita pop-ups ou copie o endereço: "+url.href;
+  else statusBox.textContent="Conexão aberta em outra aba.";
+ }catch(error){statusBox.textContent="Endereço inválido."; }
+}
+async function saveProfileInstructions(){
+ const value=$("profileInstructions").value.trim().slice(0,1200);
+ try{
+  let name="save_memory";
+  let args={key:"instrucoes_personalizadas",value};
+  if(!value){
+   const listResponse=await fetch(WORKER_URL+"?"+new URLSearchParams({action:"memories",profileId:getProfileId()}));
+   const listData=await listResponse.json().catch(()=>({}));
+   const existing=(listData.memories||[]).find(memory=>memory.key==="instrucoes_personalizadas");
+   if(!existing){
+    statusBox.textContent="Não há instruções personalizadas salvas.";
+    return;
+   }
+   name="delete_memory";
+   args={memory_id:existing.id};
+  }
+  const response=await fetch(WORKER_URL+"?action=live-tool",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({sessionId:getSessionId(),profileId:getProfileId(),name,args})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data.result?.success===false||data.result?.error)throw new Error(data.result?.error||data.error||"Não foi possível salvar.");
+  statusBox.textContent=value?"Personalização salva no perfil. Será aplicada nas próximas respostas.":"Personalização removida do perfil.";
+  loadMemories();
+ }catch(error){
+  statusBox.textContent="Não foi possível atualizar a personalização: "+(error.message||"falha de conexão");
+ }
+}
+function applyProfileCode(){
+ const candidate=$("profileCodeInput").value.trim();
+ if(!/^[A-Za-z0-9_-]{8,100}$/.test(candidate)){
+  statusBox.textContent="Código inválido. Confira o texto recebido do outro aparelho.";
+  return;
+ }
+ localStorage.setItem("james_profile_id",candidate);
+ $("profileCodeInput").value="";
+ refreshProfileCode();
+ loadTasks();
+ loadMemories();
+ syncConversationList();
+ statusBox.textContent="Perfil vinculado neste aparelho. Memórias, tarefas e lista de conversas usarão o perfil compartilhado.";
+}
 function getSessionId(){
- let id=localStorage.getItem("james_session_id");
+ let id=localStorage.getItem("james_active_session_id")||localStorage.getItem("james_session_id");
  if(!id){
   id=window.crypto&&crypto.randomUUID
    ?crypto.randomUUID()
    :"james-"+Date.now()+"-"+Math.random().toString(36).slice(2);
-  localStorage.setItem("james_session_id",id);
  }
+ localStorage.setItem("james_active_session_id",id);
+ localStorage.setItem("james_session_id",id);
+ const items=readConversationList();
+ if(!items.some(item=>item.id===id)){
+  items.push({id,title:"Conversa atual",updatedAt:Date.now()});
+  writeConversationList(items);
+ }
+ refreshConversationPicker();
  return id;
+}
+function updateConversationMetadata(firstMessage){
+ const id=getSessionId();
+ const items=readConversationList();
+ const item=items.find(entry=>entry.id===id);
+ if(item){
+  if(!item.title||item.title==="Conversa atual"||item.title==="Nova conversa"){
+   item.title=(firstMessage||"Conversa").replace(/\\s+/g," ").trim().slice(0,46)||"Conversa";
+  }
+  item.updatedAt=Date.now();
+  writeConversationList(items);
+  refreshConversationPicker();
+ }
+}
+async function syncConversationList(){
+ try{
+  const params=new URLSearchParams({action:"conversations",profileId:getProfileId(),limit:"50"});
+  const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!Array.isArray(data.conversations))return;
+  const items=readConversationList();
+  for(const remote of data.conversations){
+   const id=remote.session_id;
+   if(typeof id!=="string"||!id)continue;
+   const updatedAt=Date.parse(remote.updated_at||remote.updatedAt||"")||Date.now();
+   const existing=items.find(item=>item.id===id);
+   if(existing){
+    existing.title=remote.title||existing.title||"Conversa";
+    existing.updatedAt=updatedAt;
+   }else{
+    items.push({id,title:remote.title||"Conversa",updatedAt});
+   }
+  }
+  writeConversationList(items);
+  refreshConversationPicker();
+ }catch(error){
+  console.warn("Não foi possível sincronizar a lista de conversas:",error);
+ }
+}
+window.syncConversationList=syncConversationList;
+function createNewConversation(){
+ const power=$("jamesPower");
+ if(power?.getAttribute("aria-pressed")==="true")power.click();
+ const id=window.crypto&&crypto.randomUUID?crypto.randomUUID():"james-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+ localStorage.setItem("james_active_session_id",id);
+ localStorage.setItem("james_session_id",id);
+ const items=readConversationList();
+ items.push({id,title:"Nova conversa",updatedAt:Date.now()});
+ writeConversationList(items);
+ historyBefore=null;
+ historyHasMore=false;
+ refreshConversationPicker();
+ chat.replaceChildren();
+ loadHistory(false);
+ statusBox.textContent="Nova conversa criada.";
+}
+function selectConversation(id){
+ if(!id||id===getSessionId())return;
+ const power=$("jamesPower");
+ if(power?.getAttribute("aria-pressed")==="true")power.click();
+ localStorage.setItem("james_active_session_id",id);
+ localStorage.setItem("james_session_id",id);
+ historyBefore=null;
+ historyHasMore=false;
+ refreshConversationPicker();
+ chat.replaceChildren();
+ loadHistory(false);
+ statusBox.textContent="Conversa recuperada.";
 }
 
 let jamesVoiceStyle=localStorage.getItem("james_voice_style")||"jarvis";
 function applyJamesVoiceStyle(){
  document.querySelectorAll("[data-voice-style]").forEach(button=>button.classList.toggle("active",button.dataset.voiceStyle===jamesVoiceStyle));
 }
+let holoVisualTimer=null;
+let holoVisualStopTimer=null;
+let holoVisualItems=[];
+let holoVisualIndex=0;
+function stopHoloVisuals(){
+ if(holoVisualTimer)clearTimeout(holoVisualTimer);
+ if(holoVisualStopTimer)clearTimeout(holoVisualStopTimer);
+ holoVisualTimer=null;
+ holoVisualStopTimer=null;
+ holoVisualItems=[];
+ holoVisualIndex=0;
+ const container=$("holoVisuals");
+ if(container){container.hidden=true;container.replaceChildren();}
+}
+function showChatVisuals(items){
+ if(!Array.isArray(items)||!items.length)return;
+ const safe=items.filter(item=>{
+  try{return new URL(item.imageUrl).hostname==="upload.wikimedia.org"&&new URL(item.imageUrl).protocol==="https:"&&new URL(item.sourceUrl).hostname==="commons.wikimedia.org"&&new URL(item.sourceUrl).protocol==="https:";}
+  catch{return false;}
+ }).slice(0,6);
+ if(!safe.length)return;
+ const card=document.createElement("div");
+ card.className="message bot visual-message";
+ const link=document.createElement("a");
+ link.target="_blank";link.rel="noopener noreferrer";
+ const image=document.createElement("img");
+ image.alt="Imagem ilustrativa do Jâmes";
+ const title=document.createElement("strong");
+ const credit=document.createElement("small");
+ link.append(image,title,credit);
+ card.appendChild(link);
+ chat.appendChild(card);
+ let index=0;
+ const render=()=>{
+  const item=safe[index];
+  if(!item)return;
+  link.href=item.sourceUrl;
+  image.src=item.imageUrl;
+  image.alt=item.title||"Imagem ilustrativa";
+  title.textContent=item.title||"Imagem ilustrativa";
+  credit.textContent=(item.credit||"Wikimedia Commons")+" · "+(item.license||"Consulte a licença")+" · "+(index+1)+"/"+safe.length;
+  index++;
+  if(index<safe.length)setTimeout(render,7000);
+ };
+ render();
+ chat.scrollTop=chat.scrollHeight;
+}
+
+function showHoloVisuals(items){
+ if(!Array.isArray(items)||!items.length)return;
+ const safe=items.filter(item=>{
+  try{return new URL(item.imageUrl).hostname==="upload.wikimedia.org"&&new URL(item.imageUrl).protocol==="https:"&&new URL(item.sourceUrl).hostname==="commons.wikimedia.org"&&new URL(item.sourceUrl).protocol==="https:";}
+  catch{return false;}
+ }).slice(0,6);
+ if(!safe.length)return;
+ stopHoloVisuals();
+ holoVisualItems=safe;
+ const container=$("holoVisuals");
+ if(!container)return;
+ container.hidden=false;
+ const render=()=>{
+  const item=holoVisualItems[holoVisualIndex%holoVisualItems.length];
+  const link=document.createElement("a");
+  link.href=item.sourceUrl;
+  link.target="_blank";
+  link.rel="noopener noreferrer";
+  const image=document.createElement("img");
+  image.src=item.imageUrl;
+  image.alt=item.title||"Imagem ilustrativa";
+  image.loading="eager";
+  const title=document.createElement("strong");
+  title.textContent=item.title||"Imagem ilustrativa";
+  const credit=document.createElement("small");
+  credit.textContent=(item.credit||"Wikimedia Commons")+" · "+(item.license||"Consulte a licença");
+  link.append(image,title,credit);
+  container.replaceChildren(link);
+  holoVisualIndex++;
+  holoVisualTimer=setTimeout(render,7000);
+ };
+ render();
+}
+
 function speak(text){
  if(!voiceOutputEnabled)return;
  const engine=window.JamesNeuralVoice;
@@ -658,9 +1036,19 @@ function speak(text){
   statusBox.textContent="A voz neural ainda não foi carregada. Abra VOZES e toque em CARREGAR VOZ NEURAL. O Jâmes não usará a voz do Google como substituta.";
   return;
  }
- engine.speak(text);
+ return engine.speak(text);
 }
 
+function addExternalLinkMessage(rawUrl){
+ try{
+  const url=new URL(rawUrl);
+  if(!["http:","https:"].includes(url.protocol))throw new Error("Endereço não permitido.");
+  const bubble=document.createElement("div");bubble.className="message bot";
+  const label=document.createElement("span");label.textContent="Jâmes preparou este endereço: ";
+  const link=document.createElement("a");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";link.textContent=url.href;
+  bubble.append(label,link);chat.appendChild(bubble);chat.scrollTop=chat.scrollHeight;
+ }catch(error){addMessage("Endereço recusado: "+(error.message||"URL inválida"),"error");}
+}
 function executeAndroidActions(actions){
  if(!Array.isArray(actions)||!actions.length)return;
  for(const action of actions){
@@ -676,6 +1064,10 @@ function executeAndroidActions(actions){
    }
    window.location.href=action.uri;
    addMessage("Comando enviado ao Windows. Se o navegador pedir confirmação, permita a abertura do Jâmes Companion. Se nada abrir, execute uma vez o instalador na aba MUNDO.","bot");
+   continue;
+  }
+  if(action.type==="open_url"){
+   addExternalLinkMessage(action.url);
    continue;
   }
   if(!window.JamesAndroid){
@@ -703,10 +1095,12 @@ function executeAndroidActions(actions){
 }
 
 async function sendMessage(message,attachments=null){
+ stopHoloVisuals();
  const text=message.trim();
  const files=Array.isArray(attachments)?attachments:[];
  if(!text&&!files.length)return;
 
+ updateConversationMetadata(text||("Anexos: "+files.map(file=>file.name).join(", ")));
  if(text)addMessage(text,"user");
  if(files.length)addMessage("Anexos enviados: "+files.map(file=>file.name).join(", "),"user");
 
@@ -725,11 +1119,13 @@ async function sendMessage(message,attachments=null){
   const payload={
    message:text||"Analise os anexos enviados.",
    sessionId:getSessionId(),
+   profileId:getProfileId(),
    deviceContext:{
     platform:window.JamesAndroid?"android":"web",
     timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"desconhecido",
     localNow,
-    device:readNativeDeviceInfo()
+    device:readNativeDeviceInfo(),
+    connections:readConnections().map(({name,type,target})=>({name,type,target}))
    }
   };
 
@@ -754,14 +1150,23 @@ async function sendMessage(message,attachments=null){
   }
 
   addMessage(data.reply,"bot");
+  const hasVisuals=Array.isArray(data.visuals)&&data.visuals.length>0;
+  if(hasVisuals){showHoloVisuals(data.visuals);showChatVisuals(data.visuals);}
   executeAndroidActions(data.clientActions);
   if(eye){eye.dataset.state="idle";$("eyeState").textContent="NÚCLEO ÓPTICO // RESPOSTA CONCLUÍDA";}
   statusBox.textContent=data.reasoningLevel==="high"
    ?"Resposta concluída após análise aprofundada."
    :"Resposta recebida.";
-  if(voiceOutputEnabled)speak(data.reply);
+  if(voiceOutputEnabled){
+   const playback=speak(data.reply);
+   if(hasVisuals&&playback&&typeof playback.then==="function")playback.then(stopHoloVisuals,stopHoloVisuals);
+   else if(hasVisuals)holoVisualStopTimer=setTimeout(stopHoloVisuals,7000*data.visuals.length);
+  }else if(hasVisuals){
+   holoVisualStopTimer=setTimeout(stopHoloVisuals,7000*data.visuals.length);
+  }
   loadTasks();
   loadMemories();
+  syncConversationList();
 
  }catch(error){
   const detail=error.message||"O serviço não forneceu detalhes adicionais.";
@@ -778,10 +1183,12 @@ const viewIds={overview:"overviewView",control:"controlView",intelligence:"intel
 function switchView(name){
  const active=viewIds[name]?name:"overview";
  for(const [key,id] of Object.entries(viewIds))$(id).hidden=key!==active;
- document.querySelectorAll("[data-view-target]").forEach(button=>{
-  if(button.dataset.viewTarget)button.setAttribute("aria-pressed",String(button.dataset.viewTarget===active));
+ const primary=active==="overview"?"overview":active==="intelligence"?"intelligence":"control";
+ document.querySelectorAll(".module-nav [data-view-target]").forEach(button=>{
+  button.setAttribute("aria-pressed",String(button.dataset.viewTarget===primary));
  });
- if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();}
+ if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();syncConversationList();}
+ if(active==="control"){loadTasks();loadMemories();refreshProfileCode();renderConnections();}
  if(active==="device")refreshDeviceDiagnostics();
  window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -801,6 +1208,15 @@ $("headOpenChat").addEventListener("click",()=>switchView("intelligence"));
 $("headOpenControl").addEventListener("click",()=>switchView("control"));
 switchView("overview");
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
+$("newConversation").addEventListener("click",createNewConversation);
+$("conversationPicker").addEventListener("change",event=>selectConversation(event.target.value));
+$("copyProfileCode").addEventListener("click",copyProfileCode);
+$("applyProfileCode").addEventListener("click",applyProfileCode);
+$("saveProfileInstructions").addEventListener("click",saveProfileInstructions);
+$("saveConnection").addEventListener("click",saveConnection);
+renderConnections();
+refreshConversationPicker();
+refreshProfileCode();
 $("voiceOutput").addEventListener("click",()=>{
  voiceOutputEnabled=!voiceOutputEnabled;
  localStorage.setItem("james_voice_enabled",String(voiceOutputEnabled));

@@ -226,6 +226,28 @@ test("live tool endpoint returns only allowlisted Windows protocol commands", as
   assert.equal((await deniedResponse.json()).result.error, "Ação Windows não permitida.");
 });
 
+test("open_url tool only returns allowlisted HTTP and HTTPS client actions", async () => {
+  const request = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "session_test_12345", name: "open_url", args: { url: "https://example.com/control" } })
+  });
+  const response = await worker.fetch(request, {});
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.result.clientAction.type, "open_url");
+  assert.equal(body.result.clientAction.url, "https://example.com/control");
+
+  const denied = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "session_test_12345", name: "open_url", args: { url: "javascript:alert(1)" } })
+  });
+  const deniedResponse = await worker.fetch(denied, {});
+  assert.equal(deniedResponse.status, 200);
+  assert.match((await deniedResponse.json()).result.error, /HTTP\/HTTPS/);
+});
+
 test("assistant creates a persistent task through the D1 tool", async () => {
   const originalFetch = globalThis.fetch;
   const executedSql = [];
@@ -635,10 +657,49 @@ test("live token endpoint returns a one-use token without exposing the API key",
     assert.equal(JSON.stringify(body).includes("secret-test-key"), false);
     assert.equal(provisionBody.uses, 1);
     assert.equal(provisionBody.liveConnectConstraints.model, "models/gemini-3.8-live");
-    assert.deepEqual(provisionBody.liveConnectConstraints.config.generationConfig.responseModalities, ["TEXT"]);
-    assert.equal(provisionBody.liveConnectConstraints.config.generationConfig.speechConfig, undefined);
-    assert.equal(provisionBody.liveConnectConstraints.config.outputAudioTranscription, undefined);
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.generationConfig.responseModalities, ["AUDIO"]);
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.generationConfig.speechConfig, {
+      languageCode: "pt-BR",
+      voiceConfig: { prebuiltVoiceConfig: { voiceName: "Algenib" } }
+    });
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.outputAudioTranscription, {});
     assert.deepEqual(provisionBody.liveConnectConstraints.config.realtimeInputConfig.automaticActivityDetection, { disabled: false });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("browser Live sessions receive text-mode tokens for local neural speech", async () => {
+  const originalFetch = globalThis.fetch;
+  let provisionBody;
+  const db = {
+    prepare() {
+      return {
+        run: async () => ({ success: true }),
+        bind() {
+          return {
+            first: async () => null,
+            all: async () => ({ results: [] }),
+            run: async () => ({ success: true })
+          };
+        }
+      };
+    }
+  };
+  globalThis.fetch = async (_url, options) => {
+    provisionBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({ name: "auth_tokens/text-session" }), { status: 200 });
+  };
+  try {
+    const request = new Request("https://worker.test/?action=live-token", {
+      method: "POST",
+      headers: { Origin: origin, "CF-Connecting-IP": "192.0.2.21", "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: "session_test_12345", voiceProfile: 1, responseModality: "TEXT" })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "secret-test-key", DB: db });
+    assert.equal(response.status, 200);
+    assert.deepEqual(provisionBody.liveConnectConstraints.config.generationConfig, { responseModalities: ["TEXT"] });
+    assert.equal(provisionBody.liveConnectConstraints.config.outputAudioTranscription, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -664,6 +725,231 @@ test("live tool endpoint executes allowlisted tools and rejects unknown tools", 
   assert.equal(deniedResponse.status, 400);
 });
 
+
+test("paired devices can list and reopen conversations stored under the same profile", async () => {
+  const registered = [];
+  const db = {
+    async batch() { return []; },
+    prepare(sql) {
+      return {
+        run: async () => ({ success: true }),
+        bind(...values) {
+          return {
+            run: async () => {
+              if (sql.includes("INSERT INTO james_profile_conversations_v21")) {
+                registered.push({ profile_id: values[0], session_id: values[1], title: values[2] });
+              }
+              return { success: true };
+            },
+            first: async () => null,
+            all: async () => ({
+              results: sql.includes("FROM james_profile_conversations_v21")
+                ? registered.filter(item => item.profile_id === values[0]).map(item => ({
+                    session_id: item.session_id, title: item.title, created_at: "2026-11-11 10:00:00", updated_at: "2026-11-11 10:01:00"
+                  }))
+                : []
+            })
+          };
+        }
+      };
+    }
+  };
+  const save = await worker.fetch(new Request("https://worker.test/?action=live-turn", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "session_chat_pair",
+      profileId: "profile_owner_pair",
+      userText: "Explique os motores de foguete",
+      modelText: "Um motor de foguete gera empuxo."
+    })
+  }), { DB: db });
+  assert.equal(save.status, 200);
+  const list = await worker.fetch(new Request("https://worker.test/?action=conversations&profileId=profile_owner_pair", {
+    headers: { Origin: origin }
+  }), { DB: db });
+  const body = await list.json();
+  assert.equal(list.status, 200);
+  assert.equal(body.conversations[0].session_id, "session_chat_pair");
+  assert.equal(body.conversations[0].title, "Explique os motores de foguete");
+});
+
+test("Worker applies a per-IP safety limit to repeated live tool requests", async () => {
+  const ip = "198.51.100.77";
+  let lastStatus = 0;
+  for (let index = 0; index < 31; index++) {
+    const request = new Request("https://worker.test/?action=live-tool", {
+      method: "POST",
+      headers: { Origin: origin, "CF-Connecting-IP": ip, "Content-Type": "application/json" },
+      body: "{"
+    });
+    const response = await worker.fetch(request, {});
+    lastStatus = response.status;
+    if (index < 30) assert.equal(response.status, 400);
+  }
+  assert.equal(lastStatus, 429);
+});
+
+test("text agent returns Commons visuals to the holographic client", async () => {
+  const originalFetch = globalThis.fetch;
+  let geminiCalls = 0;
+  const db = {
+    prepare() {
+      return {
+        run: async () => ({ meta: { changes: 1, last_row_id: 1 } }),
+        bind() {
+          return {
+            run: async () => ({ meta: { changes: 1, last_row_id: 1 } }),
+            all: async () => ({ results: [] }),
+            first: async () => null
+          };
+        }
+      };
+    }
+  };
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.includes("generativelanguage.googleapis.com")) {
+      geminiCalls++;
+      const body = geminiCalls === 1
+        ? { candidates: [{ content: { role: "model", parts: [{ functionCall: { name: "search_public_images", args: { query: "solar system" }, id: "image-call-1" } }] } }] }
+        : { candidates: [{ content: { role: "model", parts: [{ text: "Aqui está uma imagem ilustrativa do sistema solar." }] } }] };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }
+    if (target.startsWith("https://commons.wikimedia.org/w/api.php?")) {
+      return new Response(JSON.stringify({
+        query: { pages: { 1: { title: "File:Solar.jpg", imageinfo: [{
+          thumburl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Solar.jpg/1200px-Solar.jpg",
+          url: "https://upload.wikimedia.org/wikipedia/commons/a/a1/Solar.jpg",
+          descriptionurl: "https://commons.wikimedia.org/wiki/File:Solar.jpg",
+          mime: "image/jpeg",
+          extmetadata: { LicenseShortName: { value: "CC0" }, Artist: { value: "Commons author" } }
+        }] } } }
+      }), { status: 200 });
+    }
+    throw new Error("Unexpected mocked URL: " + target);
+  };
+  try {
+    const request = new Request("https://worker.test/", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Mostre o sistema solar",
+        sessionId: "session_visual_chat",
+        profileId: "profile_visual_chat"
+      })
+    });
+    const response = await worker.fetch(request, { GEMINI_API_KEY: "secret-test-key", DB: db });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reply, "Aqui está uma imagem ilustrativa do sistema solar.");
+    assert.equal(body.visuals.length, 1);
+    assert.equal(geminiCalls, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("visual search returns only sourced Wikimedia Commons image URLs", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /^https:\/\/commons\.wikimedia\.org\/w\/api\.php\?/);
+    return new Response(JSON.stringify({
+      query: {
+        pages: {
+          1: {
+            title: "File:Solar System illustration.jpg",
+            imageinfo: [{
+              thumburl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Solar.jpg/1200px-Solar.jpg",
+              url: "https://upload.wikimedia.org/wikipedia/commons/a/a1/Solar.jpg",
+              descriptionurl: "https://commons.wikimedia.org/wiki/File:Solar_System_illustration.jpg",
+              mime: "image/jpeg",
+              extmetadata: {
+                LicenseShortName: { value: "CC BY-SA 4.0" },
+                Artist: { value: "Example Artist" }
+              }
+            }]
+          }
+        }
+      }
+    }), { status: 200 });
+  };
+  try {
+    const request = new Request("https://worker.test/?action=live-tool", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "session_visual_123",
+        profileId: "profile_visual_123",
+        name: "search_public_images",
+        args: { query: "solar system" }
+      })
+    });
+    const response = await worker.fetch(request, {});
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.result.visuals.length, 1);
+    assert.equal(body.result.visuals[0].license, "CC BY-SA 4.0");
+    assert.equal(new URL(body.result.visuals[0].imageUrl).hostname, "upload.wikimedia.org");
+    assert.equal(new URL(body.result.visuals[0].sourceUrl).hostname, "commons.wikimedia.org");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("personal memories are shared across independent chats inside one profile", async () => {
+  const statements = [];
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          return {
+            run: async () => {
+              statements.push({ sql, values });
+              return { meta: { changes: 1 } };
+            },
+            all: async () => {
+              statements.push({ sql, values });
+              if (sql.includes("FROM james_memories_v21")) {
+                return { results: [{ id: 9, memory_key: "preferencia", memory_value: "Responder em português brasileiro." }] };
+              }
+              return { results: [] };
+            }
+          };
+        }
+      };
+    }
+  };
+  const saveRequest = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "session_chat_one",
+      profileId: "profile_owner_12345",
+      name: "save_memory",
+      args: { key: "preferencia", value: "Responder em português brasileiro." }
+    })
+  });
+  const saved = await worker.fetch(saveRequest, { DB: db });
+  assert.equal(saved.status, 200);
+  assert.ok(statements.some(item => item.sql.includes("INSERT INTO james_memories_v21") && item.values[0] === "profile_owner_12345"));
+
+  const listRequest = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "session_chat_two",
+      profileId: "profile_owner_12345",
+      name: "list_memories",
+      args: {}
+    })
+  });
+  const listed = await worker.fetch(listRequest, { DB: db });
+  const body = await listed.json();
+  assert.equal(listed.status, 200);
+  assert.equal(body.result.memories[0].value, "Responder em português brasileiro.");
+  assert.ok(statements.some(item => item.sql.includes("FROM james_memories_v21") && item.values[0] === "profile_owner_12345"));
+});
 
 test("live voice transcript is persisted into the same shared conversation history", async () => {
   const batches = [];

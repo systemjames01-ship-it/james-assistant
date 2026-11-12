@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RadialGradient
@@ -23,6 +24,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Base64
@@ -32,9 +35,12 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONArray
@@ -75,6 +81,7 @@ class MainActivity : android.app.Activity() {
     private lateinit var statusText: TextView
     private lateinit var navButtons: MutableMap<String, Button>
     private lateinit var sessionId: String
+    private lateinit var profileId: String
     private lateinit var chatMessages: LinearLayout
     private lateinit var chatScroll: ScrollView
     private lateinit var prompt: EditText
@@ -87,14 +94,35 @@ class MainActivity : android.app.Activity() {
     private var backendSummary = "Verificando o núcleo..."
     private var selectedVoiceProfile = 0
     private var liveConversationEnabled = false
+    private var notificationPermissionRequested = false
     private var liveVoiceSession: JamesLiveAudioSession? = null
     private var liveButton: Button? = null
     private var voiceProfileLabel: TextView? = null
     private var visionButton: Button? = null
     private var orbView: JamesHologramView? = null
+    private var liveVisualPanel: LinearLayout? = null
+    private var liveVisualImage: ImageView? = null
+    private var liveVisualCredit: TextView? = null
+    private var liveVisualChatCard: LinearLayout? = null
+    private var liveVisualChatImage: ImageView? = null
+    private var liveVisualChatCredit: TextView? = null
+    private var profileInstructionsInput: EditText? = null
+    private var connectionNameInput: EditText? = null
+    private var connectionTargetInput: EditText? = null
+    private var connectionKindSpinner: Spinner? = null
+    private var connectionsPanel: LinearLayout? = null
+    private val liveVisualHandler = Handler(Looper.getMainLooper())
+    private var liveVisuals = emptyList<JSONObject>()
+    private var lastLiveVisuals = emptyList<JSONObject>()
+    private var liveVisualIndex = 0
+    private var liveVisualRequestId = 0
+    private val liveUserTranscriptBuffer = StringBuilder()
+    private val liveAssistantTranscriptBuffer = StringBuilder()
+    private var liveUserTranscriptDisplayed = false
+    private var liveVisualRunnable: Runnable? = null
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
-    private var resumeLiveAfterBackground = false
+    private var cameraPermissionRequested = false
     private var pendingVoicePreview = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,12 +134,17 @@ class MainActivity : android.app.Activity() {
             .getString("session_id", null) ?: UUID.randomUUID().toString().also {
                 getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", it).apply()
             }
+        profileId = getSharedPreferences("james_core", MODE_PRIVATE)
+            .getString("profile_id", null) ?: sessionId.also {
+                getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("profile_id", it).apply()
+            }
+        registerCurrentConversation()
         createNotificationChannel()
         selectedVoiceProfile = getSharedPreferences("james_core", MODE_PRIVATE).getInt("voice_profile", 0).coerceIn(0, 2)
         buildShell()
         showPage("overview")
         refreshBackendStatus()
-        startLiveConversation()
+        // Sensores permanecem desligados até o usuário ativar o botão principal.
     }
 
     private fun buildShell() {
@@ -157,14 +190,9 @@ class MainActivity : android.app.Activity() {
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         navButtons = mutableMapOf()
         val pages = listOf(
-            "overview" to "CABEÇA",
-            "control" to "CONTROLE",
-            "voices" to "VOZES",
+            "overview" to "JÂMES",
             "intelligence" to "CHAT",
-            "perception" to "PERCEPÇÃO",
-            "automation" to "AUTOMAÇÕES",
-            "memory" to "MEMÓRIA",
-            "device" to "DISPOSITIVO"
+            "control" to "CONTROLE"
         )
         pages.forEach { (key, label) ->
             val button = makeButton(label, secondary = true).apply {
@@ -193,7 +221,7 @@ class MainActivity : android.app.Activity() {
     private fun showPage(page: String) {
         currentPage = page
         navButtons.forEach { (key, button) ->
-            val selected = key == page
+            val selected = key == page || (key == "control" && page in setOf("voices", "perception", "automation", "memory", "device"))
             button.setBackground(background(if (selected) 0xFF16445A.toInt() else COLOR_PANEL, if (selected) COLOR_CYAN else 0xFF244257.toInt()))
             button.setTextColor(if (selected) COLOR_TEXT else COLOR_MUTED)
         }
@@ -228,7 +256,40 @@ class MainActivity : android.app.Activity() {
         page.addView(heading, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)))
         val orb = JamesHologramView(this)
         orbView = orb
-        page.addView(orb, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val orbStage = FrameLayout(this)
+        orbStage.addView(orb, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        val visualPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(5), dp(5), dp(5), dp(5))
+            background = background(0xE6071728.toInt(), COLOR_CYAN)
+        }
+        val visualImage = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            contentDescription = "Imagem ilustrativa do Jâmes"
+        }
+        val visualCredit = TextView(this).apply {
+            textSize = 8f
+            maxLines = 2
+            setTextColor(COLOR_MUTED)
+            gravity = Gravity.CENTER
+        }
+        visualPanel.addView(visualImage, LinearLayout.LayoutParams(dp(148), dp(94)))
+        visualPanel.addView(visualCredit, LinearLayout.LayoutParams(dp(148), ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(3) })
+        val visualParams = FrameLayout.LayoutParams(dp(158), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END or Gravity.BOTTOM).apply {
+            rightMargin = dp(8); bottomMargin = dp(8)
+        }
+        orbStage.addView(visualPanel, visualParams)
+        liveVisualPanel = visualPanel
+        liveVisualImage = visualImage
+        liveVisualCredit = visualCredit
+        page.addView(orbStage, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val visualsToRestore = if (liveVisuals.isNotEmpty()) liveVisuals else lastLiveVisuals
+        if (visualsToRestore.isNotEmpty()) {
+            val activeVisuals = JSONArray()
+            visualsToRestore.forEach { activeVisuals.put(it) }
+            showLiveVisuals(activeVisuals)
+        }
         val subtitle = TextView(this).apply {
             text = "NÚCLEO HOLOGRÁFICO  //  INTERFACE JÂMES"
             textSize = 10f
@@ -238,14 +299,14 @@ class MainActivity : android.app.Activity() {
         }
         page.addView(subtitle, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)))
         val state = TextView(this).apply {
-            text = backendSummary
+            text = backendSummary + "\n" + if (liveConversationEnabled) "SESSÃO AO VIVO ATIVA" else "SENSORES DESLIGADOS ATÉ ATIVAÇÃO MANUAL"
             textSize = 10f
             gravity = Gravity.CENTER
             setTextColor(COLOR_GREEN)
             maxLines = 2
         }
         page.addView(state, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38)))
-        liveButton = makeButton("CONECTAR AO JÂMES", true) { toggleLiveConversation() }
+        liveButton = makeButton(if (liveConversationEnabled) "DESLIGAR JÂMES" else "LIGAR JÂMES", true) { toggleJamesPower() }
         page.addView(liveButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply {
             topMargin = dp(8); bottomMargin = dp(6)
         })
@@ -338,6 +399,93 @@ class MainActivity : android.app.Activity() {
         addButton(core, "ABRIR CONVERSA DE TEXTO", secondary = true) { showPage("intelligence") }
         page.addView(core)
 
+        val profile = card()
+        addText(profile, "PERFIL PESSOAL E SINCRONIZAÇÃO", 11f, COLOR_CYAN, true)
+        addText(profile, "Código deste perfil:", 10f, COLOR_MUTED, top = 7)
+        addText(profile, profileId, 11f, COLOR_TEXT, true, top = 4)
+        addText(profile, "Use o mesmo código nos aparelhos que deseja vincular. Memórias autorizadas, tarefas e histórico de conversas serão compartilhados entre eles.", 10f, COLOR_MUTED, top = 7)
+        addButton(profile, "COPIAR CÓDIGO DE PERFIL") {
+            try {
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Jâmes profile", profileId))
+                Toast.makeText(this, "Código de perfil copiado.", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                Toast.makeText(this, "Não foi possível copiar o código.", Toast.LENGTH_LONG).show()
+            }
+        }
+        addButton(profile, "VINCULAR OUTRO APARELHO", secondary = true) {
+            val input = EditText(this).apply {
+                hint = "Cole o código do outro aparelho"
+                setSingleLine(true)
+                setTextColor(COLOR_TEXT)
+                setHintTextColor(COLOR_MUTED)
+            }
+            AlertDialog.Builder(this)
+                .setTitle("VINCULAR PERFIL")
+                .setMessage("Cole o código do aparelho que contém suas memórias e tarefas.")
+                .setView(input)
+                .setPositiveButton("VINCULAR") { _, _ ->
+                    val candidate = input.text?.toString()?.trim().orEmpty()
+                    if (Regex("[A-Za-z0-9_-]{8,100}").matches(candidate)) {
+                        profileId = candidate
+                        getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("profile_id", profileId).apply()
+                        showPage("control")
+                        setStatus("PERFIL VINCULADO NESTE APARELHO")
+                    } else {
+                        Toast.makeText(this, "Código de perfil inválido.", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("CANCELAR", null)
+                .show()
+        }
+        addText(profile, "Mantenha o código privado: quem o possuir poderá acessar as memórias, tarefas e o histórico de conversas deste perfil.", 9f, COLOR_MUTED, top = 7)
+        addText(profile, "INSTRUÇÕES PERSONALIZADAS", 10f, COLOR_CYAN, true, top = 12)
+        addText(profile, "Defina como o Jâmes deve responder e quais prioridades deve respeitar em todas as conversas vinculadas a este perfil.", 10f, COLOR_MUTED, top = 5)
+        val instructionsInput = EditText(this).apply {
+            hint = "Ex.: responda em português brasileiro, explique decisões e peça confirmação antes de ações sensíveis."
+            setHintTextColor(COLOR_MUTED)
+            setTextColor(COLOR_TEXT)
+            textSize = 12f
+            minLines = 4
+            maxLines = 7
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            setPadding(dp(10), dp(9), dp(10), dp(9))
+            background = background(0xFF020910.toInt(), 0xFF29485C.toInt())
+        }
+        profileInstructionsInput = instructionsInput
+        profile.addView(instructionsInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(7) })
+        addButton(profile, "SALVAR PERSONALIZAÇÃO") { saveProfileInstructions() }
+        page.addView(profile)
+        loadProfileInstructions()
+
+        val connections = card()
+        addText(connections, "CONEXÕES MANUAIS", 11f, COLOR_CYAN, true)
+        addText(connections, "Cadastre aplicativos Android, sites HTTPS e dispositivos com painel HTTP/HTTPS. Isso permite ao Jâmes reconhecê-los e abri-los quando você pedir. Acesso a dados privados exige autorização própria do serviço.", 10f, COLOR_MUTED, top = 6)
+        connectionNameInput = EditText(this).apply {
+            hint = "Nome · ex.: WhatsApp, câmera IP"
+            setSingleLine(true)
+            setTextColor(COLOR_TEXT)
+            setHintTextColor(COLOR_MUTED)
+        }
+        connections.addView(connectionNameInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+        connectionKindSpinner = Spinner(this).apply {
+            adapter = android.widget.ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("Aplicativo Android", "Site HTTPS", "Dispositivo / painel de rede"))
+        }
+        connections.addView(connectionKindSpinner, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5) })
+        connectionTargetInput = EditText(this).apply {
+            hint = "Nome exato do app ou URL http(s)://"
+            setSingleLine(true)
+            setTextColor(COLOR_TEXT)
+            setHintTextColor(COLOR_MUTED)
+        }
+        connections.addView(connectionTargetInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5) })
+        addButton(connections, "ADICIONAR CONEXÃO") { saveManualConnection() }
+        connectionsPanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        connections.addView(connectionsPanel, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        addText(connections, "Os atalhos ficam neste aparelho e não armazenam senhas ou chaves de API.", 9f, COLOR_MUTED, top = 7)
+        page.addView(connections)
+        renderManualConnections()
+
         val sensors = card()
         addText(sensors, "SENSORES E PERCEPÇÃO", 11f, COLOR_CYAN, true)
         addInfoLine(sensors, "Audição", if (liveConversationEnabled) "Sessão solicitada" else "Em espera")
@@ -352,9 +500,11 @@ class MainActivity : android.app.Activity() {
         val systems = card()
         addText(systems, "MÓDULOS DO SISTEMA", 11f, COLOR_CYAN, true)
         addModule(systems, "CHAT E RACIOCÍNIO", "Conversa textual, contexto e ferramentas") { showPage("intelligence") }
-        addModule(systems, "MEMÓRIA", "Memórias autorizadas") { showPage("memory") }
-        addModule(systems, "AUTOMAÇÕES", "Tarefas, lembretes e ações Android") { showPage("automation") }
-        addModule(systems, "APARELHO", "Estado do dispositivo e acessibilidade") { showPage("device") }
+        addModule(systems, "PERFIS DE VOZ", "Identidade vocal e síntese de fala") { showPage("voices") }
+        addModule(systems, "PERCEPÇÃO", "Câmera, imagens e documentos") { showPage("perception") }
+        addModule(systems, "MEMÓRIA", "Memórias autorizadas e histórico") { showPage("memory") }
+        addModule(systems, "AUTOMAÇÕES", "Tarefas e lembretes locais") { showPage("automation") }
+        addModule(systems, "APARELHO", "Estado, permissões e acessibilidade") { showPage("device") }
         addButton(systems, "VERIFICAR CONEXÃO DO NÚCLEO", secondary = true) { refreshBackendStatus() }
         page.addView(systems)
         mountScrollable(page)
@@ -364,7 +514,9 @@ class MainActivity : android.app.Activity() {
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val head = card()
         addText(head, "CONSOLE DO NÚCLEO", 11f, COLOR_CYAN, true)
-        addText(head, "Uma conversa. Um contexto. Ferramentas quando necessárias.", 11f, COLOR_MUTED, top = 5)
+        addText(head, "Conversas separadas, histórico persistente e ferramentas integradas.", 11f, COLOR_MUTED, top = 5)
+        addButton(head, "NOVA CONVERSA") { createNewConversation() }
+        addButton(head, "HISTÓRICO DE CONVERSAS", secondary = true) { showConversationPicker() }
         page.addView(head)
 
         chatScroll = ScrollView(this).apply {
@@ -376,6 +528,12 @@ class MainActivity : android.app.Activity() {
             setPadding(dp(10), dp(10), dp(10), dp(10))
         }
         chatScroll.addView(chatMessages)
+        val visualsToRestore = if (liveVisuals.isNotEmpty()) liveVisuals else lastLiveVisuals
+        if (visualsToRestore.isNotEmpty()) {
+            val activeVisuals = JSONArray()
+            visualsToRestore.forEach { activeVisuals.put(it) }
+            showLiveVisuals(activeVisuals)
+        }
         page.addView(chatScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val composer = card()
@@ -421,7 +579,7 @@ class MainActivity : android.app.Activity() {
 
         val note = card()
         addText(note, "LIMITES ATUAIS", 10f, COLOR_CYAN, true)
-        addText(note, "A versão atual envia capturas e arquivos para análise. Ainda não existe vídeo contínuo, reconhecimento visual em segundo plano ou monitoramento permanente.", 11f, COLOR_MUTED, top = 7)
+        addText(note, "Quando você liga o Jâmes, uma notificação persistente mantém a sessão autorizada de microfone e, quando ativada, câmera em primeiro plano mesmo ao alternar de aplicativo ou apagar a tela. O Android, o fabricante, a bateria e as permissões ainda podem interromper a sessão; isso não é garantia de monitoramento ininterrupto por 24 horas.", 11f, COLOR_MUTED, top = 7)
         page.addView(note)
         mountScrollable(page)
     }
@@ -477,6 +635,116 @@ class MainActivity : android.app.Activity() {
         mountScrollable(page)
     }
 
+    private fun conversationList(): JSONArray {
+        val raw = getSharedPreferences("james_core", MODE_PRIVATE).getString("conversations_json", "[]")
+        return try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+    }
+
+    private fun saveConversationList(list: JSONArray) {
+        getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("conversations_json", list.toString()).apply()
+    }
+
+    private fun registerCurrentConversation() {
+        val list = conversationList()
+        val exists = (0 until list.length()).any { list.optJSONObject(it)?.optString("id") == sessionId }
+        if (!exists) list.put(JSONObject().put("id", sessionId).put("title", "Conversa atual").put("updatedAt", System.currentTimeMillis()))
+        saveConversationList(list)
+    }
+
+    private fun createNewConversation() {
+        if (liveConversationEnabled) stopLiveConversation()
+        lastLiveVisuals = emptyList()
+        sessionId = UUID.randomUUID().toString()
+        getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", sessionId).apply()
+        val list = conversationList()
+        list.put(JSONObject().put("id", sessionId).put("title", "Nova conversa").put("updatedAt", System.currentTimeMillis()))
+        while (list.length() > 40) list.remove(0)
+        saveConversationList(list)
+        showPage("intelligence")
+        setStatus("NOVA CONVERSA CRIADA")
+    }
+
+    private fun showConversationPicker() {
+        setStatus("SINCRONIZANDO HISTÓRICO DO PERFIL")
+        executor.execute {
+            try {
+                val encoded = java.net.URLEncoder.encode(profileId, "UTF-8")
+                val connection = URL("$WORKER_URL/?action=conversations&profileId=$encoded&limit=50").openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                connection.setRequestProperty("Origin", APP_ORIGIN)
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                connection.disconnect()
+                val remote = JSONObject(responseText).optJSONArray("conversations") ?: JSONArray()
+                val list = conversationList()
+                for (index in 0 until remote.length()) {
+                    val item = remote.optJSONObject(index) ?: continue
+                    val id = item.optString("session_id")
+                    if (!Regex("[A-Za-z0-9_-]{8,100}").matches(id)) continue
+                    val existing = (0 until list.length()).mapNotNull { list.optJSONObject(it) }.firstOrNull { it.optString("id") == id }
+                    if (existing == null) {
+                        list.put(JSONObject().put("id", id).put("title", item.optString("title", "Conversa"))
+                            .put("updatedAt", System.currentTimeMillis() - index))
+                    } else {
+                        existing.put("title", item.optString("title", existing.optString("title", "Conversa")))
+                        existing.put("updatedAt", System.currentTimeMillis() - index)
+                    }
+                }
+                saveConversationList(list)
+            } catch (error: Exception) {
+                android.util.Log.w("JamesConversations", "Remote conversation list unavailable", error)
+            }
+            runOnUiThread { displayConversationPicker() }
+        }
+    }
+
+    private fun displayConversationPicker() {
+        val list = conversationList()
+        if (list.length() == 0) {
+            Toast.makeText(this, "Nenhuma conversa salva neste perfil.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val entries = (0 until list.length()).mapNotNull { list.optJSONObject(it) }
+            .sortedByDescending { it.optLong("updatedAt") }
+        val labels = entries.map { item ->
+            val title = item.optString("title", "Conversa")
+            val date = item.optLong("updatedAt")
+            title + if (date > 0) " · " + java.text.SimpleDateFormat("dd/MM HH:mm", Locale("pt", "BR")).format(java.util.Date(date)) else ""
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("HISTÓRICO DE CONVERSAS")
+            .setItems(labels) { _, index ->
+                val selected = entries.getOrNull(index)?.optString("id").orEmpty()
+                if (selected.isNotBlank() && selected != sessionId) {
+                    if (liveConversationEnabled) stopLiveConversation()
+                    stopLiveVisuals()
+                    lastLiveVisuals = emptyList()
+                    sessionId = selected
+                    getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", sessionId).apply()
+                    showPage("intelligence")
+                    setStatus("CONVERSA RECUPERADA")
+                }
+            }
+            .setNegativeButton("FECHAR", null)
+            .show()
+    }
+
+    private fun updateCurrentConversationTitle(firstMessage: String) {
+        val list = conversationList()
+        for (index in 0 until list.length()) {
+            val item = list.optJSONObject(index) ?: continue
+            if (item.optString("id") != sessionId) continue
+            val currentTitle = item.optString("title")
+            if (currentTitle.isBlank() || currentTitle == "Nova conversa" || currentTitle == "Conversa atual") {
+                item.put("title", firstMessage.replace(Regex("\\s+"), " ").trim().take(46).ifBlank { "Conversa" })
+            }
+            item.put("updatedAt", System.currentTimeMillis())
+            break
+        }
+        saveConversationList(list)
+    }
+
     private fun loadHistory() {
         val url = WORKER_URL + "/?action=history&sessionId=" + sessionId + "&limit=30"
         executor.execute {
@@ -504,12 +772,19 @@ class MainActivity : android.app.Activity() {
         val text = prompt.text?.toString()?.trim().orEmpty()
         if (text.isNotEmpty() && handleVoiceCommand(text)) { prompt.setText(""); return }
         if (liveConversationEnabled && currentPage != "intelligence" && text.isNotEmpty() && pendingAttachments.isEmpty()) {
-            addChatMessage(text, false)
+            if (liveVoiceSession?.sendText(text) == true) {
+                addChatMessage(text, false)
+                mergeLiveTranscript(liveUserTranscriptBuffer, text)
+                liveUserTranscriptDisplayed = true
+            } else {
+                setStatus("SESSÃO DE VOZ AINDA NÃO ESTÁ PRONTA")
+            }
             prompt.setText("")
-            if (liveVoiceSession?.sendText(text) != true) setStatus("SESSÃO DE VOZ AINDA NÃO ESTÁ PRONTA")
             return
         }
         if (text.isEmpty() && pendingAttachments.isEmpty()) return
+        stopLiveVisuals()
+        lastLiveVisuals = emptyList()
         val outgoingAttachments = JSONArray()
         pendingAttachments.forEach { outgoingAttachments.put(it) }
         pendingAttachments.clear()
@@ -521,6 +796,7 @@ class MainActivity : android.app.Activity() {
         val payload = JSONObject()
             .put("message", if (text.isEmpty()) "Analise os anexos enviados." else text)
             .put("sessionId", sessionId)
+            .put("profileId", profileId)
             .put("mode", "assistant")
             .put("deviceContext", deviceContext())
             .put("attachments", outgoingAttachments)
@@ -531,13 +807,15 @@ class MainActivity : android.app.Activity() {
                 val reply = response.optString("reply")
                 if (reply.isBlank()) throw IOException("O núcleo não retornou uma resposta.")
                 val actions = response.optJSONArray("clientActions") ?: JSONArray()
+                val visuals = response.optJSONArray("visuals")
                 runOnUiThread {
+                    if (visuals != null) showLiveVisuals(visuals)
                     addChatMessage(reply, true)
                     setStatus("RESPOSTA RECEBIDA · " + response.optString("model", "IA"))
                     executeClientActions(actions)
                 }
                 executor.execute {
-                    try { request(WORKER_URL + "/?action=tasks&sessionId=" + sessionId) } catch (_: Exception) {}
+                    try { request(WORKER_URL + "/?action=tasks&profileId=" + profileId) } catch (_: Exception) {}
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -553,10 +831,26 @@ class MainActivity : android.app.Activity() {
     private fun executeClientAction(action: JSONObject): Pair<Boolean, String> {
         return when (action.optString("type")) {
             "open_app" -> openApp(action.optString("appName"))
+            "open_url" -> openExternalUrl(action.optString("url"))
             "schedule_reminder" -> scheduleReminder(action.optString("title"), action.optString("at"))
             "open_settings" -> openSystemSettings(action.optString("section"))
             "ui_action" -> JamesAccessibilityService.execute(action)
             else -> false to "Ação Android não reconhecida."
+        }
+    }
+
+    private fun openExternalUrl(rawUrl: String): Pair<Boolean, String> {
+        return try {
+            val uri = android.net.Uri.parse(rawUrl)
+            if (uri.scheme !in setOf("http", "https") || uri.host.isNullOrBlank()) {
+                false to "Endereço recusado: somente HTTP/HTTPS são permitidos."
+            } else {
+                val intent = Intent(Intent.ACTION_VIEW, uri)
+                startActivity(intent)
+                true to "Endereço encaminhado ao aplicativo compatível."
+            }
+        } catch (error: Exception) {
+            false to "Não foi possível abrir o endereço: " + (error.message ?: "erro")
         }
     }
 
@@ -568,12 +862,183 @@ class MainActivity : android.app.Activity() {
         }
     }
 
+    private fun mergeLiveTranscript(buffer: StringBuilder, incomingText: String) {
+        val incoming = incomingText.trim()
+        if (incoming.isBlank()) return
+        val current = buffer.toString()
+        when {
+            current.isBlank() -> buffer.append(incoming)
+            incoming.startsWith(current) -> { buffer.clear(); buffer.append(incoming) }
+            current.endsWith(incoming) -> Unit
+            else -> buffer.append(" ").append(incoming)
+        }
+    }
+
+    private fun finishLiveTurn() {
+        val userText = liveUserTranscriptBuffer.toString().trim()
+        val modelText = liveAssistantTranscriptBuffer.toString().trim()
+        liveUserTranscriptBuffer.clear()
+        liveAssistantTranscriptBuffer.clear()
+        if (userText.isBlank() && modelText.isBlank()) return
+        if (userText.isNotBlank() && !liveUserTranscriptDisplayed) addChatMessage(userText, false)
+        if (modelText.isNotBlank()) addChatMessage(modelText, true)
+        liveUserTranscriptDisplayed = false
+        persistLiveTurn(userText, modelText)
+        if (userText.isNotBlank()) handleVoiceCommand(userText)
+    }
+
+    private fun persistLiveTurn(userText: String, modelText: String) {
+        val activeSession = sessionId
+        val activeProfile = profileId
+        executor.execute {
+            try {
+                val connection = URL("$WORKER_URL/?action=live-turn").openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 10000
+                connection.readTimeout = 15000
+                connection.doOutput = true
+                connection.setRequestProperty("Origin", APP_ORIGIN)
+                connection.setRequestProperty("Content-Type", "application/json")
+                val payload = JSONObject()
+                    .put("sessionId", activeSession)
+                    .put("profileId", activeProfile)
+                    .put("userText", userText)
+                    .put("modelText", modelText)
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                if (code !in 200..299) {
+                    val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    android.util.Log.w("JamesLiveHistory", "Live history sync returned HTTP $code: $detail")
+                }
+                connection.disconnect()
+            } catch (error: Exception) {
+                android.util.Log.w("JamesLiveHistory", "Live history sync unavailable", error)
+            }
+        }
+    }
+
+    private fun showLiveVisuals(items: JSONArray) {
+        val safe = (0 until minOf(items.length(), 6)).mapNotNull { index ->
+            val item = items.optJSONObject(index) ?: return@mapNotNull null
+            val imageUrl = item.optString("imageUrl")
+            val sourceUrl = item.optString("sourceUrl")
+            try {
+                val image = URL(imageUrl)
+                val source = URL(sourceUrl)
+                if (image.protocol != "https" || image.host != "upload.wikimedia.org" ||
+                    source.protocol != "https" || source.host != "commons.wikimedia.org") return@mapNotNull null
+            } catch (_: Exception) { return@mapNotNull null }
+            item
+        }
+        if (safe.isEmpty()) return
+        liveVisualRequestId++
+        val requestId = liveVisualRequestId
+        liveVisualRunnable?.let { liveVisualHandler.removeCallbacks(it) }
+        liveVisuals = safe
+        lastLiveVisuals = safe
+        liveVisualIndex = 0
+        if (currentPage == "intelligence" && ::chatMessages.isInitialized) {
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+                background = background(0xFF071827.toInt(), COLOR_CYAN)
+            }
+            val image = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                contentDescription = "Imagem ilustrativa do Jâmes"
+            }
+            val credit = TextView(this).apply {
+                textSize = 9f
+                setTextColor(COLOR_MUTED)
+                gravity = Gravity.CENTER
+            }
+            card.addView(image, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(160)))
+            card.addView(credit, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5) })
+            chatMessages.addView(card, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(8); bottomMargin = dp(8)
+            })
+            liveVisualChatCard = card
+            liveVisualChatImage = image
+            liveVisualChatCredit = credit
+            chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
+        } else {
+            liveVisualChatCard = null
+            liveVisualChatImage = null
+            liveVisualChatCredit = null
+        }
+        renderNextLiveVisual(requestId)
+    }
+
+    private fun renderNextLiveVisual(requestId: Int) {
+        if (requestId != liveVisualRequestId || liveVisualIndex >= liveVisuals.size) {
+            if (requestId == liveVisualRequestId) stopLiveVisuals()
+            return
+        }
+        val item = liveVisuals[liveVisualIndex]
+        val imageUrl = item.optString("imageUrl")
+        Thread {
+            var bitmap: Bitmap? = null
+            try {
+                val connection = URL(imageUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                connection.instanceFollowRedirects = false
+                connection.inputStream.use { bitmap = BitmapFactory.decodeStream(it) }
+                connection.disconnect()
+            } catch (_: Exception) { }
+            runOnUiThread {
+                if (requestId != liveVisualRequestId) {
+                    bitmap?.recycle()
+                    return@runOnUiThread
+                }
+                val decoded = bitmap
+                if (decoded != null) {
+                    val creditText = (item.optString("credit", "Wikimedia Commons") + " · " + item.optString("license", "Consulte a licença")).take(150)
+                    if (currentPage == "intelligence" && liveVisualChatImage != null) {
+                        liveVisualChatImage?.setImageBitmap(decoded)
+                        liveVisualChatCredit?.text = creditText
+                        liveVisualChatCard?.setOnClickListener {
+                            try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(item.optString("sourceUrl")))) } catch (_: Exception) { }
+                        }
+                    } else {
+                        liveVisualImage?.setImageBitmap(decoded)
+                        liveVisualCredit?.text = creditText
+                        liveVisualPanel?.visibility = View.VISIBLE
+                        liveVisualPanel?.setOnClickListener {
+                            try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(item.optString("sourceUrl")))) } catch (_: Exception) { }
+                        }
+                    }
+                }
+                liveVisualIndex++
+                val next = Runnable { renderNextLiveVisual(requestId) }
+                liveVisualRunnable = next
+                liveVisualHandler.postDelayed(next, 7000)
+            }
+        }.start()
+    }
+
+    private fun stopLiveVisuals() {
+        liveVisualRequestId++
+        liveVisualRunnable?.let { liveVisualHandler.removeCallbacks(it) }
+        liveVisualRunnable = null
+        liveVisuals = emptyList()
+        liveVisualIndex = 0
+        liveVisualPanel?.visibility = View.GONE
+        liveVisualImage?.setImageDrawable(null)
+        liveVisualCredit?.text = ""
+        liveVisualChatCard = null
+        liveVisualChatImage = null
+        liveVisualChatCredit = null
+    }
+
     private fun handleLiveToolCall(callId: String, name: String, args: JSONObject) {
         executor.execute {
             try {
-                val payload = JSONObject().put("sessionId", sessionId).put("name", name).put("args", args)
+                val payload = JSONObject().put("sessionId", sessionId).put("profileId", profileId).put("name", name).put("args", args)
                 val response = request(WORKER_URL + "/?action=live-tool", "POST", payload)
                 val result = response.optJSONObject("result") ?: JSONObject().put("error", "A ferramenta não retornou resultado.")
+                val visuals = result.optJSONArray("visuals")
+                if (visuals != null) runOnUiThread { showLiveVisuals(visuals) }
                 val clientAction = result.optJSONObject("clientAction")
                 if (clientAction != null) {
                     runOnUiThread {
@@ -611,14 +1076,163 @@ class MainActivity : android.app.Activity() {
         }
     }
 
+    private fun readManualConnections(): JSONArray {
+        val raw = getSharedPreferences("james_core", MODE_PRIVATE).getString("connections_json", "[]").orEmpty()
+        return try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+    }
+
+    private fun saveManualConnections(items: JSONArray) {
+        getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("connections_json", items.toString()).apply()
+    }
+
+    private fun renderManualConnections() {
+        val panel = connectionsPanel ?: return
+        panel.removeAllViews()
+        val items = readManualConnections()
+        if (items.length() == 0) {
+            addText(panel, "Nenhuma conexão cadastrada neste aparelho.", 9f, COLOR_MUTED, top = 8)
+            return
+        }
+        for (index in 0 until items.length()) {
+            val item = items.optJSONObject(index) ?: continue
+            val row = card()
+            val kind = item.optString("type")
+            val target = item.optString("target")
+            addText(row, item.optString("name", "Conexão"), 10f, COLOR_TEXT, true)
+            addText(row, (when (kind) { "app" -> "APP"; "device" -> "DISPOSITIVO"; else -> "SITE" }) + " · " + target, 9f, COLOR_MUTED, top = 3)
+            addButton(row, "ABRIR") { openManualConnection(item) }
+            addButton(row, "REMOVER", secondary = true) { removeManualConnection(item.optString("id")) }
+            panel.addView(row)
+        }
+    }
+
+    private fun saveManualConnection() {
+        val name = connectionNameInput?.text?.toString()?.trim()?.take(60).orEmpty()
+        val target = connectionTargetInput?.text?.toString()?.trim()?.take(2048).orEmpty()
+        val kind = when (connectionKindSpinner?.selectedItemPosition ?: 0) { 1 -> "site"; 2 -> "device"; else -> "app" }
+        if (name.length < 2 || target.isBlank()) {
+            setStatus("INFORME O NOME E O DESTINO DA CONEXÃO")
+            return
+        }
+        if (kind == "site" || kind == "device") {
+            try {
+                val uri = android.net.Uri.parse(target)
+                if (uri.scheme !in setOf("http", "https") || uri.host.isNullOrBlank() || (kind == "site" && uri.scheme != "https")) {
+                    setStatus("ENDEREÇO INVÁLIDO: USE HTTPS PARA SITES E HTTP/HTTPS PARA DISPOSITIVOS")
+                    return
+                }
+            } catch (_: Exception) {
+                setStatus("ENDEREÇO INVÁLIDO")
+                return
+            }
+        }
+        val items = readManualConnections()
+        val next = JSONArray()
+        var replaced = false
+        for (index in 0 until items.length()) {
+            val item = items.optJSONObject(index) ?: continue
+            if (item.optString("name").equals(name, ignoreCase = true)) {
+                next.put(JSONObject().put("id", item.optString("id")).put("name", name).put("type", kind).put("target", target))
+                replaced = true
+            } else next.put(item)
+        }
+        if (!replaced) next.put(JSONObject().put("id", UUID.randomUUID().toString()).put("name", name).put("type", kind).put("target", target))
+        saveManualConnections(next)
+        connectionNameInput?.setText("")
+        connectionTargetInput?.setText("")
+        renderManualConnections()
+        setStatus("CONEXÃO SALVA NESTE APARELHO")
+    }
+
+    private fun removeManualConnection(id: String) {
+        val items = readManualConnections()
+        val next = JSONArray()
+        for (index in 0 until items.length()) {
+            val item = items.optJSONObject(index) ?: continue
+            if (item.optString("id") != id) next.put(item)
+        }
+        saveManualConnections(next)
+        renderManualConnections()
+        setStatus("CONEXÃO REMOVIDA")
+    }
+
+    private fun openManualConnection(item: JSONObject) {
+        val kind = item.optString("type")
+        val action = if (kind == "app") JSONObject().put("type", "open_app").put("appName", item.optString("target"))
+            else JSONObject().put("type", "open_url").put("url", item.optString("target"))
+        val result = executeClientAction(action)
+        setStatus((if (result.first) "ANDROID CONFIRMOU: " else "ANDROID NÃO CONCLUIU: ") + result.second)
+    }
+
+    private fun loadProfileInstructions() {
+        val targetProfile = profileId
+        executor.execute {
+            try {
+                val result = request("$WORKER_URL/?action=memories&profileId=$targetProfile")
+                val memories = result.optJSONArray("memories") ?: JSONArray()
+                var instructions = ""
+                for (index in 0 until memories.length()) {
+                    val item = memories.optJSONObject(index) ?: continue
+                    if (item.optString("key") == "instrucoes_personalizadas") {
+                        instructions = item.optString("value")
+                        break
+                    }
+                }
+                runOnUiThread { profileInstructionsInput?.setText(instructions) }
+            } catch (error: Exception) {
+                android.util.Log.w("JamesProfile", "Personalization could not be loaded", error)
+            }
+        }
+    }
+
+    private fun saveProfileInstructions() {
+        val value = profileInstructionsInput?.text?.toString()?.trim()?.take(1200).orEmpty()
+        val targetSession = sessionId
+        val targetProfile = profileId
+        executor.execute {
+            try {
+                var name = "save_memory"
+                var args = JSONObject().put("key", "instrucoes_personalizadas").put("value", value)
+                if (value.isBlank()) {
+                    val existing = request("$WORKER_URL/?action=memories&profileId=$targetProfile")
+                        .optJSONArray("memories") ?: JSONArray()
+                    val memory = (0 until existing.length()).mapNotNull { existing.optJSONObject(it) }
+                        .firstOrNull { it.optString("key") == "instrucoes_personalizadas" }
+                    if (memory == null) {
+                        runOnUiThread { setStatus("Não há personalização salva para remover.") }
+                        return@execute
+                    }
+                    name = "delete_memory"
+                    args = JSONObject().put("memory_id", memory.optLong("id"))
+                }
+                val payload = JSONObject()
+                    .put("sessionId", targetSession)
+                    .put("profileId", targetProfile)
+                    .put("name", name)
+                    .put("args", args)
+                val response = request("$WORKER_URL/?action=live-tool", "POST", payload)
+                val result = response.optJSONObject("result") ?: JSONObject()
+                if (result.has("error") || result.optBoolean("success") == false) {
+                    throw IOException(result.optString("error").ifBlank { "O perfil não confirmou a alteração." })
+                }
+                runOnUiThread {
+                    setStatus(if (value.isBlank()) "PERSONALIZAÇÃO REMOVIDA" else "PERSONALIZAÇÃO SALVA NO PERFIL")
+                    loadProfileInstructions()
+                }
+            } catch (error: Exception) {
+                runOnUiThread { setStatus("FALHA AO SALVAR PERSONALIZAÇÃO: " + (error.message ?: "erro")) }
+            }
+        }
+    }
+
     private fun loadMemoriesInto(panel: LinearLayout) {
         panel.removeViews(3, (panel.childCount - 3).coerceAtLeast(0))
         executor.execute {
             try {
-                val result = request(WORKER_URL + "/?action=memories&sessionId=" + sessionId)
+                val result = request(WORKER_URL + "/?action=memories&profileId=" + profileId)
                 val memories = result.optJSONArray("memories") ?: JSONArray()
                 runOnUiThread {
-                    if (memories.length() == 0) addText(panel, "Nenhuma memória foi guardada explicitamente nesta sessão.", 11f, COLOR_MUTED, top = 10)
+                    if (memories.length() == 0) addText(panel, "Nenhuma memória foi guardada explicitamente neste perfil.", 11f, COLOR_MUTED, top = 10)
                     for (i in 0 until memories.length()) {
                         val memory = memories.optJSONObject(i) ?: continue
                         addInfoLine(panel, memory.optString("key"), memory.optString("value"))
@@ -666,7 +1280,7 @@ class MainActivity : android.app.Activity() {
         connection.readTimeout = 30000
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("Origin", APP_ORIGIN)
-        connection.setRequestProperty("User-Agent", "JamesAndroid/3.0.0")
+        connection.setRequestProperty("User-Agent", "JamesAndroid/3.2.0")
         if (body != null) {
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -689,6 +1303,7 @@ class MainActivity : android.app.Activity() {
             .put("timezone", TimeZone.getDefault().id)
             .put("localNow", OffsetDateTime.now().withNano(0).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
             .put("device", deviceInfo())
+            .put("connections", readManualConnections())
     }
 
     private fun deviceInfo(): JSONObject {
@@ -721,18 +1336,54 @@ class MainActivity : android.app.Activity() {
         if (liveConversationEnabled) stopLiveConversation() else startLiveConversation()
     }
 
+    /** Botão mestre: inicia voz e solicita visão separadamente, respeitando as permissões Android. */
+    private fun toggleJamesPower() {
+        if (liveConversationEnabled) {
+            stopLiveConversation()
+            return
+        }
+        liveVisionPending = true
+        setStatus("ATIVANDO JÂMES · AGUARDANDO PERMISSÕES DO APARELHO")
+        startLiveConversation()
+    }
+
     private fun startLiveConversation() {
         if (liveConversationEnabled) return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !notificationPermissionRequested) {
+            notificationPermissionRequested = true
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIFICATIONS)
+            return
+        }
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MICROPHONE)
             return
         }
+        stopLiveVisuals()
+        try {
+            JamesSessionService.start(this)
+        } catch (error: Exception) {
+            liveVisionPending = false
+            liveButton?.text = "LIGAR JÂMES"
+            setStatus("NÃO FOI POSSÍVEL MANTER A SESSÃO EM PRIMEIRO PLANO")
+            addChatMessage(error.message ?: "O Android não permitiu iniciar o serviço de sessão.", true, true)
+            return
+        }
         liveConversationEnabled = true
-        liveButton?.text = "CONECTANDO AO NÚCLEO DE VOZ..."
+        if (liveVisionPending) {
+            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                try { JamesSessionService.setCameraEnabled(this, true) } catch (_: Exception) { }
+            } else if (!cameraPermissionRequested) {
+                cameraPermissionRequested = true
+                requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA_PERMISSION)
+            }
+        }
+        liveButton?.text = "INICIANDO JÂMES..."
         setStatus("SOLICITANDO SESSÃO SEGURA DE VOZ")
         executor.execute {
             try {
-                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId).put("voiceProfile", selectedVoiceProfile))
+                val tokenData = request(WORKER_URL + "/?action=live-token", "POST", JSONObject().put("sessionId", sessionId).put("profileId", profileId).put("voiceProfile", selectedVoiceProfile).put("responseModality", "AUDIO"))
                 val token = tokenData.optString("token")
                 if (token.isBlank()) throw IOException("O núcleo não forneceu um token de sessão.")
                 runOnUiThread {
@@ -743,8 +1394,9 @@ class MainActivity : android.app.Activity() {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
                                     setStatus(message)
+                                    if (message == "JÂMES AO VIVO · OUVINDO") finishLiveTurn()
                                     if (message.contains("JÂMES AO VIVO")) {
-                                        liveButton?.text = "ENCERRAR SESSÃO DE VOZ"
+                                        liveButton?.text = "DESLIGAR JÂMES"
                                         if (pendingVoicePreview) {
                                             pendingVoicePreview = false
                                             liveVoiceSession?.sendText("Faça uma apresentação curta em português brasileiro para demonstrar sua voz. Diga apenas: Olá. Eu sou o Jâmes. Como posso ajudar?")
@@ -757,12 +1409,19 @@ class MainActivity : android.app.Activity() {
                         override fun onUserTranscript(text: String) {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
-                                    addChatMessage(text, false)
-                                    handleVoiceCommand(text)
+                                    if (liveUserTranscriptBuffer.isEmpty()) {
+                                        stopLiveVisuals()
+                                        lastLiveVisuals = emptyList()
+                                    }
+                                    mergeLiveTranscript(liveUserTranscriptBuffer, text)
                                 }
                             }
                         }
-                        override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
+                        override fun onAssistantTranscript(text: String) {
+                            runOnUiThread {
+                                if (liveConversationEnabled) mergeLiveTranscript(liveAssistantTranscriptBuffer, text)
+                            }
+                        }
                         override fun onAudioLevel(level: Float, speaking: Boolean) {
                             runOnUiThread { orbView?.setAudioLevel(level); orbView?.setMode(if (speaking) 2 else if (liveConversationEnabled) 1 else 0) }
                         }
@@ -783,7 +1442,10 @@ class MainActivity : android.app.Activity() {
             } catch (error: Exception) {
                 runOnUiThread {
                     liveConversationEnabled = false
-                    liveButton?.text = "CONECTAR AO JÂMES"
+                    liveVisionPending = false
+                    cameraPermissionRequested = false
+                    try { JamesSessionService.stop(this) } catch (_: Exception) { }
+                    liveButton?.text = "LIGAR JÂMES"
                     setStatus("NÃO FOI POSSÍVEL INICIAR A VOZ")
                     addChatMessage(error.message ?: "Falha ao iniciar a sessão de voz.", true, true)
                 }
@@ -806,7 +1468,11 @@ class MainActivity : android.app.Activity() {
     private fun stopLiveVision() {
         liveCamera?.close()
         liveCamera = null
+        if (liveConversationEnabled) {
+            try { JamesSessionService.setCameraEnabled(this, false) } catch (_: Exception) { }
+        }
         liveVisionPending = false
+        cameraPermissionRequested = false
         visionButton?.text = "ATIVAR VISÃO AO VIVO"
         setStatus("VISÃO AO VIVO DESATIVADA")
     }
@@ -818,8 +1484,12 @@ class MainActivity : android.app.Activity() {
         }
         liveVisionPending = true
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            cameraPermissionRequested = true
             requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA_PERMISSION)
             return
+        }
+        if (liveConversationEnabled) {
+            try { JamesSessionService.setCameraEnabled(this, true) } catch (_: Exception) { }
         }
         if (liveVoiceSession == null) {
             if (!liveConversationEnabled) startLiveConversation()
@@ -836,6 +1506,7 @@ class MainActivity : android.app.Activity() {
             return
         }
         try {
+            JamesSessionService.setCameraEnabled(this, true)
             visionButton?.text = "DESATIVAR VISÃO AO VIVO"
             liveCamera = JamesLiveCamera(
                 this,
@@ -859,8 +1530,13 @@ class MainActivity : android.app.Activity() {
         liveConversationEnabled = false
         liveVoiceSession?.close()
         liveVoiceSession = null
+        liveUserTranscriptBuffer.clear()
+        liveAssistantTranscriptBuffer.clear()
+        liveUserTranscriptDisplayed = false
+        stopLiveVisuals()
+        try { JamesSessionService.stop(this) } catch (_: Exception) { }
         orbView?.setAudioLevel(0f)
-        liveButton?.text = "CONECTAR AO JÂMES"
+        liveButton?.text = "LIGAR JÂMES"
         setStatus("CONVERSA AO VIVO ENCERRADA")
     }
 
@@ -1168,6 +1844,7 @@ class MainActivity : android.app.Activity() {
 
     private fun addChatMessage(text: String, fromJames: Boolean, isError: Boolean = false) {
         if (!::chatMessages.isInitialized) return
+        if (!fromJames && !isError) updateCurrentConversationTitle(text)
         val bubble = TextView(this).apply {
             this.text = text
             textSize = 13f
@@ -1267,19 +1944,27 @@ class MainActivity : android.app.Activity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQ_NOTIFICATIONS) {
-            setStatus(if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) "NOTIFICAÇÕES AUTORIZADAS" else "NOTIFICAÇÕES NÃO AUTORIZADAS")
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            setStatus(if (granted) "NOTIFICAÇÕES AUTORIZADAS" else "NOTIFICAÇÕES NEGADAS · A SESSÃO PODERÁ TER VISIBILIDADE LIMITADA")
+            startLiveConversation()
         } else if (requestCode == REQ_MICROPHONE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startLiveConversation()
             } else {
                 liveConversationEnabled = false
-                liveButton?.text = "CONECTAR AO JÂMES"
+                liveButton?.text = "LIGAR JÂMES"
                 liveVisionPending = false
                 setStatus("MICROFONE NÃO AUTORIZADO")
             }
         } else if (requestCode == REQ_CAMERA_PERMISSION) {
+            cameraPermissionRequested = false
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (liveVoiceSession != null) startLiveVision() else startLiveConversation()
+                if (liveVisionPending && liveConversationEnabled) {
+                    try { JamesSessionService.setCameraEnabled(this, true) } catch (_: Exception) { }
+                }
+                if (liveVisionPending) {
+                    if (liveVoiceSession != null) startLiveVision() else if (!liveConversationEnabled) startLiveConversation()
+                }
             } else {
                 liveVisionPending = false
                 visionButton?.text = "ATIVAR VISÃO AO VIVO"
@@ -1294,17 +1979,9 @@ class MainActivity : android.app.Activity() {
     }
 
     override fun onStop() {
-        resumeLiveAfterBackground = liveConversationEnabled
-        if (liveConversationEnabled) stopLiveConversation()
+        // A sessão autorizada continua pelo serviço em primeiro plano.
+        // O botão OFF ou o encerramento da Activity encerra explicitamente os sensores.
         super.onStop()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        if (resumeLiveAfterBackground) {
-            resumeLiveAfterBackground = false
-            startLiveConversation()
-        }
     }
 
     override fun onDestroy() {

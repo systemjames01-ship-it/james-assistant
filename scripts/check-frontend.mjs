@@ -31,24 +31,104 @@ if (!windowsInstaller.includes("HKCU:\\Software\\Classes\\james") || !windowsAge
   throw new Error("Windows companion installer or allowed world-view actions are missing.");
 }
 
+const androidMain = readFileSync(new URL("../android/app/src/main/java/com/james/assistant/MainActivity.kt", import.meta.url), "utf8");
+const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
+const deployWorkflow = readFileSync(new URL("../.github/workflows/deploy-james-v21.yml", import.meta.url), "utf8");
+const profileMigration = readFileSync(new URL("../migrations/0004_james_profile_conversations_v21.sql", import.meta.url), "utf8");
 const serviceWorker = readFileSync(new URL("../service-worker.js", import.meta.url), "utf8");
 new vm.Script(serviceWorker, { filename: "service-worker.js" });
 
-if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)speak(data.reply)")) {
+if (!html.includes('id="voiceOutput"') || !html.includes("const playback=speak(data.reply)")) {
   throw new Error("Voice output must remain user-controllable and connected to AI replies.");
+}
+
+if (!html.includes('id="conversationPicker"') ||
+    !html.includes('id="newConversation"') ||
+    !html.includes("function createNewConversation()") ||
+    !html.includes("historyRequestVersion") ||
+    !html.includes('id="holoVisuals"') ||
+    !html.includes('id="jamesVisualCanvas"') ||
+    !hologramJs.includes("nodeCount=76") ||
+    !html.includes("function showHoloVisuals(items)") ||
+    !html.includes("function showChatVisuals(items)") ||
+    !html.includes("setTimeout(render,7000)") ||
+    !html.includes("function getProfileId()") ||
+    !html.includes("profileId:getProfileId()") ||
+    !html.includes("async function syncConversationList()") ||
+    !html.includes("window.syncConversationList=syncConversationList") ||
+    !html.includes('id="profileCode"') ||
+    !html.includes('id="profileInstructions"') ||
+    !html.includes('id="saveProfileInstructions"') ||
+    !html.includes('id="connectionName"') ||
+    !html.includes('id="connectionType"') ||
+    !html.includes('id="connectionTarget"') ||
+    !html.includes('id="saveConnection"') ||
+    !html.includes('id="connectionsList"') ||
+    !html.includes("connections:readConnections()") ||
+    !html.includes('id="applyProfileCode"') ||
+    !hologramJs.includes("profileId:profileId()") ||
+    !hologramJs.includes("readJamesConnections")) {
+  throw new Error("Browser chat sessions, profile-scoped memory, or stale-history protection is missing.");
+}
+if (!androidMain.includes("private fun createNewConversation()") ||
+    !androidMain.includes("Manifest.permission.POST_NOTIFICATIONS") ||
+    !androidMain.includes("private fun showConversationPicker()") ||
+    !androidMain.includes("private fun showLiveVisuals(items: JSONArray)") ||
+    !androidMain.includes("liveVisualChatImage") ||
+    !androidMain.includes("private fun persistLiveTurn(userText: String, modelText: String)") ||
+    !androidMain.includes("private fun saveProfileInstructions()") ||
+    !androidMain.includes("private fun saveManualConnection()") ||
+    !androidMain.includes('.put("connections", readManualConnections())') ||
+    !androidMain.includes("private fun openExternalUrl(rawUrl: String)") ||
+    !androidMain.includes("readManualConnections()") ||
+    !androidMain.includes("liveVisualHandler.postDelayed(next, 7000)") ||
+    !androidMain.includes("conversations_json") ||
+    !androidMain.includes("private lateinit var profileId: String") ||
+    !androidMain.includes('put("profileId", profileId)') ||
+    !androidMain.includes("VINCULAR OUTRO APARELHO")) {
+  throw new Error("Android persistent chat list or stable personal profile is missing.");
+}
+if (!workerCode.includes("profileId = sessionId") ||
+    !workerCode.includes("executeAssistantTool(env, sessionId, call.name, call.args || {}, profileId)") ||
+    !workerCode.includes("async function searchPublicImages") ||
+    !workerCode.includes("async function fetchProfileConversations") ||
+    !workerCode.includes("async function registerProfileConversation") ||
+    !workerCode.includes("PREFERÊNCIAS PERSONALIZADAS DO PROPRIETÁRIO") ||
+    !workerCode.includes('name: "open_url"') ||
+    !workerCode.includes('if (name === "open_url")') ||
+    !workerCode.includes('url.searchParams.get("action") === "conversations"') ||
+    !workerCode.includes('name: "search_public_images"') ||
+    !workerCode.includes("visuals: visuals.slice(0, 6)") ||
+    !workerCode.includes("async function consumeRequestRateLimit") ||
+    !workerCode.includes("james_request_rate_limits")) {
+  throw new Error("Worker profile-scoped tools and memory context are missing.");
 }
 
 const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
 const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta.url), "utf8");
 const liveVoice = hologramJs;
-const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
 const appShell = serviceWorker;
-if (!html.includes('id="jamesNeuralCanvas"') ||
+if (!androidMain.includes('put("responseModality", "AUDIO")')) {
+  throw new Error("Native Android Live session must explicitly request an audio-mode token.");
+}
+
+const androidManifest = readFileSync(new URL("../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
+const androidSessionService = readFileSync(new URL("../android/app/src/main/java/com/james/assistant/JamesSessionService.kt", import.meta.url), "utf8");
+if (!androidManifest.includes("FOREGROUND_SERVICE_MICROPHONE") ||
+    !androidManifest.includes("FOREGROUND_SERVICE_CAMERA") ||
+    !androidManifest.includes('android:foregroundServiceType="microphone|camera"') ||
+    !androidSessionService.includes("startForeground(NOTIFICATION_ID, notification, types)") ||
+    !androidMain.includes("JamesSessionService.start(this)") ||
+    !androidMain.includes("A sessão autorizada continua pelo serviço em primeiro plano.")) {
+  throw new Error("Android voice/vision foreground session service or explicit start/stop lifecycle is missing.");
+}
+
+if (!html.includes('id="jamesVisualCanvas"') ||
     !html.includes('id="downloadNeuralVoice"') ||
     !html.includes('type="module" src="./james-neural-voice.js"') ||
     !html.includes('href="./james-v3.css"') ||
     !neuralCss.includes(".hero.head-view") ||
-    !neuralCss.includes("#jamesNeuralCanvas") ||
+    !neuralCss.includes("#jamesVisualCanvas") ||
     !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
     !neuralVoice.includes("falarEmFluxo") ||
     !neuralVoice.includes("Sintetizador") ||
@@ -62,13 +142,24 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     html.includes("SpeechSynthesisUtterance") ||
     html.includes("JamesAndroid.speak") ||
     !liveVoice.includes('responseModalities:["TEXT"]') ||
+    !liveVoice.includes('responseModality:"TEXT"') ||
     !liveVoice.includes("window.JamesNeuralVoice?.speak") ||
+    !workerCode.includes('responseModality === "AUDIO"') ||
+    !workerCode.includes('responseModalities: ["AUDIO"]') ||
     !workerCode.includes('responseModalities: ["TEXT"]') ||
-    workerCode.includes('responseModalities: ["AUDIO"]') ||
-    workerCode.includes("voiceName: [\"Charon\", \"Algieba\", \"Algenib\"]") ||
+    !workerCode.includes("voiceName: [\"Charon\", \"Algieba\", \"Algenib\"]") ||
+    !workerCode.includes("outputAudioTranscription: {}") ||
     !appShell.includes("./james-neural-voice.js") ||
     !appShell.includes("./james-v3.css")) {
   throw new Error("Local Piper/Faber Brazilian Portuguese voice, original voice profiles, redesigned neural command interface, or live text-to-neural-speech integration is missing; system TTS fallback must remain disabled.");
+}
+
+if (!profileMigration.includes("james_profile_conversations_v21") ||
+    !profileMigration.includes("james_request_rate_limits") ||
+    !deployWorkflow.includes("migrations/0004_james_profile_conversations_v21.sql") ||
+    !deployWorkflow.includes("secrets.CLOUDFLARE_API_TOKEN") ||
+    deployWorkflow.includes("CLODFLARE_API_TOKEN")) {
+  throw new Error("Production deployment must apply the additive profile migration with the correct Cloudflare secret.");
 }
 
 console.log("Validated Jâmes v3 command interface, local Piper/Faber pt-BR TTS, voice profiles, live text-to-neural-speech, PWA, and legacy integrations.");
