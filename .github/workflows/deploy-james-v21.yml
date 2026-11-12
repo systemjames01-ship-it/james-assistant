@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm_production:
-        description: "Digite exatamente DEPLOY_JAMES_AI_V22 para autorizar a publicação"
+        description: "Digite exatamente DEPLOY_JAMES_AI_V32 para autorizar a publicação"
         required: true
         type: string
 
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ github.event_name == 'push' || inputs.confirm_production == 'DEPLOY_JAMES_AI_V22' }}
+    if: ${{ github.event_name == 'push' || inputs.confirm_production == 'DEPLOY_JAMES_AI_V32' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -81,7 +81,6 @@ jobs:
         env:
           WORKER_URL: https://james-ai.systemjames01.workers.dev
           APP_ORIGIN: https://systemjames01-ship-it.github.io
-          TEST_SESSION: ci_check_${{ github.run_id }}
         run: |
           node --input-type=module <<'NODE'
           const base = process.env.WORKER_URL;
