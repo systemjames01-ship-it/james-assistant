@@ -68,7 +68,9 @@ if (!workerCode.includes("profileId = sessionId") ||
     !workerCode.includes("executeAssistantTool(env, sessionId, call.name, call.args || {}, profileId)") ||
     !workerCode.includes("async function searchPublicImages") ||
     !workerCode.includes('name: "search_public_images"') ||
-    !workerCode.includes("visuals: visuals.slice(0, 6)")) {
+    !workerCode.includes("visuals: visuals.slice(0, 6)") ||
+    !workerCode.includes("async function consumeRequestRateLimit") ||
+    !workerCode.includes("james_request_rate_limits")) {
   throw new Error("Worker profile-scoped tools and memory context are missing.");
 }
 
