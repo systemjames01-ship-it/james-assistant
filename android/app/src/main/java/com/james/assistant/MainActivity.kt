@@ -94,7 +94,6 @@ class MainActivity : android.app.Activity() {
     private var orbView: JamesHologramView? = null
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
-    private var resumeLiveAfterBackground = false
     private var pendingVoicePreview = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -735,6 +734,15 @@ class MainActivity : android.app.Activity() {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MICROPHONE)
             return
         }
+        try {
+            JamesSessionService.start(this)
+        } catch (error: Exception) {
+            liveVisionPending = false
+            liveButton?.text = "LIGAR JÂMES"
+            setStatus("NÃO FOI POSSÍVEL MANTER A SESSÃO EM PRIMEIRO PLANO")
+            addChatMessage(error.message ?: "O Android não permitiu iniciar o serviço de sessão.", true, true)
+            return
+        }
         liveConversationEnabled = true
         liveButton?.text = "INICIANDO JÂMES..."
         setStatus("SOLICITANDO SESSÃO SEGURA DE VOZ")
@@ -815,6 +823,9 @@ class MainActivity : android.app.Activity() {
     private fun stopLiveVision() {
         liveCamera?.close()
         liveCamera = null
+        if (liveConversationEnabled) {
+            try { JamesSessionService.setCameraEnabled(this, false) } catch (_: Exception) { }
+        }
         liveVisionPending = false
         visionButton?.text = "ATIVAR VISÃO AO VIVO"
         setStatus("VISÃO AO VIVO DESATIVADA")
@@ -845,6 +856,7 @@ class MainActivity : android.app.Activity() {
             return
         }
         try {
+            JamesSessionService.setCameraEnabled(this, true)
             visionButton?.text = "DESATIVAR VISÃO AO VIVO"
             liveCamera = JamesLiveCamera(
                 this,
@@ -868,6 +880,7 @@ class MainActivity : android.app.Activity() {
         liveConversationEnabled = false
         liveVoiceSession?.close()
         liveVoiceSession = null
+        try { JamesSessionService.stop(this) } catch (_: Exception) { }
         orbView?.setAudioLevel(0f)
         liveButton?.text = "LIGAR JÂMES"
         setStatus("CONVERSA AO VIVO ENCERRADA")
@@ -1303,17 +1316,9 @@ class MainActivity : android.app.Activity() {
     }
 
     override fun onStop() {
-        resumeLiveAfterBackground = liveConversationEnabled
-        if (liveConversationEnabled) stopLiveConversation()
+        // A sessão autorizada continua pelo serviço em primeiro plano.
+        // O botão OFF ou o encerramento da Activity encerra explicitamente os sensores.
         super.onStop()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        if (resumeLiveAfterBackground) {
-            resumeLiveAfterBackground = false
-            startLiveConversation()
-        }
     }
 
     override fun onDestroy() {
