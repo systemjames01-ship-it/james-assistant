@@ -105,6 +105,9 @@ class MainActivity : android.app.Activity() {
     private var liveVisuals = emptyList<JSONObject>()
     private var liveVisualIndex = 0
     private var liveVisualRequestId = 0
+    private val liveUserTranscriptBuffer = StringBuilder()
+    private val liveAssistantTranscriptBuffer = StringBuilder()
+    private var liveUserTranscriptDisplayed = false
     private var liveVisualRunnable: Runnable? = null
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
@@ -699,9 +702,14 @@ class MainActivity : android.app.Activity() {
         val text = prompt.text?.toString()?.trim().orEmpty()
         if (text.isNotEmpty() && handleVoiceCommand(text)) { prompt.setText(""); return }
         if (liveConversationEnabled && currentPage != "intelligence" && text.isNotEmpty() && pendingAttachments.isEmpty()) {
-            addChatMessage(text, false)
+            if (liveVoiceSession?.sendText(text) == true) {
+                addChatMessage(text, false)
+                mergeLiveTranscript(liveUserTranscriptBuffer, text)
+                liveUserTranscriptDisplayed = true
+            } else {
+                setStatus("SESSÃO DE VOZ AINDA NÃO ESTÁ PRONTA")
+            }
             prompt.setText("")
-            if (liveVoiceSession?.sendText(text) != true) setStatus("SESSÃO DE VOZ AINDA NÃO ESTÁ PRONTA")
             return
         }
         if (text.isEmpty() && pendingAttachments.isEmpty()) return
@@ -763,6 +771,61 @@ class MainActivity : android.app.Activity() {
             val action = actions.optJSONObject(i) ?: continue
             val result = executeClientAction(action)
             addChatMessage((if (result.first) "ANDROID CONFIRMOU: " else "ANDROID NÃO CONCLUIU: ") + result.second, result.first, !result.first)
+        }
+    }
+
+    private fun mergeLiveTranscript(buffer: StringBuilder, incomingText: String) {
+        val incoming = incomingText.trim()
+        if (incoming.isBlank()) return
+        val current = buffer.toString()
+        when {
+            current.isBlank() -> buffer.append(incoming)
+            incoming.startsWith(current) -> { buffer.clear(); buffer.append(incoming) }
+            current.endsWith(incoming) -> Unit
+            else -> buffer.append(" ").append(incoming)
+        }
+    }
+
+    private fun finishLiveTurn() {
+        val userText = liveUserTranscriptBuffer.toString().trim()
+        val modelText = liveAssistantTranscriptBuffer.toString().trim()
+        liveUserTranscriptBuffer.clear()
+        liveAssistantTranscriptBuffer.clear()
+        if (userText.isBlank() && modelText.isBlank()) return
+        if (userText.isNotBlank() && !liveUserTranscriptDisplayed) addChatMessage(userText, false)
+        if (modelText.isNotBlank()) addChatMessage(modelText, true)
+        liveUserTranscriptDisplayed = false
+        persistLiveTurn(userText, modelText)
+        if (userText.isNotBlank()) handleVoiceCommand(userText)
+    }
+
+    private fun persistLiveTurn(userText: String, modelText: String) {
+        val activeSession = sessionId
+        val activeProfile = profileId
+        executor.execute {
+            try {
+                val connection = URL("$WORKER_URL/?action=live-turn").openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 10000
+                connection.readTimeout = 15000
+                connection.doOutput = true
+                connection.setRequestProperty("Origin", APP_ORIGIN)
+                connection.setRequestProperty("Content-Type", "application/json")
+                val payload = JSONObject()
+                    .put("sessionId", activeSession)
+                    .put("profileId", activeProfile)
+                    .put("userText", userText)
+                    .put("modelText", modelText)
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                if (code !in 200..299) {
+                    val detail = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    android.util.Log.w("JamesLiveHistory", "Live history sync returned HTTP $code: $detail")
+                }
+                connection.disconnect()
+            } catch (error: Exception) {
+                android.util.Log.w("JamesLiveHistory", "Live history sync unavailable", error)
+            }
         }
     }
 
@@ -1044,6 +1107,7 @@ class MainActivity : android.app.Activity() {
                             runOnUiThread {
                                 if (liveConversationEnabled) {
                                     setStatus(message)
+                                    if (message == "JÂMES AO VIVO · OUVINDO") finishLiveTurn()
                                     if (message.contains("JÂMES AO VIVO")) {
                                         liveButton?.text = "DESLIGAR JÂMES"
                                         if (pendingVoicePreview) {
@@ -1057,13 +1121,14 @@ class MainActivity : android.app.Activity() {
                         }
                         override fun onUserTranscript(text: String) {
                             runOnUiThread {
-                                if (liveConversationEnabled) {
-                                    addChatMessage(text, false)
-                                    handleVoiceCommand(text)
-                                }
+                                if (liveConversationEnabled) mergeLiveTranscript(liveUserTranscriptBuffer, text)
                             }
                         }
-                        override fun onAssistantTranscript(text: String) { runOnUiThread { if (liveConversationEnabled) addChatMessage(text, true) } }
+                        override fun onAssistantTranscript(text: String) {
+                            runOnUiThread {
+                                if (liveConversationEnabled) mergeLiveTranscript(liveAssistantTranscriptBuffer, text)
+                            }
+                        }
                         override fun onAudioLevel(level: Float, speaking: Boolean) {
                             runOnUiThread { orbView?.setAudioLevel(level); orbView?.setMode(if (speaking) 2 else if (liveConversationEnabled) 1 else 0) }
                         }
@@ -1172,6 +1237,9 @@ class MainActivity : android.app.Activity() {
         liveConversationEnabled = false
         liveVoiceSession?.close()
         liveVoiceSession = null
+        liveUserTranscriptBuffer.clear()
+        liveAssistantTranscriptBuffer.clear()
+        liveUserTranscriptDisplayed = false
         stopLiveVisuals()
         try { JamesSessionService.stop(this) } catch (_: Exception) { }
         orbView?.setAudioLevel(0f)
