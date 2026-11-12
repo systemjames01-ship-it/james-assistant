@@ -972,15 +972,12 @@ export default {
     const url = new URL(request.url);
     const postAction = url.searchParams.get("action") || "chat";
     if (postAction !== "live-token") {
-      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-      const bucket = ip + ":" + (postAction === "live-tool" ? "live-tool" : postAction === "live-turn" ? "live-turn" : "chat");
-      const maximum = postAction === "live-tool" ? 30 : postAction === "live-turn" ? 60 : 20;
-      try {
+      const ip = request.headers.get("CF-Connecting-IP");
+      if (ip) {
+        const bucket = ip + ":" + (postAction === "live-tool" ? "live-tool" : postAction === "live-turn" ? "live-turn" : "chat");
+        const maximum = postAction === "live-tool" ? 30 : postAction === "live-turn" ? 60 : 20;
         const limit = await consumeRequestRateLimit(env.DB, bucket, maximum, 60);
         if (!limit.allowed) return json({ error: "O limite de segurança desta sessão foi atingido. Aguarde um minuto antes de continuar." }, 429, origin);
-      } catch (rateError) {
-        console.error("Request rate-limit storage failed:", rateError);
-        return json({ error: "Não foi possível validar o limite de uso gratuito. Tente novamente em instantes." }, 503, origin);
       }
     }
     if (url.searchParams.get("action") === "live-turn") {
