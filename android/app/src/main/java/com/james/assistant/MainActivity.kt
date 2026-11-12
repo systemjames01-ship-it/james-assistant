@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RadialGradient
@@ -23,6 +24,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Base64
@@ -32,6 +35,8 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -93,6 +98,14 @@ class MainActivity : android.app.Activity() {
     private var voiceProfileLabel: TextView? = null
     private var visionButton: Button? = null
     private var orbView: JamesHologramView? = null
+    private var liveVisualPanel: LinearLayout? = null
+    private var liveVisualImage: ImageView? = null
+    private var liveVisualCredit: TextView? = null
+    private val liveVisualHandler = Handler(Looper.getMainLooper())
+    private var liveVisuals = emptyList<JSONObject>()
+    private var liveVisualIndex = 0
+    private var liveVisualRequestId = 0
+    private var liveVisualRunnable: Runnable? = null
     private var liveCamera: JamesLiveCamera? = null
     private var liveVisionPending = false
     private var cameraPermissionRequested = false
@@ -229,7 +242,34 @@ class MainActivity : android.app.Activity() {
         page.addView(heading, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)))
         val orb = JamesHologramView(this)
         orbView = orb
-        page.addView(orb, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val orbStage = FrameLayout(this)
+        orbStage.addView(orb, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        val visualPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(5), dp(5), dp(5), dp(5))
+            background = roundedBackground(0xE6071728.toInt(), COLOR_CYAN, 1, 10)
+        }
+        val visualImage = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            contentDescription = "Imagem ilustrativa do Jâmes"
+        }
+        val visualCredit = TextView(this).apply {
+            textSize = 8f
+            maxLines = 2
+            setTextColor(COLOR_MUTED)
+            gravity = Gravity.CENTER
+        }
+        visualPanel.addView(visualImage, LinearLayout.LayoutParams(dp(148), dp(94)))
+        visualPanel.addView(visualCredit, LinearLayout.LayoutParams(dp(148), ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(3) })
+        val visualParams = FrameLayout.LayoutParams(dp(158), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END or Gravity.BOTTOM).apply {
+            rightMargin = dp(8); bottomMargin = dp(8)
+        }
+        orbStage.addView(visualPanel, visualParams)
+        liveVisualPanel = visualPanel
+        liveVisualImage = visualImage
+        liveVisualCredit = visualCredit
+        page.addView(orbStage, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         val subtitle = TextView(this).apply {
             text = "NÚCLEO HOLOGRÁFICO  //  INTERFACE JÂMES"
             textSize = 10f
@@ -651,7 +691,9 @@ class MainActivity : android.app.Activity() {
                 val reply = response.optString("reply")
                 if (reply.isBlank()) throw IOException("O núcleo não retornou uma resposta.")
                 val actions = response.optJSONArray("clientActions") ?: JSONArray()
+                val visuals = response.optJSONArray("visuals")
                 runOnUiThread {
+                    if (visuals != null) showLiveVisuals(visuals)
                     addChatMessage(reply, true)
                     setStatus("RESPOSTA RECEBIDA · " + response.optString("model", "IA"))
                     executeClientActions(actions)
@@ -688,12 +730,86 @@ class MainActivity : android.app.Activity() {
         }
     }
 
+    private fun showLiveVisuals(items: JSONArray) {
+        val safe = (0 until minOf(items.length(), 6)).mapNotNull { index ->
+            val item = items.optJSONObject(index) ?: return@mapNotNull null
+            val imageUrl = item.optString("imageUrl")
+            val sourceUrl = item.optString("sourceUrl")
+            try {
+                val image = URL(imageUrl)
+                val source = URL(sourceUrl)
+                if (image.protocol != "https" || image.host != "upload.wikimedia.org" ||
+                    source.protocol != "https" || source.host != "commons.wikimedia.org") return@mapNotNull null
+            } catch (_: Exception) { return@mapNotNull null }
+            item
+        }
+        if (safe.isEmpty()) return
+        liveVisualRequestId++
+        val requestId = liveVisualRequestId
+        liveVisualRunnable?.let { liveVisualHandler.removeCallbacks(it) }
+        liveVisuals = safe
+        liveVisualIndex = 0
+        renderNextLiveVisual(requestId)
+    }
+
+    private fun renderNextLiveVisual(requestId: Int) {
+        if (requestId != liveVisualRequestId || liveVisualIndex >= liveVisuals.size) {
+            if (requestId == liveVisualRequestId) stopLiveVisuals()
+            return
+        }
+        val item = liveVisuals[liveVisualIndex]
+        val imageUrl = item.optString("imageUrl")
+        Thread {
+            var bitmap: Bitmap? = null
+            try {
+                val connection = URL(imageUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                connection.instanceFollowRedirects = false
+                connection.inputStream.use { bitmap = BitmapFactory.decodeStream(it) }
+                connection.disconnect()
+            } catch (_: Exception) { }
+            runOnUiThread {
+                if (requestId != liveVisualRequestId) {
+                    bitmap?.recycle()
+                    return@runOnUiThread
+                }
+                val decoded = bitmap
+                if (decoded != null) {
+                    liveVisualImage?.setImageBitmap(decoded)
+                    liveVisualCredit?.text = (item.optString("credit", "Wikimedia Commons") + " · " + item.optString("license", "Consulte a licença")).take(150)
+                    liveVisualPanel?.visibility = View.VISIBLE
+                    liveVisualPanel?.setOnClickListener {
+                        try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(item.optString("sourceUrl")))) } catch (_: Exception) { }
+                    }
+                }
+                liveVisualIndex++
+                val next = Runnable { renderNextLiveVisual(requestId) }
+                liveVisualRunnable = next
+                liveVisualHandler.postDelayed(next, 7000)
+            }
+        }.start()
+    }
+
+    private fun stopLiveVisuals() {
+        liveVisualRequestId++
+        liveVisualRunnable?.let { liveVisualHandler.removeCallbacks(it) }
+        liveVisualRunnable = null
+        liveVisuals = emptyList()
+        liveVisualIndex = 0
+        liveVisualPanel?.visibility = View.GONE
+        liveVisualImage?.setImageDrawable(null)
+        liveVisualCredit?.text = ""
+    }
+
     private fun handleLiveToolCall(callId: String, name: String, args: JSONObject) {
         executor.execute {
             try {
                 val payload = JSONObject().put("sessionId", sessionId).put("profileId", profileId).put("name", name).put("args", args)
                 val response = request(WORKER_URL + "/?action=live-tool", "POST", payload)
                 val result = response.optJSONObject("result") ?: JSONObject().put("error", "A ferramenta não retornou resultado.")
+                val visuals = result.optJSONArray("visuals")
+                if (visuals != null) runOnUiThread { showLiveVisuals(visuals) }
                 val clientAction = result.optJSONObject("clientAction")
                 if (clientAction != null) {
                     runOnUiThread {
@@ -1019,6 +1135,7 @@ class MainActivity : android.app.Activity() {
         liveConversationEnabled = false
         liveVoiceSession?.close()
         liveVoiceSession = null
+        stopLiveVisuals()
         try { JamesSessionService.stop(this) } catch (_: Exception) { }
         orbView?.setAudioLevel(0f)
         liveButton?.text = "LIGAR JÂMES"
