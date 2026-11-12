@@ -15,9 +15,9 @@ const out=(v,s,o)=>new Response(JSON.stringify(v),{
 
 function cleanHistory(history){
   if(!Array.isArray(history)) return [];
-  return history.slice(-10).map(x=>({
+  return history.slice(-6).map(x=>({
     role:x?.role==="model"?"model":"user",
-    parts:[{text:String(x?.text||"").slice(0,3000)}]
+    parts:[{text:String(x?.text||"").slice(0,2000)}]
   })).filter(x=>x.parts[0].text.trim());
 }
 
