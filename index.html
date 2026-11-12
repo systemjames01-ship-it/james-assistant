@@ -1038,6 +1038,16 @@ function speak(text){
  return engine.speak(text);
 }
 
+function addExternalLinkMessage(rawUrl){
+ try{
+  const url=new URL(rawUrl);
+  if(!["http:","https:"].includes(url.protocol))throw new Error("Endereço não permitido.");
+  const bubble=document.createElement("div");bubble.className="message bot";
+  const label=document.createElement("span");label.textContent="Jâmes preparou este endereço: ";
+  const link=document.createElement("a");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";link.textContent=url.href;
+  bubble.append(label,link);chat.appendChild(bubble);chat.scrollTop=chat.scrollHeight;
+ }catch(error){addMessage("Endereço recusado: "+(error.message||"URL inválida"),"error");}
+}
 function executeAndroidActions(actions){
  if(!Array.isArray(actions)||!actions.length)return;
  for(const action of actions){
@@ -1053,6 +1063,10 @@ function executeAndroidActions(actions){
    }
    window.location.href=action.uri;
    addMessage("Comando enviado ao Windows. Se o navegador pedir confirmação, permita a abertura do Jâmes Companion. Se nada abrir, execute uma vez o instalador na aba MUNDO.","bot");
+   continue;
+  }
+  if(action.type==="open_url"){
+   addExternalLinkMessage(action.url);
    continue;
   }
   if(!window.JamesAndroid){
