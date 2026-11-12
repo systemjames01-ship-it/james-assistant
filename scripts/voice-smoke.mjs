@@ -13,18 +13,23 @@ try {
   const pageErrors = [];
   page.on("pageerror", error => pageErrors.push(error.message));
   await page.route("https://james-ai.systemjames01.workers.dev/**", async route => {
+    const origin = route.request().headers().origin || "*";
+    const headers = {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type"
+    };
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers });
+      return;
+    }
     const url = new URL(route.request().url());
     const action = url.searchParams.get("action");
     const body = action === "history" ? { messages: [], hasMore: false, nextBefore: null }
       : action === "tasks" ? { tasks: [] }
       : action === "memories" ? { memories: [] }
       : { status: "online", aiConfigured: true, databaseConfigured: true };
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: { "Access-Control-Allow-Origin": "https://systemjames01-ship-it.github.io" },
-      body: JSON.stringify(body)
-    });
+    await route.fulfill({ status: 200, contentType: "application/json", headers, body: JSON.stringify(body) });
   });
 
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded", timeout: 60000 });
