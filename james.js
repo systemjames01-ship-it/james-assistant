@@ -31,13 +31,13 @@ async function send(t){
   setState("CORE / PROCESSING"); $("#liveText").textContent="Jâmes está processando…";
   const started=performance.now();
   // A mensagem atual já foi adicionada à interface; envie apenas o contexto anterior.
-  const history=chat.slice(0,-1).slice(-20).map(x=>({role:x.role,text:x.text}));
+  const history=chat.slice(0,-1).slice(-6).map(x=>({role:x.role,text:x.text}));
   const typing=document.createElement("div"); typing.className="msg bot typing"; typing.textContent="Jâmes está pensando…"; msgs.appendChild(typing); msgs.scrollTop=msgs.scrollHeight;
   let responseData={};
   try{
     const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:t,sessionId:session,mode:"text",history})});
     responseData=await r.json().catch(()=>({}));
-    $("#latency").textContent=Math.round(performance.now()-started)+"ms";
+    $("#latency").textContent=Math.round(performance.now()-started)+"ms / IA "+(Number.isFinite(responseData.latencyMs)?responseData.latencyMs+"ms":"—");
     typing.remove();
     if(!r.ok) throw Error(responseData.reply||responseData.error||"Falha no núcleo (HTTP "+r.status+").");
     if(typeof responseData.reply!=="string"||!responseData.reply.trim()) throw Error("O núcleo respondeu sem conteúdo.");
