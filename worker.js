@@ -1,3 +1,4 @@
+/* Jâmes v3 production core — validated after regression workflow. */
 const ORIGIN="https://systemjames01-ship-it.github.io";
 const MODELS=["gemini-3.8-flash","gemini-3.5-flash-lite","gemini-2.5-flash-lite"];
 const headers=o=>({"Access-Control-Allow-Origin":o||ORIGIN,"Access-Control-Allow-Headers":"Content-Type","Access-Control-Allow-Methods":"GET,POST,OPTIONS"});
