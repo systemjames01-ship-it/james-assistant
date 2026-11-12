@@ -778,6 +778,7 @@ async function syncConversationList(){
   console.warn("Não foi possível sincronizar a lista de conversas:",error);
  }
 }
+window.syncConversationList=syncConversationList;
 function createNewConversation(){
  const power=$("jamesPower");
  if(power?.getAttribute("aria-pressed")==="true")power.click();
