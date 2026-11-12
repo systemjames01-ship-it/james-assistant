@@ -66,7 +66,8 @@ if (!html.includes('id="conversationPicker"') ||
     !html.includes('id="connectionsList"') ||
     !html.includes("connections:readConnections()") ||
     !html.includes('id="applyProfileCode"') ||
-    !hologramJs.includes("profileId:profileId()")) {
+    !hologramJs.includes("profileId:profileId()") ||
+    !hologramJs.includes("readJamesConnections")) {
   throw new Error("Browser chat sessions, profile-scoped memory, or stale-history protection is missing.");
 }
 if (!androidMain.includes("private fun createNewConversation()") ||
