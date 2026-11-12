@@ -720,7 +720,8 @@ function applyProfileCode(){
  refreshProfileCode();
  loadTasks();
  loadMemories();
- statusBox.textContent="Perfil vinculado neste aparelho. Memórias e tarefas usarão o perfil compartilhado.";
+ syncConversationList();
+ statusBox.textContent="Perfil vinculado neste aparelho. Memórias, tarefas e lista de conversas usarão o perfil compartilhado.";
 }
 function getSessionId(){
  let id=localStorage.getItem("james_active_session_id")||localStorage.getItem("james_session_id");
@@ -750,6 +751,31 @@ function updateConversationMetadata(firstMessage){
   item.updatedAt=Date.now();
   writeConversationList(items);
   refreshConversationPicker();
+ }
+}
+async function syncConversationList(){
+ try{
+  const params=new URLSearchParams({action:"conversations",profileId:getProfileId(),limit:"50"});
+  const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!Array.isArray(data.conversations))return;
+  const items=readConversationList();
+  for(const remote of data.conversations){
+   const id=remote.session_id;
+   if(typeof id!=="string"||!id)continue;
+   const updatedAt=Date.parse(remote.updated_at||remote.updatedAt||"")||Date.now();
+   const existing=items.find(item=>item.id===id);
+   if(existing){
+    existing.title=remote.title||existing.title||"Conversa";
+    existing.updatedAt=updatedAt;
+   }else{
+    items.push({id,title:remote.title||"Conversa",updatedAt});
+   }
+  }
+  writeConversationList(items);
+  refreshConversationPicker();
+ }catch(error){
+  console.warn("Não foi possível sincronizar a lista de conversas:",error);
  }
 }
 function createNewConversation(){
@@ -978,7 +1004,7 @@ function switchView(name){
  document.querySelectorAll(".module-nav [data-view-target]").forEach(button=>{
   button.setAttribute("aria-pressed",String(button.dataset.viewTarget===primary));
  });
- if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();}
+ if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();syncConversationList();}
  if(active==="device")refreshDeviceDiagnostics();
  window.scrollTo({top:0,behavior:"smooth"});
 }
