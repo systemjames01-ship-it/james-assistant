@@ -704,6 +704,60 @@ test("live tool endpoint executes allowlisted tools and rejects unknown tools", 
 });
 
 
+test("personal memories are shared across independent chats inside one profile", async () => {
+  const statements = [];
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...values) {
+          return {
+            run: async () => {
+              statements.push({ sql, values });
+              return { meta: { changes: 1 } };
+            },
+            all: async () => {
+              statements.push({ sql, values });
+              if (sql.includes("FROM james_memories_v21")) {
+                return { results: [{ id: 9, memory_key: "preferencia", memory_value: "Responder em português brasileiro." }] };
+              }
+              return { results: [] };
+            }
+          };
+        }
+      };
+    }
+  };
+  const saveRequest = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "session_chat_one",
+      profileId: "profile_owner_12345",
+      name: "save_memory",
+      args: { key: "preferencia", value: "Responder em português brasileiro." }
+    })
+  });
+  const saved = await worker.fetch(saveRequest, { DB: db });
+  assert.equal(saved.status, 200);
+  assert.ok(statements.some(item => item.sql.includes("INSERT INTO james_memories_v21") && item.values[0] === "profile_owner_12345"));
+
+  const listRequest = new Request("https://worker.test/?action=live-tool", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "session_chat_two",
+      profileId: "profile_owner_12345",
+      name: "list_memories",
+      args: {}
+    })
+  });
+  const listed = await worker.fetch(listRequest, { DB: db });
+  const body = await listed.json();
+  assert.equal(listed.status, 200);
+  assert.equal(body.result.memories[0].value, "Responder em português brasileiro.");
+  assert.ok(statements.some(item => item.sql.includes("FROM james_memories_v21") && item.values[0] === "profile_owner_12345"));
+});
+
 test("live voice transcript is persisted into the same shared conversation history", async () => {
   const batches = [];
   const db = {
