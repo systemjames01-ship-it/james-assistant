@@ -809,6 +809,8 @@ class MainActivity : android.app.Activity() {
                 runOnUiThread {
                     liveConversationEnabled = false
                     liveVisionPending = false
+                    cameraPermissionRequested = false
+                    try { JamesSessionService.stop(this) } catch (_: Exception) { }
                     liveButton?.text = "LIGAR JÂMES"
                     setStatus("NÃO FOI POSSÍVEL INICIAR A VOZ")
                     addChatMessage(error.message ?: "Falha ao iniciar a sessão de voz.", true, true)
