@@ -46,6 +46,8 @@ if (!html.includes('id="conversationPicker"') ||
     !html.includes("historyRequestVersion") ||
     !html.includes("function getProfileId()") ||
     !html.includes("profileId:getProfileId()") ||
+    !html.includes('id="profileCode"') ||
+    !html.includes('id="applyProfileCode"') ||
     !hologramJs.includes("profileId:profileId()")) {
   throw new Error("Browser chat sessions, profile-scoped memory, or stale-history protection is missing.");
 }
@@ -53,7 +55,8 @@ if (!androidMain.includes("private fun createNewConversation()") ||
     !androidMain.includes("private fun showConversationPicker()") ||
     !androidMain.includes("conversations_json") ||
     !androidMain.includes("private lateinit var profileId: String") ||
-    !androidMain.includes('put("profileId", profileId)')) {
+    !androidMain.includes('put("profileId", profileId)') ||
+    !androidMain.includes("VINCULAR OUTRO APARELHO")) {
   throw new Error("Android persistent chat list or stable personal profile is missing.");
 }
 if (!workerCode.includes("profileId = sessionId") ||
