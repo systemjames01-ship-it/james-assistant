@@ -115,6 +115,21 @@ try {
   if (!savedProfileInstructions.includes("português brasileiro")) {
     throw new Error("As instruções personalizadas não foram persistidas no perfil.");
   }
+  await page.locator("#connectionName").fill("Painel de teste");
+  await page.locator("#connectionType").selectOption("device");
+  await page.locator("#connectionTarget").fill("http://192.168.1.50");
+  await page.locator("#saveConnection").click();
+  await page.locator(".connection-item").waitFor({ state: "visible" });
+  const savedConnection = await page.evaluate(() => JSON.parse(localStorage.getItem("james_connections") || "[]")[0]);
+  if (savedConnection?.name !== "Painel de teste" || savedConnection?.type !== "device") {
+    throw new Error("A conexão manual de dispositivo não foi salva neste aparelho.");
+  }
+  await page.evaluate(() => { window.__openedConnectionUrl = ""; window.open = url => { window.__openedConnectionUrl = url; return {}; }; });
+  await page.locator(".connection-item button", { hasText: "ABRIR" }).click();
+  const openedConnectionUrl = await page.evaluate(() => window.__openedConnectionUrl);
+  if (openedConnectionUrl !== "http://192.168.1.50/") {
+    throw new Error("O atalho manual não abriu o destino de dispositivo esperado.");
+  }
   await page.locator('.module-nav [data-view-target="overview"]').click();
   await page.locator("#overviewView").waitFor({ state: "visible" });
   await page.locator('.module-nav [data-view-target="control"]').click();
