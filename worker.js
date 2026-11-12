@@ -47,7 +47,7 @@ const LIVE_FUNCTION_DECLARATIONS = [
   { name: "fetch_public_page", description: "Lê uma página pública HTTPS encontrada durante pesquisa.", parameters: { type: "OBJECT", properties: { url: { type: "STRING" } }, required: ["url"] } },
   { name: "get_current_time", description: "Obtém a hora UTC atual.", parameters: { type: "OBJECT", properties: {} } },
   { name: "create_task", description: "Cria uma tarefa persistente somente quando o usuário pedir para guardar uma tarefa.", parameters: { type: "OBJECT", properties: { title: { type: "STRING" }, details: { type: "STRING" } }, required: ["title"] } },
-  { name: "list_tasks", description: "Lista as tarefas do usuário nesta sessão.", parameters: { type: "OBJECT", properties: {} } },
+  { name: "list_tasks", description: "Lista as tarefas do perfil atual.", parameters: { type: "OBJECT", properties: {} } },
   { name: "complete_task", description: "Conclui uma tarefa somente quando o usuário pedir.", parameters: { type: "OBJECT", properties: { task_id: { type: "INTEGER" } }, required: ["task_id"] } },
   { name: "save_memory", description: "Salva uma memória somente quando o usuário pedir explicitamente para lembrar.", parameters: { type: "OBJECT", properties: { key: { type: "STRING" }, value: { type: "STRING" } }, required: ["key", "value"] } },
   { name: "list_memories", description: "Lista as memórias explicitamente salvas pelo usuário.", parameters: { type: "OBJECT", properties: {} } },
