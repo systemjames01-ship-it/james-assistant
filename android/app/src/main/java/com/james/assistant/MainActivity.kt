@@ -106,6 +106,7 @@ class MainActivity : android.app.Activity() {
     private var liveVisualChatCredit: TextView? = null
     private val liveVisualHandler = Handler(Looper.getMainLooper())
     private var liveVisuals = emptyList<JSONObject>()
+    private var lastLiveVisuals = emptyList<JSONObject>()
     private var liveVisualIndex = 0
     private var liveVisualRequestId = 0
     private val liveUserTranscriptBuffer = StringBuilder()
@@ -469,9 +470,10 @@ class MainActivity : android.app.Activity() {
             setPadding(dp(10), dp(10), dp(10), dp(10))
         }
         chatScroll.addView(chatMessages)
-        if (liveVisuals.isNotEmpty()) {
+        val visualsToRestore = if (liveVisuals.isNotEmpty()) liveVisuals else lastLiveVisuals
+        if (visualsToRestore.isNotEmpty()) {
             val activeVisuals = JSONArray()
-            liveVisuals.forEach { activeVisuals.put(it) }
+            visualsToRestore.forEach { activeVisuals.put(it) }
             showLiveVisuals(activeVisuals)
         }
         page.addView(chatScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -593,6 +595,7 @@ class MainActivity : android.app.Activity() {
 
     private fun createNewConversation() {
         if (liveConversationEnabled) stopLiveConversation()
+        lastLiveVisuals = emptyList()
         sessionId = UUID.randomUUID().toString()
         getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", sessionId).apply()
         val list = conversationList()
@@ -658,6 +661,7 @@ class MainActivity : android.app.Activity() {
                 if (selected.isNotBlank() && selected != sessionId) {
                     if (liveConversationEnabled) stopLiveConversation()
                     stopLiveVisuals()
+                    lastLiveVisuals = emptyList()
                     sessionId = selected
                     getSharedPreferences("james_core", MODE_PRIVATE).edit().putString("session_id", sessionId).apply()
                     showPage("intelligence")
@@ -855,6 +859,7 @@ class MainActivity : android.app.Activity() {
         val requestId = liveVisualRequestId
         liveVisualRunnable?.let { liveVisualHandler.removeCallbacks(it) }
         liveVisuals = safe
+        lastLiveVisuals = safe
         liveVisualIndex = 0
         if (currentPage == "intelligence" && ::chatMessages.isInitialized) {
             val card = LinearLayout(this).apply {
