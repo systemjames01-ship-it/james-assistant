@@ -248,7 +248,7 @@ class MainActivity : android.app.Activity() {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
             setPadding(dp(5), dp(5), dp(5), dp(5))
-            background = roundedBackground(0xE6071728.toInt(), COLOR_CYAN, 1, 10)
+            background = background(0xE6071728.toInt(), COLOR_CYAN)
         }
         val visualImage = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
