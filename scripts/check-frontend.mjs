@@ -127,7 +127,7 @@ if (!html.includes('id="jamesVisualCanvas"') ||
     !html.includes('type="module" src="./james-neural-voice.js"') ||
     !html.includes('href="./james-v3.css"') ||
     !neuralCss.includes(".hero.head-view") ||
-    !neuralCss.includes(".holo-figure") ||
+    !neuralCss.includes("#jamesVisualCanvas") ||
     !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
     !neuralVoice.includes("falarEmFluxo") ||
     !neuralVoice.includes("Sintetizador") ||
