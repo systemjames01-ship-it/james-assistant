@@ -1,3 +1,4 @@
+// Cloudflare Workers Builds preview requires Wrangler >= 4.135.0; package.json pins the CLI used for deploy/preview.
 const MODEL = "gemini-3.8-flash";
 const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const ALLOWED_ORIGIN = "https://systemjames01-ship-it.github.io";
