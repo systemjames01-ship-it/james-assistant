@@ -42,13 +42,22 @@ if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)
 if (!html.includes('id="conversationPicker"') ||
     !html.includes('id="newConversation"') ||
     !html.includes("function createNewConversation()") ||
-    !html.includes("historyRequestVersion")) {
-  throw new Error("Browser chat sessions, conversation switching, or stale-history protection is missing.");
+    !html.includes("historyRequestVersion") ||
+    !html.includes("function getProfileId()") ||
+    !html.includes("profileId:getProfileId()") ||
+    !hologramJs.includes("profileId:profileId()")) {
+  throw new Error("Browser chat sessions, profile-scoped memory, or stale-history protection is missing.");
 }
 if (!androidMain.includes("private fun createNewConversation()") ||
     !androidMain.includes("private fun showConversationPicker()") ||
-    !androidMain.includes("conversations_json")) {
-  throw new Error("Android persistent chat list or conversation picker is missing.");
+    !androidMain.includes("conversations_json") ||
+    !androidMain.includes("private lateinit var profileId: String") ||
+    !androidMain.includes('put("profileId", profileId)')) {
+  throw new Error("Android persistent chat list or stable personal profile is missing.");
+}
+if (!workerCode.includes("profileId = sessionId") ||
+    !workerCode.includes("executeAssistantTool(env, sessionId, call.name, call.args || {}, profileId)")) {
+  throw new Error("Worker profile-scoped tools and memory context are missing.");
 }
 
 const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
