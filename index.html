@@ -412,6 +412,7 @@ let voiceOutputEnabled=localStorage.getItem("james_voice_enabled")!=="false";
 let historyBefore=null;
 let historyHasMore=false;
 let historyLoading=false;
+let historyRequestVersion=0;
 
 function readNativeDeviceInfo(){
  if(!window.JamesAndroid||typeof window.JamesAndroid.getDeviceInfo!=="function")return null;
@@ -484,19 +485,23 @@ function renderHistoryMessage(message,prepend=false){
 }
 
 async function loadHistory(older=false){
- if(historyLoading)return;
+ if(older&&historyLoading)return;
+ if(!older)historyRequestVersion++;
+ const requestVersion=historyRequestVersion;
+ const requestedSession=getSessionId();
  historyLoading=true;
  const button=$("loadOlder");
  button.disabled=true;
  try{
   const params=new URLSearchParams({
    action:"history",
-   sessionId:getSessionId(),
+   sessionId:requestedSession,
    limit:"30"
   });
   if(older&&historyBefore)params.set("before",String(historyBefore));
   const response=await fetch(WORKER_URL+"?"+params.toString(),{method:"GET"});
   const data=await response.json().catch(()=>({}));
+  if(requestVersion!==historyRequestVersion||requestedSession!==getSessionId())return;
   if(!response.ok)throw new Error(data.error||"Não foi possível recuperar o histórico.");
   const messages=Array.isArray(data.messages)?data.messages:[];
   if(older){
@@ -521,11 +526,14 @@ async function loadHistory(older=false){
   button.hidden=!historyHasMore;
   button.textContent="Carregar mensagens anteriores";
  }catch(error){
+  if(requestVersion!==historyRequestVersion)return;
   if(!older&&chat.childElementCount===0)addMessage("Olá! Sou o Jâmes. Vamos conversar?","bot");
   statusBox.textContent="Histórico indisponível: "+(error.message||"falha de conexão");
  }finally{
-  historyLoading=false;
-  button.disabled=false;
+  if(requestVersion===historyRequestVersion){
+   historyLoading=false;
+   button.disabled=false;
+  }
  }
 }
 
