@@ -57,9 +57,24 @@ try {
           }), { status: 200, headers: { "Content-Type": "application/json" } });
         }
         window.__workerRequest = JSON.parse(init.body || "{}");
-        return new Response(JSON.stringify({
-          reply: "Olá, Jamerson. Estou ouvindo você.", ok: true
-        }), { status: 200, headers: { "Content-Type": "application/json" } });
+        const encoder = new TextEncoder();
+        const chunks = [
+          'data: {"candidates":[{"content":{"parts":[{"text":"Olá, Jamerson. "}]}}]}\\n\\n',
+          'data: {"candidates":[{"content":{"parts":[{"text":"Estou ouvindo você."}]}}]}\\n\\n'
+        ];
+        const body = new ReadableStream({
+          async start(controller) {
+            controller.enqueue(encoder.encode(chunks[0]));
+            await new Promise(resolve => setTimeout(resolve, 180));
+            window.__secondStreamChunkSent = true;
+            controller.enqueue(encoder.encode(chunks[1]));
+            controller.close();
+          }
+        });
+        return new Response(body, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream; charset=utf-8" }
+        });
       }
       return nativeFetch(input, init);
     };
