@@ -40,6 +40,7 @@ if (!html.includes('id="voiceOutput"') || !html.includes("if(voiceOutputEnabled)
 
 const neuralCss = readFileSync(new URL("../james-v3.css", import.meta.url), "utf8");
 const neuralVoice = readFileSync(new URL("../james-neural-voice.js", import.meta.url), "utf8");
+const holographicBrain = neuralVoice.includes("const pointCount = 112") && neuralVoice.includes("const goldenAngle") && neuralVoice.includes("ctx.ellipse(cx, cy") && neuralVoice.includes("const edges = []");
 const liveVoice = hologramJs;
 const workerCode = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
 const appShell = serviceWorker;
@@ -51,6 +52,7 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
     !neuralCss.includes("#jamesNeuralCanvas") ||
     !neuralVoice.includes("Pedro21062014/vozz@v0.2.7") ||
     !neuralVoice.includes("falarEmFluxo") ||
+    !holographicBrain ||
     !neuralVoice.includes("Sintetizador") ||
     !neuralVoice.includes("VOZZ_SYNTH") ||
     !neuralVoice.includes("VOZZ_ASSETS") ||
