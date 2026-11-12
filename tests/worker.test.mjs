@@ -704,6 +704,22 @@ test("live tool endpoint executes allowlisted tools and rejects unknown tools", 
 });
 
 
+test("Worker applies a per-IP safety limit to repeated live tool requests", async () => {
+  const ip = "198.51.100.77";
+  let lastStatus = 0;
+  for (let index = 0; index < 31; index++) {
+    const request = new Request("https://worker.test/?action=live-tool", {
+      method: "POST",
+      headers: { Origin: origin, "CF-Connecting-IP": ip, "Content-Type": "application/json" },
+      body: "{"
+    });
+    const response = await worker.fetch(request, {});
+    lastStatus = response.status;
+    if (index < 30) assert.equal(response.status, 400);
+  }
+  assert.equal(lastStatus, 429);
+});
+
 test("text agent returns Commons visuals to the holographic client", async () => {
   const originalFetch = globalThis.fetch;
   let geminiCalls = 0;
