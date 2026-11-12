@@ -437,7 +437,7 @@ class MainActivity : android.app.Activity() {
                 .setNegativeButton("CANCELAR", null)
                 .show()
         }
-        addText(profile, "Mantenha o código privado: quem o possuir poderá acessar as memórias e tarefas deste perfil.", 9f, COLOR_MUTED, top = 7)
+        addText(profile, "Mantenha o código privado: quem o possuir poderá acessar as memórias, tarefas e o histórico de conversas deste perfil.", 9f, COLOR_MUTED, top = 7)
         addText(profile, "INSTRUÇÕES PERSONALIZADAS", 10f, COLOR_CYAN, true, top = 12)
         addText(profile, "Defina como o Jâmes deve responder e quais prioridades deve respeitar em todas as conversas vinculadas a este perfil.", 10f, COLOR_MUTED, top = 5)
         val instructionsInput = EditText(this).apply {
