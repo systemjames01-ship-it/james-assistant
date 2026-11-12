@@ -48,6 +48,17 @@ if (!androidMain.includes('put("responseModality", "AUDIO")')) {
   throw new Error("Native Android Live session must explicitly request an audio-mode token.");
 }
 
+const androidManifest = readFileSync(new URL("../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
+const androidSessionService = readFileSync(new URL("../android/app/src/main/java/com/james/assistant/JamesSessionService.kt", import.meta.url), "utf8");
+if (!androidManifest.includes("FOREGROUND_SERVICE_MICROPHONE") ||
+    !androidManifest.includes("FOREGROUND_SERVICE_CAMERA") ||
+    !androidManifest.includes('android:foregroundServiceType="microphone|camera"') ||
+    !androidSessionService.includes("startForeground(NOTIFICATION_ID, notification, types)") ||
+    !androidMain.includes("JamesSessionService.start(this)") ||
+    !androidMain.includes("A sessão autorizada continua pelo serviço em primeiro plano.")) {
+  throw new Error("Android voice/vision foreground session service or explicit start/stop lifecycle is missing.");
+}
+
 if (!html.includes('id="jamesNeuralCanvas"') ||
     !html.includes('id="downloadNeuralVoice"') ||
     !html.includes('type="module" src="./james-neural-voice.js"') ||
