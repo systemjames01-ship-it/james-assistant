@@ -13,7 +13,7 @@
  const words=value=>String(value||"").toLocaleLowerCase("pt-BR")
   .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
   .replace(/[^a-z0-9 ]/g," ").split(/\s+/)
-  .filter(word=>word.length>3&&!new Set(["para","como","sobre","quero","pode","qual","quando","onde","porque","voce","james","jâmes","assistente","fazer","faca","isso","este","esta","mais","muito","tambem","entao","preciso","ajude","analise","explique"]).has(word))
+  .filter(word=>word.length>2&&!new Set(["para","como","sobre","quero","pode","qual","quando","onde","porque","voce","james","jâmes","assistente","fazer","faca","isso","este","esta","mais","muito","tambem","entao","preciso","ajude","analise","explique"]).has(word))
   .slice(0,6);
  function showItem(){
   if(!items.length)return;
