@@ -13,7 +13,97 @@
   neuralTarget=value==="LIVE"?.94:value==="CONNECTING"?.56:.12;
  };
  const visual=document.getElementById("jamesVisualCanvas");
- if(visual){const vctx=visual.getContext("2d");let phase=0,visualRaf=0;const paint=()=>{const w=visual.width,h=visual.height;vctx.clearRect(0,0,w,h);neuralActivity+=(neuralTarget-neuralActivity)*.025;phase+=.035+neuralActivity*.09;vctx.strokeStyle="rgba(86,225,255,.78)";vctx.lineWidth=1.5;vctx.beginPath();for(let x=0;x<=w;x+=4){const envelope=.2+Math.sin(x/w*Math.PI)*.8,y=h/2+Math.sin(x*.035+phase)*17*envelope*neuralActivity+Math.sin(x*.012-phase*.7)*8*neuralActivity;if(x===0)vctx.moveTo(x,y);else vctx.lineTo(x,y);}vctx.stroke();vctx.strokeStyle="rgba(86,160,255,.2)";vctx.beginPath();vctx.moveTo(0,h/2);vctx.lineTo(w,h/2);vctx.stroke();visualRaf=requestAnimationFrame(paint);};paint();document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelAnimationFrame(visualRaf);else paint();});}
+ if(visual){
+  const vctx=visual.getContext("2d");
+  const nodes=[];
+  const nodeCount=76,goldenAngle=Math.PI*(3-Math.sqrt(5));
+  for(let n=0;n<nodeCount;n++){
+   const y=1-(n/(nodeCount-1))*2,radius=Math.sqrt(1-y*y),angle=goldenAngle*n;
+   nodes.push({x:Math.cos(angle)*radius,y,z:Math.sin(angle)*radius});
+  }
+  const edges=[];
+  for(let a=0;a<nodes.length;a++)for(let b=a+1;b<nodes.length;b++){
+   const dx=nodes[a].x-nodes[b].x,dy=nodes[a].y-nodes[b].y,dz=nodes[a].z-nodes[b].z;
+   if(dx*dx+dy*dy+dz*dz<.31)edges.push([a,b]);
+  }
+  let visualRaf=0,lastPaint=0,phase=0,viewW=0,viewH=0,dpr=1;
+  const resize=()=>{
+   const rect=visual.getBoundingClientRect();
+   viewW=Math.max(1,rect.width);viewH=Math.max(1,rect.height);
+   dpr=Math.min(window.devicePixelRatio||1,2);
+   visual.width=Math.round(viewW*dpr);visual.height=Math.round(viewH*dpr);
+   vctx.setTransform(dpr,0,0,dpr,0,0);
+  };
+  const paint=now=>{
+   if(document.hidden){visualRaf=0;return;}
+   if(now-lastPaint<32){visualRaf=requestAnimationFrame(paint);return;}
+   lastPaint=now;
+   const w=viewW,h=viewH;
+   if(w<2||h<2){visualRaf=requestAnimationFrame(paint);return;}
+   vctx.clearRect(0,0,w,h);
+   phase+=.0035+neuralActivity*.006;
+   const cx=w*.5,cy=h*.47,r=Math.min(w,h)*.34;
+   const pulse=1+(.008+neuralActivity*.026)*Math.sin(phase*2.1);
+   const glow=vctx.createRadialGradient(cx,cy,0,cx,cy,r*2.1);
+   glow.addColorStop(0,"rgba(40,190,255,.22)");
+   glow.addColorStop(.55,"rgba(28,128,220,.09)");
+   glow.addColorStop(1,"rgba(2,10,24,0)");
+   vctx.fillStyle=glow;vctx.fillRect(0,0,w,h);
+   vctx.save();vctx.translate(cx,cy);vctx.rotate(phase*.12);vctx.scale(1,.28);
+   vctx.strokeStyle="rgba(91,224,255,.48)";vctx.lineWidth=1.1;vctx.beginPath();vctx.ellipse(0,0,r*1.55,r*.54,0,0,Math.PI*2);vctx.stroke();vctx.restore();
+   vctx.save();vctx.translate(cx,cy);vctx.rotate(-phase*.09);vctx.scale(.43,1);
+   vctx.strokeStyle="rgba(116,183,255,.25)";vctx.lineWidth=.9;vctx.beginPath();vctx.ellipse(0,0,r*1.65,r*1.12,0,0,Math.PI*2);vctx.stroke();vctx.restore();
+   const rot=phase*.18,tilt=.22,projected=nodes.map(node=>{
+    const x1=node.x*Math.cos(rot)-node.z*Math.sin(rot);
+    const z1=node.x*Math.sin(rot)+node.z*Math.cos(rot);
+    const y1=node.y*Math.cos(tilt)-z1*Math.sin(tilt);
+    const z2=node.y*Math.sin(tilt)+z1*Math.cos(tilt);
+    const perspective=.84+z2*.16;
+    return {x:cx+x1*r*pulse*perspective,y:cy+y1*r*pulse*perspective,z:z2};
+   });
+   vctx.lineCap="round";
+   for(const [a,b] of edges){
+    const p=projected[a],q=projected[b],depth=(p.z+q.z)*.5;
+    if(depth<-.38)continue;
+    vctx.strokeStyle="rgba(87,222,255,"+(.12+(depth+1)*.12)+")";
+    vctx.lineWidth=depth>.55?1.35:.85;
+    vctx.beginPath();vctx.moveTo(p.x,p.y);vctx.lineTo(q.x,q.y);vctx.stroke();
+   }
+   for(let n=0;n<projected.length;n++){
+    const p=projected[n];if(p.z<-.48)continue;
+    const bright=n%7===0||p.z>.62;
+    vctx.fillStyle=bright?"rgba(222,252,255,.96)":"rgba(83,218,255,"+(.35+(p.z+1)*.2)+")";
+    vctx.shadowColor="#39dfff";vctx.shadowBlur=bright?9:3;
+    vctx.beginPath();vctx.arc(p.x,p.y,(bright?2.2:1.25)*(dpr>1?1:1),0,Math.PI*2);vctx.fill();
+   }
+   vctx.shadowBlur=0;
+   const coreR=r*.19*(1+.07*Math.sin(phase*2.8));
+   const core=vctx.createRadialGradient(cx,cy,0,cx,cy,coreR*2.5);
+   core.addColorStop(0,"rgba(225,255,255,.98)");
+   core.addColorStop(.22,"rgba(80,226,255,.85)");
+   core.addColorStop(.62,"rgba(33,157,255,.28)");
+   core.addColorStop(1,"rgba(30,140,255,0)");
+   vctx.fillStyle=core;vctx.beginPath();vctx.arc(cx,cy,coreR*2.5,0,Math.PI*2);vctx.fill();
+   const heart=coreR*.36;
+   vctx.beginPath();vctx.moveTo(cx,cy+heart*.72);
+   vctx.bezierCurveTo(cx-heart*1.45,cy-heart*.05,cx-heart*.78,cy-heart*1.12,cx,cy-heart*.42);
+   vctx.bezierCurveTo(cx+heart*.78,cy-heart*1.12,cx+heart*1.45,cy-heart*.05,cx,cy+heart*.72);
+   vctx.fillStyle="rgba(210,252,255,.95)";vctx.shadowColor="#50eaff";vctx.shadowBlur=12;vctx.fill();vctx.shadowBlur=0;
+   vctx.font="bold 9px monospace";vctx.fillStyle="rgba(133,234,255,.8)";
+   vctx.textAlign="left";vctx.fillText("JÂMES // NEURAL CORE",12,17);
+   vctx.textAlign="right";vctx.fillText(projection?.dataset.state==="live"?"LISTENING / LIVE":projection?.dataset.state==="connecting"?"INITIALIZING":"STANDBY",w-12,17);
+   vctx.textAlign="left";vctx.font="8px monospace";vctx.fillStyle="rgba(128,190,215,.65)";
+   vctx.fillText("NEURAL MATRIX · JAMERSON RAMOS",12,h-10);
+   visualRaf=requestAnimationFrame(paint);
+  };
+  const startVisual=()=>{if(!visualRaf){lastPaint=0;visualRaf=requestAnimationFrame(paint);}};
+  const stopVisual=()=>{if(visualRaf)cancelAnimationFrame(visualRaf);visualRaf=0;};
+  resize();
+  if("ResizeObserver" in window){const observer=new ResizeObserver(resize);observer.observe(visual.parentElement||visual);}
+  window.addEventListener("resize",resize,{passive:true});
+  document.addEventListener("visibilitychange",()=>{if(document.hidden)stopVisual();else startVisual();});
+  startVisual();
+ }
  const mic=document.getElementById("headMic"),visionButton=document.getElementById("headVision"),micState=document.getElementById("headMicState"),transcript=document.getElementById("headTranscript"),globeState=document.getElementById("globeState");
  const powerButton=document.getElementById("jamesPower"),powerLabel=document.getElementById("jamesPowerLabel"),powerState=document.getElementById("jamesPowerState"),powerHelp=document.getElementById("jamesPowerHelp"),cameraFlip=document.getElementById("headCameraFlip");
  const visionVideo=document.getElementById("headVisionVideo"),visionCanvas=document.getElementById("headVisionCanvas");
