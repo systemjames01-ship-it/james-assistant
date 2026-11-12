@@ -45,6 +45,8 @@ if (!html.includes('id="conversationPicker"') ||
     !html.includes("function createNewConversation()") ||
     !html.includes("historyRequestVersion") ||
     !html.includes('id="holoVisuals"') ||
+    !html.includes('id="jamesVisualCanvas"') ||
+    !hologramJs.includes("nodeCount=76") ||
     !html.includes("function showHoloVisuals(items)") ||
     !html.includes("function showChatVisuals(items)") ||
     !html.includes("setTimeout(render,7000)") ||
