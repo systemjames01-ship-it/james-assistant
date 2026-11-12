@@ -854,7 +854,7 @@ class MainActivity : android.app.Activity() {
                 val result = request(WORKER_URL + "/?action=memories&profileId=" + profileId)
                 val memories = result.optJSONArray("memories") ?: JSONArray()
                 runOnUiThread {
-                    if (memories.length() == 0) addText(panel, "Nenhuma memória foi guardada explicitamente nesta sessão.", 11f, COLOR_MUTED, top = 10)
+                    if (memories.length() == 0) addText(panel, "Nenhuma memória foi guardada explicitamente neste perfil.", 11f, COLOR_MUTED, top = 10)
                     for (i in 0 until memories.length()) {
                         val memory = memories.optJSONObject(i) ?: continue
                         addInfoLine(panel, memory.optString("key"), memory.optString("value"))
