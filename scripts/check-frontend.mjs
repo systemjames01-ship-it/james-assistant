@@ -88,6 +88,7 @@ if ((primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
     !html.includes('src="./james-visual-briefing.js"') ||
     !visualBriefing.includes("setInterval(showItem,7000)") ||
     !visualBriefing.includes("commons.wikimedia.org/w/api.php") ||
+    !visualBriefing.includes("if(sensitive.test(String(userText||\"\")))") ||
     !html.includes("window.JamesVisualBriefing?.show(text,data.reply)") ||
     !hologramJs.includes("window.JamesVisualBriefing?.show(inputText,spoken)") ||
     !html.includes('const controlSectionIds=["controlView","voicesView","perceptionView","deviceView","worldView"]') ||
