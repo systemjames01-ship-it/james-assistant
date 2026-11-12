@@ -74,12 +74,20 @@ if (!html.includes('id="jamesNeuralCanvas"') ||
 const navStart = html.indexOf('<nav class="view-nav module-nav v4-nav"');
 const navEnd = html.indexOf("</nav>", navStart);
 const primaryNav = navStart >= 0 && navEnd >= 0 ? html.slice(navStart, navEnd + 6) : "";
+const visualBriefing = readFileSync(new URL("../james-visual-briefing.js", import.meta.url), "utf8");
+new vm.Script(visualBriefing, { filename: "james-visual-briefing.js" });
 if ((primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
     !primaryNav.includes('data-view-target="overview"') ||
     !primaryNav.includes('data-view-target="intelligence"') ||
     !primaryNav.includes('data-view-target="control"') ||
     !html.includes('id="newChat"') ||
     !html.includes('id="chatSessionList"') ||
+    !html.includes('id="visualBriefing"') ||
+    !html.includes('src="./james-visual-briefing.js"') ||
+    !visualBriefing.includes("setInterval(showItem,7000)") ||
+    !visualBriefing.includes("commons.wikimedia.org/w/api.php") ||
+    !html.includes("window.JamesVisualBriefing?.show(text,data.reply)") ||
+    !hologramJs.includes("window.JamesVisualBriefing?.show(inputText,spoken)") ||
     !html.includes('const controlSectionIds=["controlView","voicesView","perceptionView","deviceView","worldView"]') ||
     !html.includes('const CHAT_SESSIONS_KEY="james_chat_sessions_v4"') ||
     !serviceWorker.includes('james-shell-v4-0')) {
