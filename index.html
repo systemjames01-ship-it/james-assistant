@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#070b11">
 <meta name="description" content="Jâmes — assistente pessoal inteligente criado por Jamerson Ramos.">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Jâmes | Central de Comando</title>
+<title>Jâmes v4.0 | Sistema Pessoal</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
 :root{color-scheme:dark;--bg:#050a12;--panel:#0a1421;--panel2:#0d1c2b;--line:rgba(115,213,235,.17);--cyan:#68e4f2;--blue:#4da8ff;--ice:#d8fbff;--muted:#8299ad;--text:#eaf5fb;--green:#71e2b1;--amber:#ffc979;--red:#ff7d86}
@@ -186,6 +186,20 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 @media(max-width:520px){.app-shell{padding:10px 10px 26px}.reactor-wrap{min-height:240px}.reactor.holographic-eye{width:220px}.hero h1{font-size:34px}.hero-copy>p{font-size:12px}.voice-style-grid{grid-template-columns:1fr}.voice-style{min-height:60px}.module-nav button{min-width:98px;padding:8px}.overview-card{padding:17px}}
 @media(prefers-reduced-motion:reduce){.eye-aura,.irisPulse,.scanOrbit{animation:none!important}}
 
+
+/* JÂMES v4.0 — três áreas principais e conversas locais */
+.v4-nav{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px!important}
+.v4-nav button{min-width:0!important;min-height:54px!important;font-size:10px!important;letter-spacing:.11em!important}
+#intelligenceView{grid-template-columns:minmax(0,1fr)!important}
+#controlView .side-column{grid-template-columns:repeat(2,minmax(0,1fr));margin:16px 0}
+#controlView>.voice-view,#controlView>.lower-grid,#controlView>.view{margin-top:16px}
+.chat-sessions{padding:10px 16px;border-bottom:1px solid rgba(128,217,232,.12);background:rgba(3,10,18,.42)}
+.chat-sessions-label{margin-bottom:7px;color:#8498a6;font:8px 'DM Mono',monospace;letter-spacing:.16em}
+.chat-session-list{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px;scrollbar-width:thin}
+.chat-session{flex:0 0 auto;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid rgba(128,217,232,.18)!important;border-radius:4px!important;background:rgba(13,26,38,.85)!important;color:#9db1bd!important;font-size:9px!important}
+.chat-session.active{border-color:rgba(216,183,122,.7)!important;color:#f0e3ca!important;box-shadow:inset 0 -2px #d8b77a!important}
+@media(max-width:760px){.v4-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.v4-nav button{padding:8px 5px;font-size:8px!important;min-height:48px!important}#controlView .side-column{grid-template-columns:1fr}}
+
 </style>
 <link rel="stylesheet" href="./interface-v27.css">
 <link rel="stylesheet" href="./james-v3.css">
@@ -253,14 +267,10 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
 </section>
 
-<nav class="view-nav module-nav" aria-label="Módulos do Jâmes">
- <button type="button" data-view-target="overview" aria-pressed="true">◉ NÚCLEO</button>
- <button type="button" data-view-target="control" aria-pressed="false">⌘ CONTROLE</button>
+<nav class="view-nav module-nav v4-nav" aria-label="Áreas principais do Jâmes">
+ <button type="button" data-view-target="overview" aria-pressed="true">◉ CENTRAL</button>
  <button type="button" data-view-target="intelligence" aria-pressed="false">▤ CHAT</button>
- <button type="button" data-view-target="voices" aria-pressed="false">♫ VOZES</button>
- <button type="button" data-view-target="perception" aria-pressed="false">◎ VISÃO</button>
- <button type="button" data-view-target="device" aria-pressed="false">▦ SISTEMA</button>
- <button type="button" data-view-target="world" aria-pressed="false">⌖ MUNDO</button>
+ <button type="button" data-view-target="control" aria-pressed="false">⌘ PAINEL DE CONTROLE</button>
 </nav>
 <section id="controlView" class="view" hidden>
  <div class="overview-grid">
@@ -275,12 +285,16 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
 <div class="dashboard view" id="intelligenceView" hidden>
  <section class="panel conversation">
   <div class="panel-head">
-   <div><div class="panel-title">Console do núcleo</div><div class="panel-kicker">COMUNICAÇÃO · RACIOCÍNIO · EXECUÇÃO</div></div>
+   <div><div class="panel-title">Chat do Jâmes</div><div class="panel-kicker">CONVERSAS · CONTEXTO · FERRAMENTAS</div></div>
    <div class="conversation-tools">
-    <span class="panel-kicker">NÚCLEO ÚNICO · CONTEXTO E FERRAMENTAS INTEGRADOS</span>
+    <button type="button" class="secondary" id="newChat">＋ NOVA CONVERSA</button>
     <button type="button" class="secondary" id="voiceOutput">VOZ: LIGADA</button>
     <button type="button" class="secondary" id="stopVoice">PARAR VOZ</button>
    </div>
+  </div>
+  <div class="chat-sessions" aria-label="Conversas recentes">
+   <div class="chat-sessions-label">CONVERSAS NESTE APARELHO</div>
+   <div id="chatSessionList" class="chat-session-list"></div>
   </div>
   <button type="button" class="secondary" id="loadOlder" hidden>Carregar mensagens anteriores</button>
   <div id="chat" aria-live="polite" aria-label="Histórico da conversa"></div>
@@ -394,7 +408,7 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
  </div>
  <div class="world-sources"><span>FONTE OFICIAL</span><a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noopener noreferrer">github.com/bilawalsidhu/gods-eye-view</a><a href="https://godseyeview.ai/download/" target="_blank" rel="noopener noreferrer">Guia oficial de instalação</a></div>
 </section>
-<footer class="footer"><span>JÂMES // ASSISTENTE PESSOAL</span><span>CRIADO POR JAMERSON RAMOS · EXECUÇÃO SOB CONTROLE DO USUÁRIO</span></footer>
+<footer class="footer"><span>JÂMES v4.0 // SISTEMA PESSOAL</span><span>CRIADO POR JAMERSON RAMOS · EXECUÇÃO SOB CONTROLE DO USUÁRIO</span></footer>
 </div>
 <script>
 const WORKER_URL="https://james-ai.systemjames01.workers.dev";
@@ -646,6 +660,35 @@ function getSessionId(){
  }
  return id;
 }
+const CHAT_SESSIONS_KEY="james_chat_sessions_v4";
+function readChatSessions(){
+ const current=getSessionId();let sessions=[];
+ try{sessions=JSON.parse(localStorage.getItem(CHAT_SESSIONS_KEY)||"[]");}catch(error){sessions=[];}
+ if(!Array.isArray(sessions))sessions=[];
+ if(!sessions.some(item=>item&&item.id===current))sessions.unshift({id:current,title:"Conversa principal",updatedAt:Date.now()});
+ sessions=sessions.filter(item=>item&&typeof item.id==="string").slice(0,30);
+ localStorage.setItem(CHAT_SESSIONS_KEY,JSON.stringify(sessions));return sessions;
+}
+function renderChatSessions(){
+ const list=$("chatSessionList");if(!list)return;const current=getSessionId();list.replaceChildren();
+ for(const session of readChatSessions().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,12)){
+  const button=document.createElement("button");button.type="button";button.className="chat-session"+(session.id===current?" active":"");
+  button.textContent=session.title||"Conversa";button.setAttribute("aria-pressed",String(session.id===current));
+  button.addEventListener("click",()=>{localStorage.setItem("james_session_id",session.id);historyBefore=null;historyHasMore=false;loadHistory(false);renderChatSessions();});
+  list.appendChild(button);
+ }
+}
+function updateChatSessionTitle(message){
+ const sessions=readChatSessions(),item=sessions.find(session=>session.id===getSessionId());
+ if(item){if(!item.title||item.title==="Nova conversa"||item.title==="Conversa principal")item.title=String(message||"Nova conversa").replace(/\s+/g," ").trim().slice(0,42)||"Nova conversa";item.updatedAt=Date.now();}
+ localStorage.setItem(CHAT_SESSIONS_KEY,JSON.stringify(sessions));renderChatSessions();
+}
+function startNewChat(){
+ const id=window.crypto&&crypto.randomUUID?crypto.randomUUID():"james-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+ localStorage.setItem("james_session_id",id);const sessions=readChatSessions();sessions.unshift({id,title:"Nova conversa",updatedAt:Date.now()});
+ localStorage.setItem(CHAT_SESSIONS_KEY,JSON.stringify(sessions.slice(0,30)));historyBefore=null;historyHasMore=false;
+ chat.replaceChildren();addMessage("Nova conversa iniciada. O contexto desta janela começa separado das outras conversas.","bot");renderChatSessions();
+}
 
 let jamesVoiceStyle=localStorage.getItem("james_voice_style")||"jarvis";
 function applyJamesVoiceStyle(){
@@ -709,6 +752,7 @@ async function sendMessage(message,attachments=null){
 
  if(text)addMessage(text,"user");
  if(files.length)addMessage("Anexos enviados: "+files.map(file=>file.name).join(", "),"user");
+ updateChatSessionTitle(text||"Análise de anexos");
 
  $("prompt").value="";
  $("send").disabled=true;
@@ -774,18 +818,22 @@ async function sendMessage(message,attachments=null){
  }
 }
 
-const viewIds={overview:"overviewView",control:"controlView",intelligence:"intelligenceView",voices:"voicesView",perception:"perceptionView",device:"deviceView",world:"worldView"};
+const controlSectionIds=["controlView","voicesView","perceptionView","deviceView","worldView"];
 function switchView(name){
- const active=viewIds[name]?name:"overview";
- for(const [key,id] of Object.entries(viewIds))$(id).hidden=key!==active;
- document.querySelectorAll("[data-view-target]").forEach(button=>{
-  if(button.dataset.viewTarget)button.setAttribute("aria-pressed",String(button.dataset.viewTarget===active));
+ const active=["overview","control","intelligence"].includes(name)?name:"overview";
+ $("overviewView").hidden=active!=="overview";
+ $("intelligenceView").hidden=active!=="intelligence";
+ for(const id of controlSectionIds)$(id).hidden=active!=="control";
+ document.querySelectorAll(".v4-nav [data-view-target]").forEach(button=>{
+  button.setAttribute("aria-pressed",String(button.dataset.viewTarget===active));
  });
- if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();}
- if(active==="device")refreshDeviceDiagnostics();
+ if(active==="intelligence")loadHistory(false);
+ if(active==="control"){loadTasks();loadMemories();refreshDeviceDiagnostics();}
  window.scrollTo({top:0,behavior:"smooth"});
 }
 document.querySelectorAll("[data-view-target]").forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.viewTarget)));
+const auxiliaryPanels=document.querySelector(".side-column");
+if(auxiliaryPanels)$("controlView").appendChild(auxiliaryPanels);
 const launchWindowsWorld=action=>{window.location.href="james://world/"+action;statusBox.textContent="Enviando comando ao componente Windows. Se ainda não estiver instalado, execute primeiro o instalador desta aba no computador.";};
 $("openGodsEye").addEventListener("click",()=>launchWindowsWorld("open"));
 $("updateGodsEye").addEventListener("click",()=>launchWindowsWorld("update"));
@@ -799,6 +847,8 @@ document.querySelectorAll("[data-scroll-target]").forEach(button=>button.addEven
 $("overviewVoice").addEventListener("click",()=>{switchView("intelligence");$("voice").click();});
 $("headOpenChat").addEventListener("click",()=>switchView("intelligence"));
 $("headOpenControl").addEventListener("click",()=>switchView("control"));
+$("newChat").addEventListener("click",startNewChat);
+renderChatSessions();
 switchView("overview");
 $("loadOlder").addEventListener("click",()=>loadHistory(true));
 $("voiceOutput").addEventListener("click",()=>{
