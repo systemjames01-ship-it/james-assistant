@@ -95,7 +95,7 @@ if ((primaryNav.match(/data-view-target=/g) || []).length !== 3 ||
     !hologramJs.includes("window.JamesVisualBriefing?.show(inputText,spoken)") ||
     !html.includes('const controlSectionIds=["controlView","voicesView","perceptionView","deviceView","worldView"]') ||
     !html.includes('const CHAT_SESSIONS_KEY="james_chat_sessions_v4"') ||
-    !serviceWorker.includes('james-shell-v4-0')) {
+    !serviceWorker.includes('james-shell-v4-1')) {
   throw new Error("Jâmes v4 must expose exactly three primary areas, a local multi-conversation manager, a unified control panel, and a refreshed PWA cache.");
 }
 
