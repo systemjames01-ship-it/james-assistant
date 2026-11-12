@@ -816,6 +816,7 @@ async function sendMessage(message,attachments=null){
   }
 
   addMessage(data.reply,"bot");
+  window.JamesVisualBriefing?.show(text,data.reply);
   executeAndroidActions(data.clientActions);
   if(eye){eye.dataset.state="idle";$("eyeState").textContent="NÚCLEO ÓPTICO // RESPOSTA CONCLUÍDA";}
   statusBox.textContent=data.reasoningLevel==="high"
