@@ -27,6 +27,7 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - list_memories: consulta as memórias explicitamente guardadas pelo usuário.
 - delete_memory: apaga uma memória identificada, somente quando o usuário pedir para esquecê-la/apagá-la.
 - android_open_app: abre um aplicativo instalado pelo nome exato, somente quando o usuário pedir.
+- open_url: abre um site ou painel de dispositivo em endereço HTTP/HTTPS, somente quando o usuário pedir explicitamente. Não acesse credenciais nem contorne autenticação.
 - android_schedule_reminder: agenda uma notificação local no Android, somente quando o usuário pedir explicitamente e fornecer horário claro.
 - android_open_settings: abre uma tela permitida das Configurações do Android, somente quando o usuário pedir.
 - android_ui_action: atua pontualmente na interface VISÍVEL do Android (tocar em texto, digitar no campo focado, rolar, voltar ou ir à tela inicial). Somente quando o usuário pedir explicitamente. Exige ativação manual do Serviço de Acessibilidade do Jâmes. Nunca afirme execução sem confirmação do aparelho.
@@ -55,6 +56,8 @@ const LIVE_FUNCTION_DECLARATIONS = [
   { name: "list_memories", description: "Lista as memórias explicitamente salvas pelo usuário.", parameters: { type: "OBJECT", properties: {} } },
   { name: "delete_memory", description: "Apaga uma memória somente quando o usuário pedir explicitamente para esquecer.", parameters: { type: "OBJECT", properties: { memory_id: { type: "INTEGER" } }, required: ["memory_id"] } },
   { name: "android_open_app", description: "Abre um aplicativo instalado somente quando o usuário pedir explicitamente.", parameters: { type: "OBJECT", properties: { app_name: { type: "STRING" } }, required: ["app_name"] } },
+  { name: "open_url", description: "Abre um site ou painel de dispositivo HTTP/HTTPS somente quando o usuário pedir explicitamente. Não contorne autenticação.", parameters: { type: "OBJECT", properties: { url: { type: "STRING" } }, required: ["url"] } },
+  { name: "open_url", description: "Abre um site HTTPS ou painel HTTP/HTTPS de dispositivo somente quando o usuário pedir explicitamente.", parameters: { type: "OBJECT", properties: { url: { type: "STRING" } }, required: ["url"] } },
   { name: "android_schedule_reminder", description: "Agenda lembrete local somente com pedido explícito e horário futuro com fuso.", parameters: { type: "OBJECT", properties: { title: { type: "STRING" }, at: { type: "STRING" } }, required: ["title", "at"] } },
   { name: "android_open_settings", description: "Abre configurações Android somente quando o usuário pedir explicitamente.", parameters: { type: "OBJECT", properties: { section: { type: "STRING", enum: ["wifi", "bluetooth", "display", "sound", "apps", "battery", "notifications"] } }, required: ["section"] } },
   { name: "windows_gods_eye_view", description: "Abre, atualiza ou encerra o observatório God’s Eye View no Windows após pedido explícito. O componente local precisa estar instalado.", parameters: { type: "OBJECT", properties: { action: { type: "STRING", enum: ["open", "update", "stop"] } }, required: ["action"] } },
@@ -542,6 +545,13 @@ async function executeAssistantTool(env, sessionId, name, args = {}, profileId =
       clientAction.direction = direction;
     }
     return { queuedForDevice: true, clientAction, instruction: "A ação foi encaminhada, mas ainda não foi executada. Aguarde a confirmação do Android; se o serviço estiver desativado, informe isso ao usuário." };
+  }
+  if (name === "open_url") {
+    const rawUrl = typeof args.url === "string" ? args.url.trim().slice(0, 2048) : "";
+    let parsed;
+    try { parsed = new URL(rawUrl); } catch { return { error: "Endereço inválido." }; }
+    if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname) return { error: "Somente endereços HTTP/HTTPS são permitidos." };
+    return { queuedForDevice: true, clientAction: { type: "open_url", url: parsed.href }, instruction: "O endereço foi encaminhado ao cliente. Não afirme que abriu até receber a confirmação do dispositivo ou navegador." };
   }
   if (name === "android_open_app") {
     const appName = typeof args.app_name === "string" ? args.app_name.trim().slice(0, 80) : "";
