@@ -1109,7 +1109,8 @@ async function sendMessage(message,attachments=null){
     platform:window.JamesAndroid?"android":"web",
     timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"desconhecido",
     localNow,
-    device:readNativeDeviceInfo(),\n    connections:readConnections().map(({name,type,target})=>({name,type,target}))
+    device:readNativeDeviceInfo(),
+    connections:readConnections().map(({name,type,target})=>({name,type,target}))
    }
   };
 
