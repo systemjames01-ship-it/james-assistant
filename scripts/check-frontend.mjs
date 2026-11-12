@@ -49,6 +49,8 @@ if (!html.includes('id="conversationPicker"') ||
     !html.includes("setTimeout(render,7000)") ||
     !html.includes("function getProfileId()") ||
     !html.includes("profileId:getProfileId()") ||
+    !html.includes("async function syncConversationList()") ||
+    !html.includes("window.syncConversationList=syncConversationList") ||
     !html.includes('id="profileCode"') ||
     !html.includes('id="applyProfileCode"') ||
     !hologramJs.includes("profileId:profileId()")) {
@@ -57,6 +59,7 @@ if (!html.includes('id="conversationPicker"') ||
 if (!androidMain.includes("private fun createNewConversation()") ||
     !androidMain.includes("private fun showConversationPicker()") ||
     !androidMain.includes("private fun showLiveVisuals(items: JSONArray)") ||
+    !androidMain.includes("private fun persistLiveTurn(userText: String, modelText: String)") ||
     !androidMain.includes("liveVisualHandler.postDelayed(next, 7000)") ||
     !androidMain.includes("conversations_json") ||
     !androidMain.includes("private lateinit var profileId: String") ||
@@ -67,6 +70,9 @@ if (!androidMain.includes("private fun createNewConversation()") ||
 if (!workerCode.includes("profileId = sessionId") ||
     !workerCode.includes("executeAssistantTool(env, sessionId, call.name, call.args || {}, profileId)") ||
     !workerCode.includes("async function searchPublicImages") ||
+    !workerCode.includes("async function fetchProfileConversations") ||
+    !workerCode.includes("async function registerProfileConversation") ||
+    !workerCode.includes('url.searchParams.get("action") === "conversations"') ||
     !workerCode.includes('name: "search_public_images"') ||
     !workerCode.includes("visuals: visuals.slice(0, 6)") ||
     !workerCode.includes("async function consumeRequestRateLimit") ||
