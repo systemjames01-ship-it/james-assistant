@@ -90,7 +90,8 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .profile-pairing .profile-code-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
 .profile-pairing code{display:block;flex:1;min-width:180px;padding:10px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#9beaff;overflow-wrap:anywhere}
 .profile-pairing label{display:block;margin:10px 0 6px;color:#91b5c7;font-size:10px}
-.profile-pairing input{width:100%;min-height:38px;padding:9px 11px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#d8f4fa}
+.profile-pairing input,.profile-pairing textarea{width:100%;min-height:38px;padding:9px 11px;border:1px solid rgba(104,228,242,.2);border-radius:7px;background:#061522;color:#d8f4fa}
+.profile-pairing textarea{resize:vertical;min-height:110px;font:11px/1.5 'DM Mono',monospace}
 .profile-pairing .profile-warning{font-size:10px;color:#c29a75}
 .holo-visuals{position:absolute;z-index:8;right:12px;bottom:38px;width:min(38%,250px);padding:7px;border:1px solid rgba(110,231,255,.5);border-radius:9px;background:rgba(2,14,27,.9);box-shadow:0 0 22px rgba(38,191,255,.2);backdrop-filter:blur(8px)}
 .holo-visuals a{display:block;color:#c9f6ff;text-decoration:none}
@@ -286,6 +287,13 @@ body{background:radial-gradient(ellipse at 50% 8%,rgba(13,99,145,.28),transparen
    <input id="profileCodeInput" autocomplete="off" spellcheck="false" placeholder="Cole aqui o código do outro aparelho">
    <div class="module-actions"><button type="button" id="applyProfileCode">VINCULAR PERFIL</button></div>
    <p class="profile-warning">Mantenha este código privado: quem o possuir poderá acessar o mesmo espaço de memórias e tarefas. A sincronização de conversas completas entre aparelhos ainda é uma etapa separada.</p>
+  </article>
+  <article class="overview-card wide profile-pairing">
+   <h2>Personalização do Jâmes</h2>
+   <p>Defina orientações permanentes para o comportamento, o estilo de resposta e as prioridades do seu assistente. Essas instruções serão aplicadas em todas as conversas vinculadas ao mesmo perfil.</p>
+   <label for="profileInstructions">Instruções personalizadas</label>
+   <textarea id="profileInstructions" rows="5" maxlength="1200" placeholder="Ex.: responda em português brasileiro, explique decisões importantes e peça confirmação antes de ações sensíveis."></textarea>
+   <div class="module-actions"><button type="button" id="saveProfileInstructions">SALVAR PERSONALIZAÇÃO</button></div>
   </article>
   <article class="overview-card wide"><h2>Núcleo de inteligência</h2><div class="metric" id="overviewCoreState">INICIALIZANDO</div><p id="overviewCoreDetail">Verificando a conexão com o serviço de inteligência e suas ferramentas.</p><div class="module-actions"><button type="button" data-view-target="intelligence">Abrir console de comando</button><button type="button" class="secondary" id="overviewVoice">Falar com Jâmes</button></div></article>
   <article class="overview-card"><h2>Dispositivo</h2><div class="metric" id="overviewBattery">--</div><div class="metric-sub" id="overviewDeviceName">Dados do aparelho indisponíveis</div><div class="module-actions"><button type="button" class="secondary" data-view-target="device">Diagnóstico</button></div></article>
@@ -574,6 +582,8 @@ async function loadMemories(){
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||"Memória ainda não disponível no servidor.");
   const memories=Array.isArray(data.memories)?data.memories:[];
+  const instructions=memories.find(memory=>memory.key==="instrucoes_personalizadas");
+  if($("profileInstructions"))$("profileInstructions").value=instructions?.value||"";
   container.replaceChildren();
   if(!memories.length){
    container.textContent="Nenhuma memória permanente foi autorizada neste perfil.";
@@ -712,6 +722,27 @@ async function copyProfileCode(){
   statusBox.textContent="Código de perfil copiado.";
  }catch(error){
   statusBox.textContent="Não foi possível copiar automaticamente. Selecione o código exibido e copie manualmente.";
+ }
+}
+async function saveProfileInstructions(){
+ const value=$("profileInstructions").value.trim().slice(0,1200);
+ try{
+  const response=await fetch(WORKER_URL+"?action=live-tool",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({
+    sessionId:getSessionId(),
+    profileId:getProfileId(),
+    name:"save_memory",
+    args:{key:"instrucoes_personalizadas",value}
+   })
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data.result?.success===false||data.result?.error)throw new Error(data.result?.error||data.error||"Não foi possível salvar.");
+  statusBox.textContent="Personalização salva no perfil. Será aplicada nas próximas respostas.";
+  loadMemories();
+ }catch(error){
+  statusBox.textContent="Não foi possível salvar a personalização: "+(error.message||"falha de conexão");
  }
 }
 function applyProfileCode(){
@@ -1044,6 +1075,7 @@ function switchView(name){
   button.setAttribute("aria-pressed",String(button.dataset.viewTarget===primary));
  });
  if(active==="intelligence"){loadHistory(false);loadTasks();loadMemories();syncConversationList();}
+ if(active==="control"){loadTasks();loadMemories();refreshProfileCode();}
  if(active==="device")refreshDeviceDiagnostics();
  window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -1067,6 +1099,7 @@ $("newConversation").addEventListener("click",createNewConversation);
 $("conversationPicker").addEventListener("change",event=>selectConversation(event.target.value));
 $("copyProfileCode").addEventListener("click",copyProfileCode);
 $("applyProfileCode").addEventListener("click",applyProfileCode);
+$("saveProfileInstructions").addEventListener("click",saveProfileInstructions);
 refreshConversationPicker();
 refreshProfileCode();
 $("voiceOutput").addEventListener("click",()=>{
