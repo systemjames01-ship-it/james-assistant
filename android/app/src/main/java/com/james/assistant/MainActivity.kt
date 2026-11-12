@@ -104,6 +104,7 @@ class MainActivity : android.app.Activity() {
     private var liveVisualChatCard: LinearLayout? = null
     private var liveVisualChatImage: ImageView? = null
     private var liveVisualChatCredit: TextView? = null
+    private var profileInstructionsInput: EditText? = null
     private val liveVisualHandler = Handler(Looper.getMainLooper())
     private var liveVisuals = emptyList<JSONObject>()
     private var lastLiveVisuals = emptyList<JSONObject>()
@@ -432,7 +433,24 @@ class MainActivity : android.app.Activity() {
                 .show()
         }
         addText(profile, "Mantenha o código privado: quem o possuir poderá acessar as memórias e tarefas deste perfil.", 9f, COLOR_MUTED, top = 7)
+        addText(profile, "INSTRUÇÕES PERSONALIZADAS", 10f, COLOR_CYAN, true, top = 12)
+        addText(profile, "Defina como o Jâmes deve responder e quais prioridades deve respeitar em todas as conversas vinculadas a este perfil.", 10f, COLOR_MUTED, top = 5)
+        val instructionsInput = EditText(this).apply {
+            hint = "Ex.: responda em português brasileiro, explique decisões e peça confirmação antes de ações sensíveis."
+            setHintTextColor(COLOR_MUTED)
+            setTextColor(COLOR_TEXT)
+            textSize = 12f
+            minLines = 4
+            maxLines = 7
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            setPadding(dp(10), dp(9), dp(10), dp(9))
+            background = background(0xFF020910.toInt(), 0xFF29485C.toInt())
+        }
+        profileInstructionsInput = instructionsInput
+        profile.addView(instructionsInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(7) })
+        addButton(profile, "SALVAR PERSONALIZAÇÃO") { saveProfileInstructions() }
         page.addView(profile)
+        loadProfileInstructions()
 
         val sensors = card()
         addText(sensors, "SENSORES E PERCEPÇÃO", 11f, COLOR_CYAN, true)
@@ -1008,6 +1026,67 @@ class MainActivity : android.app.Activity() {
         }
     }
 
+    private fun loadProfileInstructions() {
+        val targetProfile = profileId
+        executor.execute {
+            try {
+                val result = request("$WORKER_URL/?action=memories&profileId=$targetProfile")
+                val memories = result.optJSONArray("memories") ?: JSONArray()
+                var instructions = ""
+                for (index in 0 until memories.length()) {
+                    val item = memories.optJSONObject(index) ?: continue
+                    if (item.optString("key") == "instrucoes_personalizadas") {
+                        instructions = item.optString("value")
+                        break
+                    }
+                }
+                runOnUiThread { profileInstructionsInput?.setText(instructions) }
+            } catch (error: Exception) {
+                android.util.Log.w("JamesProfile", "Personalization could not be loaded", error)
+            }
+        }
+    }
+
+    private fun saveProfileInstructions() {
+        val value = profileInstructionsInput?.text?.toString()?.trim()?.take(1200).orEmpty()
+        val targetSession = sessionId
+        val targetProfile = profileId
+        executor.execute {
+            try {
+                var name = "save_memory"
+                var args = JSONObject().put("key", "instrucoes_personalizadas").put("value", value)
+                if (value.isBlank()) {
+                    val existing = request("$WORKER_URL/?action=memories&profileId=$targetProfile")
+                        .optJSONArray("memories") ?: JSONArray()
+                    val memory = (0 until existing.length()).mapNotNull { existing.optJSONObject(it) }
+                        .firstOrNull { it.optString("key") == "instrucoes_personalizadas" }
+                    if (memory == null) {
+                        runOnUiThread { setStatus("Não há personalização salva para remover.") }
+                        return@execute
+                    }
+                    name = "delete_memory"
+                    args = JSONObject().put("memory_id", memory.optLong("id"))
+                }
+                val payload = JSONObject()
+                    .put("sessionId", targetSession)
+                    .put("profileId", targetProfile)
+                    .put("name", name)
+                    .put("args", args)
+                val response = request("$WORKER_URL/?action=live-tool", "POST", payload)
+                val result = response.optJSONObject("result") ?: JSONObject()
+                if (result.has("error") || result.optBoolean("success") == false) {
+                    throw IOException(result.optString("error").ifBlank { "O perfil não confirmou a alteração." })
+                }
+                runOnUiThread {
+                    setStatus(if (value.isBlank()) "PERSONALIZAÇÃO REMOVIDA" else "PERSONALIZAÇÃO SALVA NO PERFIL")
+                    loadProfileInstructions()
+                }
+            } catch (error: Exception) {
+                runOnUiThread { setStatus("FALHA AO SALVAR PERSONALIZAÇÃO: " + (error.message ?: "erro")) }
+            }
+        }
+    }
+
     private fun loadMemoriesInto(panel: LinearLayout) {
         panel.removeViews(3, (panel.childCount - 3).coerceAtLeast(0))
         executor.execute {
@@ -1063,7 +1142,7 @@ class MainActivity : android.app.Activity() {
         connection.readTimeout = 30000
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("Origin", APP_ORIGIN)
-        connection.setRequestProperty("User-Agent", "JamesAndroid/3.0.0")
+        connection.setRequestProperty("User-Agent", "JamesAndroid/3.2.0")
         if (body != null) {
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
