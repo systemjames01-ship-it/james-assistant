@@ -29,7 +29,7 @@ FERRAMENTAS REAIS DISPONÍVEIS NESTA VERSÃO:
 - android_open_settings: abre uma tela permitida das Configurações do Android, somente quando o usuário pedir.
 - android_ui_action: atua pontualmente na interface VISÍVEL do Android (tocar em texto, digitar no campo focado, rolar, voltar ou ir à tela inicial). Somente quando o usuário pedir explicitamente. Exige ativação manual do Serviço de Acessibilidade do Jâmes. Nunca afirme execução sem confirmação do aparelho.
 - windows_gods_eye_view: abre, atualiza ou encerra o projeto God’s Eye View no Windows somente quando o usuário pedir explicitamente. Requer o componente Windows do Jâmes instalado uma vez.
-Memórias ficam vinculadas à sessão deste navegador; não prometa sincronização entre dispositivos.
+Memórias e tarefas ficam vinculadas ao perfil deste aparelho e são compartilhadas entre as conversas que usam esse perfil. Ainda não prometa sincronização entre aparelhos sem pareamento autorizado.
 Integração Android: android_open_app, android_schedule_reminder e android_open_settings enviam uma ação ao aplicativo Android nativo; o Worker não executa essas ações. Use-as somente quando o usuário pedir explicitamente. Nunca afirme sucesso antes da confirmação retornada pelo dispositivo.
 Após chamar uma ferramenta, confira o resultado retornado antes de afirmar que a ação ocorreu.
 
@@ -408,7 +408,7 @@ async function executeAssistantTool(env, sessionId, name, args = {}, profileId =
     if (!title) return { error: "A tarefa precisa ter um título." };
     const result = await env.DB.prepare(
       "INSERT INTO james_tasks_v21 (session_id, title, details) VALUES (?, ?, ?)"
-    ).bind(sessionId, title, details).run();
+    ).bind(profileId, title, details).run();
     return { success: true, taskId: result.meta?.last_row_id ?? null, title, status: "open" };
   }
 
@@ -426,8 +426,8 @@ async function executeAssistantTool(env, sessionId, name, args = {}, profileId =
     if (!Number.isSafeInteger(taskId) || taskId < 1) return { error: "Identificador de tarefa inválido." };
     const result = await env.DB.prepare(
       "UPDATE james_tasks_v21 SET status = 'completed', completed_at = datetime('now') WHERE id = ? AND session_id = ? AND status = 'open'"
-    ).bind(taskId, sessionId).run();
-    if (!result.meta?.changes) return { success: false, error: "Tarefa não encontrada ou já concluída nesta sessão." };
+    ).bind(taskId, profileId).run();
+    if (!result.meta?.changes) return { success: false, error: "Tarefa não encontrada ou já concluída neste perfil." };
     return { success: true, taskId, status: "completed" };
   }
 
@@ -440,13 +440,13 @@ async function executeAssistantTool(env, sessionId, name, args = {}, profileId =
     await env.DB.prepare(
       "INSERT INTO james_memories_v21 (session_id, memory_key, memory_value) VALUES (?, ?, ?) ON CONFLICT(session_id, memory_key) DO UPDATE SET memory_value = excluded.memory_value, updated_at = datetime('now')"
     ).bind(profileId, key, value).run();
-    return { success: true, key, message: "Memória salva na sessão atual." };
+    return { success: true, key, message: "Memória salva no perfil atual." };
   }
 
   if (name === "list_memories") {
     const result = await env.DB.prepare(
       "SELECT id, memory_key, memory_value, updated_at FROM james_memories_v21 WHERE session_id = ? ORDER BY updated_at DESC LIMIT 50"
-    ).bind(sessionId).all();
+    ).bind(profileId).all();
     return { memories: (result.results || []).map(row => ({
       id: row.id, key: row.memory_key, value: row.memory_value, updatedAt: row.updated_at
     })) };
@@ -458,7 +458,7 @@ async function executeAssistantTool(env, sessionId, name, args = {}, profileId =
     const result = await env.DB.prepare(
       "DELETE FROM james_memories_v21 WHERE id = ? AND session_id = ?"
     ).bind(memoryId, profileId).run();
-    if (!result.meta?.changes) return { success: false, error: "Memória não encontrada nesta sessão." };
+    if (!result.meta?.changes) return { success: false, error: "Memória não encontrada neste perfil." };
     return { success: true, memoryId, message: "Memória apagada." };
   }
 
