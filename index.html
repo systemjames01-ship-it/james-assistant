@@ -727,22 +727,30 @@ async function copyProfileCode(){
 async function saveProfileInstructions(){
  const value=$("profileInstructions").value.trim().slice(0,1200);
  try{
+  let name="save_memory";
+  let args={key:"instrucoes_personalizadas",value};
+  if(!value){
+   const listResponse=await fetch(WORKER_URL+"?"+new URLSearchParams({action:"memories",profileId:getProfileId()}));
+   const listData=await listResponse.json().catch(()=>({}));
+   const existing=(listData.memories||[]).find(memory=>memory.key==="instrucoes_personalizadas");
+   if(!existing){
+    statusBox.textContent="Não há instruções personalizadas salvas.";
+    return;
+   }
+   name="delete_memory";
+   args={memory_id:existing.id};
+  }
   const response=await fetch(WORKER_URL+"?action=live-tool",{
    method:"POST",
    headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({
-    sessionId:getSessionId(),
-    profileId:getProfileId(),
-    name:"save_memory",
-    args:{key:"instrucoes_personalizadas",value}
-   })
+   body:JSON.stringify({sessionId:getSessionId(),profileId:getProfileId(),name,args})
   });
   const data=await response.json().catch(()=>({}));
   if(!response.ok||data.result?.success===false||data.result?.error)throw new Error(data.result?.error||data.error||"Não foi possível salvar.");
-  statusBox.textContent="Personalização salva no perfil. Será aplicada nas próximas respostas.";
+  statusBox.textContent=value?"Personalização salva no perfil. Será aplicada nas próximas respostas.":"Personalização removida do perfil.";
   loadMemories();
  }catch(error){
-  statusBox.textContent="Não foi possível salvar a personalização: "+(error.message||"falha de conexão");
+  statusBox.textContent="Não foi possível atualizar a personalização: "+(error.message||"falha de conexão");
  }
 }
 function applyProfileCode(){
