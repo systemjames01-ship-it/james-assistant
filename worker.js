@@ -948,9 +948,18 @@ export default {
               model: "models/gemini-3.8-live",
               config: {
                 generationConfig: {
-                  responseModalities: ["TEXT"]
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    languageCode: "pt-BR",
+                    voiceConfig: {
+                      prebuiltVoiceConfig: {
+                        voiceName: ["Charon", "Algieba", "Algenib"][voiceProfile]
+                      }
+                    }
+                  }
                 },
                 inputAudioTranscription: {},
+                outputAudioTranscription: {},
                 realtimeInputConfig: {
                   automaticActivityDetection: { disabled: false }
                 },
